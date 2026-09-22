@@ -1,0 +1,206 @@
+﻿@using System.Text.Json.Serialization
+@using System.Collections.Concurrent
+@using System.Text.Json
+@using Microsoft.Extensions.Logging
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+@inject ILogger<Panel> Logger
+
+<CascadingValue Value="this">
+    <div @ref="_panelElement" class="gx-panel container-fluid" data-fill-viewport="@(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "true" : "false")" style="@($"height:{(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "auto" : Height ?? "90vh")};{Style}")">
+        <div id="leftDiv" style="@GetStyle(0)">
+            @if (Items?.Count > 0)
+            {
+                @Items[0].ChildContent
+            }
+        </div>
+        <div id="verticalDivider">&nbsp;</div>
+        <div id="rightDiv" style="@GetStyle(1)">
+            @if (Items?.Count > 1)
+            {
+                @Items[1].ChildContent
+            }
+        </div>
+    </div>
+    @ChildContent
+</CascadingValue>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+
+    private string? GetStyle(int index)
+    {
+        string? str = null;
+        if (Items.Count > index)
+        {
+            str = Items[index].Style;
+            if (index == 0)
+            {
+                if (string.IsNullOrEmpty((Items[index].SavedWidth ?? Items[index].Width)))
+                {
+                    str += "flex-basis: 100%;";
+                }
+                else
+                {
+                    str += "flex-basis: " + (Items[index].SavedWidth ?? Items[index].Width) + ";";
+                }
+            }
+            if (string.IsNullOrEmpty((Items[index].Height ?? Items[index].SavedHeight)))
+            {
+                str += "height: 100%;";
+            }
+            else
+            {
+                str += "height: " + (Items[index].Height ?? Items[index].SavedHeight) + ";";
+            }
+        }
+        return str;
+    }
+
+    /// <inheritdoc />
+    public string Name
+    {
+        get
+        {
+            return "Panel";
+        }
+    }
+
+    /// <inheritdoc />
+    [JsonIgnore]
+    public Type? ConfigurationUI
+    {
+        get
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public string? Icon
+    {
+        get
+        {
+            return "PanelIcon";
+        }
+    }
+
+    /// <summary>
+    /// Panel ID.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Child panels.
+    /// </summary>
+    private readonly List<PanelItem> Items = new List<PanelItem>();
+
+    [Parameter]
+    public string? CssClass { get; set; }
+
+    [Parameter]
+    public string? Style { get; set; }
+
+    /// <summary>
+    /// Top position.
+    /// </summary>
+    [Parameter]
+    public int Top
+    {
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// Left position.
+    /// </summary>
+    [Parameter]
+    public int Left
+    {
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// Width.
+    /// </summary>
+    [Parameter]
+    public string? Width
+    {
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// Height.
+    /// </summary>
+    [Parameter]
+    public string? Height
+    {
+        get;
+        set;
+    }
+
+    private ElementReference _panelElement;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _splitter;
+    private bool _initialized;
+    private DotNetObjectReference<Panel>? _reference;
+
+    [JSInvokable]
+    public async Task SaveSizes(double leftWidth, double leftHeight, double rightWidth, double rightHeight)
+    {
+        if (Items.Count < 2) return;
+        await Items[0].SaveSizeAsync(leftWidth, leftHeight);
+        await Items[1].SaveSizeAsync(rightWidth, rightHeight);
+    }
+
+
+    internal async Task AddItem(PanelItem value)
+    {
+        Items.Add(value);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_initialized || Items.Count < 2) return;
+        _initialized = true;
+        try
+        {
+            foreach (var item in Items)
+            {
+                await item.LoadSizeAsync();
+            }
+            await InvokeAsync(StateHasChanged);
+            _reference = DotNetObjectReference.Create(this);
+            _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import",
+                "./_content/Gurux.UI.Components/Panel/window.js");
+            _splitter = await _module.InvokeAsync<IJSObjectReference>("initializeSplitter", _panelElement, _reference);
+        }
+        catch (JSException ex)
+        {
+            Logger.LogError(ex, "Panel splitter initialization failed.");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_splitter != null)
+            {
+                await _splitter.InvokeVoidAsync("dispose");
+                await _splitter.DisposeAsync();
+            }
+            if (_module != null) await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+        finally { _reference?.Dispose(); }
+    }
+}

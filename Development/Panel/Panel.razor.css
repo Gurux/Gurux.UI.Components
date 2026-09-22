@@ -1,0 +1,29 @@
+.gx-panel {
+    display: flex;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+#leftDiv {
+    box-sizing: border-box;
+    flex: 0 1 50%;
+    min-width: 0;
+    overflow: auto;
+}
+#rightDiv {
+    box-sizing: border-box;
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: auto;
+}
+#verticalDivider {
+    box-sizing: border-box;
+    flex: 0 0 6px;
+    align-self: stretch;
+    background: #1b1b51;
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+}

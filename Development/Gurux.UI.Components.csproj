@@ -1,0 +1,59 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <Company>Gurux Ltd</Company>
+        <Authors>Gurux Ltd</Authors>
+        <Copyright>Copyright (c) 1998-2026 Gurux Ltd. All rights reserved.</Copyright>
+        <PackageProjectUrl>https://www.gurux.fi</PackageProjectUrl>
+        <Description>Reusable Gurux UI components for web, Windows, iOS, and Android applications.</Description>
+        <Version Condition=" '$(BUILD_BUILDNUMBER)' == '' ">0.0.1-local</Version>
+        <Version Condition=" '$(BUILD_BUILDNUMBER)' != '' ">$(BUILD_BUILDNUMBER)</Version>
+        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <RepositoryUrl>https://github.com/gurux/gurux.ui.components</RepositoryUrl>
+        <PackageTags>UI </PackageTags>
+        <PackageId>Gurux.UI.Components</PackageId>
+        <PackageIcon>Gurux.UI.Components.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseExpression>GPL-2.0-only</PackageLicenseExpression>
+        <ApplicationIcon>Gurux.UI.Components.ico</ApplicationIcon>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    </PropertyGroup>
+    <ItemGroup>
+        <SupportedPlatform Include="browser" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Update="Properties\Resources.Designer.cs">
+            <DesignTime>True</DesignTime>
+            <AutoGen>True</AutoGen>
+            <DependentUpon>Resources.resx</DependentUpon>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Update="Properties\Resources.resx">
+            <Generator>ResXFileCodeGenerator</Generator>
+            <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+        </EmbeddedResource>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="Gurux.UI.Components.png" Pack="true" PackagePath="\" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="wwwroot\" />
+    </ItemGroup>
+
+</Project>

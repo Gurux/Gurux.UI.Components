@@ -1,0 +1,105 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+
+@inject IGXLocalStorage LocalStorage
+@code {
+    [Parameter] public string? Id { get; set; }
+    internal string? SavedWidth { get; private set; }
+    internal string? SavedHeight { get; private set; }
+    internal async Task LoadSizeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Id)) return;
+        var json = await LocalStorage.GetValueAsync($"PanelItem:{Id}:Size");
+        if (string.IsNullOrWhiteSpace(json)) return;
+        try
+        {
+            var size = System.Text.Json.JsonSerializer.Deserialize<double[]>(json);
+            if (size is { Length: 2 } && size.All(value => double.IsFinite(value) && value >= 0))
+                SetSize(size[0], size[1]);
+        }
+        catch (System.Text.Json.JsonException) { }
+    }
+    private void SetSize(double width, double height)
+    {
+        SavedWidth = width.ToString(System.Globalization.CultureInfo.InvariantCulture) + "px";
+        SavedHeight = height.ToString(System.Globalization.CultureInfo.InvariantCulture) + "px";
+    }
+    internal async Task SaveSizeAsync(double width, double height)
+    {
+        if (string.IsNullOrWhiteSpace(Id) || !double.IsFinite(width) || !double.IsFinite(height) || width < 0 || height < 0) return;
+        SetSize(width, height);
+        await LocalStorage.SetValueAsync($"PanelItem:{Id}:Size", System.Text.Json.JsonSerializer.Serialize(new[] { width, height }));
+    }
+
+    [CascadingParameter]
+    private Panel? Parent { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? CssClass { get; set; }
+
+    [Parameter]
+    public string? Style { get; set; } = "overflow:auto;padding:1rem;";
+
+    /// <summary>
+    /// Width.
+    /// </summary>
+    [Parameter]
+    public string? Width
+    {
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// Height.
+    /// </summary>
+    [Parameter]
+    public string? Height
+    {
+        get;
+        set;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Parent == null)
+        {
+            throw new ArgumentNullException(nameof(Parent), "Panel item must exist within a Panel");
+        }
+        await base.OnInitializedAsync();
+        await Parent.AddItem(this);
+    }
+}

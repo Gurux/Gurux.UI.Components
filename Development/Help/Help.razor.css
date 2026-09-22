@@ -1,0 +1,28 @@
+.help-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: inherit;
+    text-decoration: none;
+}
+
+.help-link:hover {
+    color: var(--help-icon-hover-color, #0969da);
+}
+
+.help-link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.help-icon {
+    width: 20px;
+    height: 20px;
+}

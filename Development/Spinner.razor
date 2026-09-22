@@ -1,0 +1,138 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+
+@implements IDisposable
+@inject IGXProgress Progress
+
+@if (Visible || Progress.IsBusy || _visibleTasks.Any())
+{
+    <div class="spinner-overlay">
+        <div class="spinner-border text-primary"
+             role="status"
+             aria-live="polite"
+             aria-label="@AriaLabel">
+        </div>
+
+        @if (!string.IsNullOrEmpty(Text))
+        {
+            <div class="mt-3">
+                @Text
+            </div>
+        }
+
+        @if (_visibleTasks.Any())
+        {
+            <ul class="spinner-task-list mt-3 mb-0 text-start"
+                aria-label="Latest tasks">
+                @foreach (string task in _visibleTasks)
+                {
+                    <li>@task</li>
+                }
+            </ul>
+        }
+        <button type="button" class="btn btn-secondary mt-3" disabled="@_cancelling" @onclick="CancelAllAsync">Cancel</button>
+    </div>
+}
+@ChildContent
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Is spinner visible.
+    /// </summary>
+    [Parameter] public bool Visible { get; set; }
+
+    /// <summary>
+    /// Loading text.
+    /// </summary>
+    [Parameter] public string? Text { get; set; } = "Loading...";
+
+    /// <summary>
+    /// List of executed or currently executing tasks.
+    /// Only the latest <see cref="MaxVisibleTasks"/> tasks are shown.
+    /// </summary>
+    [Parameter] public IEnumerable<string>? Tasks { get; set; }
+
+    /// <summary>
+    /// Maximum number of latest tasks shown in the UI.
+    /// </summary>
+    [Parameter] public int MaxVisibleTasks { get; set; } = 5;
+
+    /// <summary>
+    /// Loading aria label.
+    /// </summary>
+    [Parameter] public string AriaLabel { get; set; } = "Loading";
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+    private bool _cancelling;
+    private readonly List<string> _visibleTasks = new();
+    private bool _disposed;
+
+    protected override void OnInitialized() => Progress.Changed += OnProgressChanged;
+    protected override void OnParametersSet() => UpdateVisibleTasks();
+
+    private void UpdateVisibleTasks()
+    {
+        _visibleTasks.Clear();
+        _visibleTasks.AddRange((Tasks ?? Enumerable.Empty<string>())
+            .Concat(Progress.Tasks)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .TakeLast(Math.Max(0, MaxVisibleTasks)));
+    }
+
+    private void OnProgressChanged()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            UpdateVisibleTasks();
+            StateHasChanged();
+        });
+    }
+
+    private async Task CancelAllAsync()
+    {
+        if (_cancelling) return;
+        _cancelling = true;
+        try { await Task.WhenAll(Progress.CancelAllAsync(), OnCancel.InvokeAsync()); }
+        finally { _cancelling = false; }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Progress.Changed -= OnProgressChanged;
+    }
+}

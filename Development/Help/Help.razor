@@ -1,0 +1,86 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@using Gurux.UI.Components.Enums
+
+@inject NavigationManager NavigationManager
+@implements IDisposable
+@inject GXHelpService HelpService
+
+@if (!HelpService.IsHidden(NavigationManager.Uri))
+{
+    <a class="help-link"
+       href="@HelpService.HelpUrl"
+       target="_blank"
+       rel="noopener noreferrer"
+       aria-label="Help"
+       title="Help">
+        @if (!string.IsNullOrEmpty(HelpService.Image))
+        {
+            <Image Value="@HelpService.Image" id="help"></Image>
+        }
+        else
+        {
+            <svg class="help-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+                <path d="M8 7a4 4 0 0 1 8 0c0 3-4 3-4 6" />
+                <circle cx="12" cy="18" r="1" fill="currentColor" stroke="none" />
+            </svg>
+        }
+    </a>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        HelpService.Changed += OnHelpChanged;
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnHelpChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        HelpService.Changed -= OnHelpChanged;
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
+
+

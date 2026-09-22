@@ -1,0 +1,68 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+
+@using System.Diagnostics.CodeAnalysis
+
+@typeparam TValue
+@inherits InputBase<TValue>
+
+<input type="checkbox" checked="@(CurrentValue is true)"
+       class="@CssClass"
+       @attributes="AdditionalAttributes"
+       @onchange="@((ChangeEventArgs args) => { CurrentValue = FromBoolean(Convert.ToBoolean(args.Value)); })" />
+@code {
+    public InputCheckbox()
+    {
+        if ((Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue)) != typeof(bool))
+            throw new InvalidOperationException("InputCheckbox supports only bool and bool?.");
+    }
+
+    private static TValue FromBoolean(bool value) => (TValue)(object)value;
+
+    protected override bool TryParseValueFromString(string? value,
+        [MaybeNullWhen(false)] out TValue result,
+        [NotNullWhen(false)] out string? validationErrorMessage)
+    {
+        result = default!;
+        validationErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(value) && Nullable.GetUnderlyingType(typeof(TValue)) is not null)
+            return true;
+        if (value is null || bool.TryParse(value, out _))
+        {
+            result = FromBoolean(value is not null && bool.Parse(value));
+            return true;
+        }
+        validationErrorMessage = "Enter a valid boolean value.";
+        return false;
+    }
+}

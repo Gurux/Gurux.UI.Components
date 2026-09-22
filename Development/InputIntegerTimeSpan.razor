@@ -1,0 +1,264 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@using Gurux.UI.Components.Enums
+@using System.Diagnostics.CodeAnalysis
+@using System.Globalization
+
+@typeparam TValue
+@inherits InputBase<TValue>
+@if (Days == true)
+{
+    <span class="@(CssClass + ";inline-block")" @attributes="AdditionalAttributes">
+        <input type="number" step="1" min="0" max="365"
+               value="@GetDaysAsString()"
+               onchange="@((ChangeEventArgs __e) => SetDaysAsString(__e.Value))" />
+        <input type="time" step="@Step"
+               value="@BindConverter.FormatValue(CurrentValueAsString)"
+               onchange="@((ChangeEventArgs __e) => SetTimeAsString(__e.Value))" />
+    </span>
+}
+else
+{
+    <input type="time" class="@CssClass" step="@Step"
+           @attributes="AdditionalAttributes" value="@BindConverter.FormatValue(CurrentValueAsString)"
+           onchange="@((ChangeEventArgs __e) => CurrentValueAsString = Convert.ToString(__e.Value))" />
+
+}
+@code {
+    /// <summary>
+    /// Value is get as a milliseconds.
+    /// </summary>
+    [Parameter]
+    public TimeSpanUnit TimeSpanUnit { get; set; } = TimeSpanUnit.Second;
+
+    /// <summary>
+    /// Days is added to time span.
+    /// </summary>
+    [Parameter]
+    public bool? Days { get; set; }
+
+
+    private int Step
+    {
+        get
+        {
+            int value = 60;
+            switch (TimeSpanUnit)
+            {
+                case TimeSpanUnit.Second:
+                    value = 1;
+                    break;
+                case TimeSpanUnit.Minute:
+                    value = 60;
+                    break;
+                case TimeSpanUnit.Hour:
+                    value = 3600;
+                    break;
+                default:
+                    break;
+            }
+            return value;
+        }
+    }
+
+
+
+    public InputIntegerTimeSpan()
+    {
+        if ((Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue)) != typeof(int))
+            throw new InvalidOperationException("InputIntegerTimeSpan supports only int and int?.");
+    }
+
+    private int IntegerValue => Convert.ToInt32(CurrentValue, CultureInfo.InvariantCulture);
+    private static TValue FromInteger(int value) => (TValue)(object)value;
+
+    protected override bool TryParseValueFromString(string? value,
+        [MaybeNullWhen(false)] out TValue result,
+        [NotNullWhen(false)] out string? validationErrorMessage)
+    {
+        result = default!;
+        validationErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            if (Nullable.GetUnderlyingType(typeof(TValue)) is not null) return true;
+            validationErrorMessage = "Enter a time value.";
+            return false;
+        }
+        if (!TimeSpan.TryParse(value, CultureInfo.CurrentCulture, out var time))
+        {
+            validationErrorMessage = "Enter a valid time value.";
+            return false;
+        }
+        try
+        {
+            result = FromInteger(checked((int)(TimeSpanUnit switch
+            {
+                TimeSpanUnit.Second => time.TotalSeconds,
+                TimeSpanUnit.Minute => time.TotalMinutes,
+                TimeSpanUnit.Hour => time.TotalHours,
+                _ => throw new ArgumentOutOfRangeException()
+            })));
+            return true;
+        }
+        catch (OverflowException)
+        {
+            validationErrorMessage = "The time value is too large.";
+            return false;
+        }
+    }
+
+    private void SetDaysAsString(object? value)
+    {
+        if (string.IsNullOrWhiteSpace(Convert.ToString(value)))
+        {
+            CurrentValueAsString = null;
+            return;
+        }
+        if (int.TryParse(Convert.ToString(value), out int tmp))
+        {
+            var days = TimeSpan.FromDays(tmp);
+            TimeSpan ret;
+            switch (TimeSpanUnit)
+            {
+                case TimeSpanUnit.Second:
+                    ret = TimeSpan.FromSeconds(IntegerValue);
+                    ret -= TimeSpan.FromDays((int)ret.TotalDays);
+                    CurrentValue = FromInteger((int)(days.TotalSeconds + ret.TotalSeconds));
+                    break;
+                case TimeSpanUnit.Minute:
+                    ret = TimeSpan.FromMinutes(IntegerValue);
+                    ret -= TimeSpan.FromDays((int)ret.TotalDays);
+                    CurrentValue = FromInteger((int)(days.TotalMinutes + ret.TotalMinutes));
+                    break;
+                case TimeSpanUnit.Hour:
+                    ret = TimeSpan.FromHours(IntegerValue);
+                    ret -= TimeSpan.FromDays((int)ret.TotalDays);
+                    CurrentValue = FromInteger((int)(days.TotalHours + ret.TotalHours));
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    private void SetTimeAsString(object? value)
+    {
+        if (string.IsNullOrWhiteSpace(Convert.ToString(value)))
+        {
+            CurrentValueAsString = null;
+            return;
+        }
+        if (TimeSpan.TryParse(Convert.ToString(value), out TimeSpan time))
+        {
+            var days = GetTime(IntegerValue);
+            days = TimeSpan.FromDays((int)days.TotalDays);
+            switch (TimeSpanUnit)
+            {
+                case TimeSpanUnit.Second:
+                    CurrentValue = FromInteger((int)(days.TotalSeconds + time.TotalSeconds));
+                    break;
+                case TimeSpanUnit.Minute:
+                    CurrentValue = FromInteger((int)(days.TotalMinutes + time.TotalMinutes));
+                    break;
+                case TimeSpanUnit.Hour:
+                    CurrentValue = FromInteger((int)(days.TotalHours + time.TotalHours));
+                    break;
+            }
+        }
+    }
+
+    private string? GetDaysAsString()
+    {
+        if (CurrentValue is null) return null;
+        string? result;
+        switch (TimeSpanUnit)
+        {
+            case TimeSpanUnit.Second:
+                result = TimeSpan.FromSeconds(IntegerValue).Days.ToString();
+                break;
+            case TimeSpanUnit.Minute:
+                result = TimeSpan.FromMinutes(IntegerValue).Days.ToString();
+                break;
+            case TimeSpanUnit.Hour:
+                result = TimeSpan.FromHours(IntegerValue).Days.ToString();
+                break;
+            default:
+                result = null;
+                break;
+        }
+        return result;
+    }
+
+    private TimeSpan GetTime(int value)
+    {
+        TimeSpan result;
+        switch (TimeSpanUnit)
+        {
+            case TimeSpanUnit.Second:
+                result = TimeSpan.FromSeconds(value);
+                break;
+            case TimeSpanUnit.Minute:
+                result = TimeSpan.FromMinutes(value);
+                break;
+            case TimeSpanUnit.Hour:
+                result = TimeSpan.FromHours(value);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+        return result;
+    }
+
+    protected override string? FormatValueAsString(TValue? value)
+    {
+        if (value is null) return null;
+        int integer = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+        string result;
+        switch (TimeSpanUnit)
+        {
+            case TimeSpanUnit.Second:
+                result = TimeSpan.FromSeconds(integer).ToString();
+                break;
+            case TimeSpanUnit.Minute:
+                result = TimeSpan.FromMinutes(integer).ToString("hh\\:mm");
+                break;
+            case TimeSpanUnit.Hour:
+                result = TimeSpan.FromHours(integer).ToString();
+                break;
+            default:
+                result = "";
+                break;
+        }
+        return result;
+    }
+}

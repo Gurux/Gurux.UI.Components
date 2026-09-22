@@ -1,0 +1,74 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@using Gurux.UI.Components.Help
+<Dialog Title="@Title" OkButtonTitle="@OkButtonTitle" CancelButtonTitle="@CancelButtonTitle" OnOk="OnOk" OnCancel="OnCancel"
+        HeaderContent="@(string.IsNullOrWhiteSpace(HelpTopic) ? null : RenderHelp)">
+    <ChildContent>
+        <CascadingValue Value="_context">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            @ChildContent
+        </CascadingValue>
+    </ChildContent>
+</Dialog>
+
+@code {
+    private RenderFragment RenderHelp => @<div>
+        <HelpContext Topic="@(HelpTopic!)" />
+        <Help />
+    </div>;
+
+    [Parameter] public object? Model { get; set; }
+    [Parameter] public EditContext? EditContext { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? HelpTopic { get; set; }
+    [Parameter] public string OkButtonTitle { get; set; } = "Save";
+    [Parameter] public string CancelButtonTitle { get; set; } = "Cancel";
+    [Parameter] public EventCallback OnOk { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private EditContext _context = default!;
+    private readonly object _emptyModel = new();
+    protected override void OnParametersSet()
+    {
+        object model = Model ?? _emptyModel;
+        if (EditContext != null)
+        {
+            _context = EditContext;
+        }
+        else if (_context == null || !ReferenceEquals(_context.Model, model))
+        {
+            _context = new(model);
+        }
+    }
+}

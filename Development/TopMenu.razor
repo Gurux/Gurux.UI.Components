@@ -1,0 +1,96 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@using Gurux.UI.Components.Enums
+@using Microsoft.AspNetCore.Components.Routing
+
+@inject NavigationManager NavigationManager
+@inject IGXTopMenu Menu
+@inject IGXProgress Progress
+@implements IDisposable
+
+<div class="btn-group" role="group">
+    @foreach (GXMenuItem it in Menu.Items)
+    {
+        <button class="nav-link btn btn-link" onclick="@it.OnClick"
+                disabled="@IsDisabled(it)">
+            @if (it.Icon != null)
+            {
+                <Image Id="@it.Icon"></Image>
+            }
+            &nbsp;
+            <LocalizedText Value="@it.Text" />
+        </button>
+    }
+</div>
+@ChildContent
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool _disposed;
+
+    private bool IsDisabled(GXMenuItem item)
+    {
+        if (Progress.IsBusy) return true;
+        var enabled = item.Enabled == EnableStyle.Always ||
+            item.Enabled == EnableStyle.Modified && Menu.EditContext?.IsModified() == true ||
+            item.Enabled == EnableStyle.Unmodified && Menu.EditContext?.IsModified() == false;
+        return !enabled;
+    }
+
+    protected override void OnInitialized()
+    {
+        Menu.Changed += OnChanged;
+        Progress.Changed += OnChanged;
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => Menu.Clear();
+
+    private void OnChanged()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (!_disposed) StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Menu.Changed -= OnChanged;
+        Progress.Changed -= OnChanged;
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

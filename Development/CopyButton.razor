@@ -1,0 +1,153 @@
+<!--
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+-->
+@using Microsoft.JSInterop
+@implements IDisposable
+@inject IJSRuntime JS
+@typeparam TItem
+
+<script>
+    function copyToClipboard(text) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+        } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+        }
+    }
+</script>
+
+@ChildContent
+<button class="copy-btn @(AlignRight ? "align-right" : "")"
+        onclick="@CopyToClipboard"
+        title="@ButtonTitle"
+        aria-label="@ButtonTitle">
+    <span class="tooltip">@ButtonTitle</span>
+    @if (_copied)
+    {
+        <!-- Check icon -->
+        <svg xmlns="http://www.w3.org/2000/svg"
+             viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             stroke-linecap="round"
+             stroke-linejoin="round"
+             width="18"
+             height="18">
+            <path d="M20 6 9 17l-5-5" />
+        </svg>
+    }
+    else
+    {
+        <!-- Copy icon -->
+        <svg xmlns="http://www.w3.org/2000/svg"
+             viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             stroke-linecap="round"
+             stroke-linejoin="round"
+             width="18"
+             height="18">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+    }
+</button>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// The text to be copied to the clipboard.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public TItem? Value { get; set; }
+
+
+    /// <summary>
+    /// The duration in milliseconds for which the success state is shown.
+    /// </summary>
+    [Parameter]
+    public int SuccessDurationMs { get; set; } = 3000;
+
+    /// <summary>
+    /// Whether the button should be aligned to the right.
+    /// </summary>
+    [Parameter]
+    public bool AlignRight { get; set; }
+
+    private bool _copied;
+    private CancellationTokenSource? _cts;
+
+    private string ButtonTitle => _copied ? "Copied" : "Copy";
+
+    private async Task CopyToClipboard()
+    {
+        if (Value != null)
+        {
+            await JS.InvokeVoidAsync("copyToClipboard", Value.ToString());
+
+            _copied = true;
+            StateHasChanged();
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+
+            try
+            {
+                await Task.Delay(SuccessDurationMs, _cts.Token);
+                _copied = false;
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (TaskCanceledException)
+            {
+                //It's possible that the user clicks the button again before the previous timer has completed.
+                // In that case, we cancel the previous timer and start a new one,
+                // so we can safely ignore TaskCanceledException here.
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

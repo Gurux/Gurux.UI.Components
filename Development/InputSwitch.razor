@@ -1,0 +1,178 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@using System.Diagnostics.CodeAnalysis
+@using Microsoft.Extensions.Logging
+@inject IGXLocalStorage localStorage
+@typeparam TValue
+@inject ILogger<InputSwitch<TValue>> Logger
+
+@inherits InputBase<TValue>
+<CascadingValue Value="this">
+    <label class="form-check-label">
+        <LocalizedText Value="@Text" />
+    </label>
+    @ChildContent
+    <div class="form-check form-switch">
+        <input id="@Id" type="checkbox" checked="@(CurrentValue is true)"
+               class="@CssClass"
+               @attributes="AdditionalAttributes"
+               disabled="@IsDisabled()"
+               onchange="@(async (ChangeEventArgs e) => await UpdateCheck(Convert.ToBoolean(e.Value)))" />
+    </div>
+</CascadingValue>
+
+@code {
+    public InputSwitch()
+    {
+        if ((Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue)) != typeof(bool))
+            throw new InvalidOperationException("InputSwitch supports only bool and bool?.");
+    }
+
+    private static TValue FromBoolean(bool value) => (TValue)(object)value;
+
+    /// <summary>
+    /// Return the id from the AdditionalAttributes.
+    /// </summary>
+    private string? Id =>
+       AdditionalAttributes?.TryGetValue("id", out var value) == true
+           ? value?.ToString()
+           : null;
+
+    /// <summary>
+    /// Used resource storage.
+    /// </summary>
+    [CascadingParameter]
+    public IGXResourceStorage? ResourceStorage { get; set; }
+
+    /// <summary>
+    /// Whether to store the value in a cookie.
+    /// </summary>
+    /// <seealso cref="Id"/>see
+    [Parameter]
+    public bool Save { get; set; } = false;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Switch text.
+    /// </summary>
+    [Parameter]
+    public string? Text { get; set; }
+
+    /// <summary>
+    /// Is switch disabled
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Receive notification when user changes the value.
+    /// </summary>
+    [Parameter]
+    public Action<bool>? OnChange { get; set; }
+
+    private async Task UpdateCheck(bool value)
+    {
+        if (!EqualityComparer<TValue>.Default.Equals(Value, FromBoolean(value)))
+        {
+            CurrentValue = FromBoolean(value);
+            if (OnChange != null)
+            {
+                OnChange(value);
+            }
+            try
+            {
+                if (Save && !string.IsNullOrEmpty(Id))
+                {
+                    await localStorage.SetValueAsync(Id, Convert.ToString(Value));
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
+            }
+        }
+    }
+
+    protected override bool TryParseValueFromString(string? value,
+        [MaybeNullWhen(false)] out TValue result,
+        [NotNullWhen(false)] out string? validationErrorMessage)
+    {
+        result = default!;
+        validationErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(value) && Nullable.GetUnderlyingType(typeof(TValue)) is not null)
+            return true;
+        if (value is null || bool.TryParse(value, out _))
+        {
+            result = FromBoolean(value is not null && bool.Parse(value));
+            return true;
+        }
+        validationErrorMessage = "Enter a valid boolean value.";
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public new string CssClass
+    {
+        get;
+        set;
+    } = "form-check-input";
+
+    private string? IsDisabled()
+    {
+        return Disabled ? "disabled" : null;
+    }
+
+    /// <summary>
+    /// Update default cookie value.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (Save && !string.IsNullOrEmpty(Id))
+            {
+                string? value = await localStorage.GetValueAsync(Id);
+                if (!string.IsNullOrEmpty(value))
+                {
+                    CurrentValue = FromBoolean(bool.Parse(value));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex.Message);
+        }
+    }
+}

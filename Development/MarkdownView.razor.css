@@ -1,0 +1,187 @@
+.markdown-body {
+    box-sizing: border-box;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1rem;
+    line-height: 1.6;
+}
+
+div ::deep .heading-link {
+    display: inline-flex;
+    align-items: center;
+    margin-left: .45rem;
+    color: inherit;
+    text-decoration: none;
+    opacity: 0;
+}
+
+div ::deep :is(h1, h2, h3, h4, h5, h6):hover > .heading-link,
+div ::deep .heading-link:focus-visible {
+    opacity: 1;
+}
+
+div ::deep :is(h1, h2, h3, h4, h5, h6)[id] {
+    scroll-margin-top: var(--markdown-section-scroll-margin, 1rem);
+}
+
+@media (hover: none) {
+    div ::deep .heading-link { opacity: 1; }
+}
+
+div ::deep .markdown-alert-note { --markdown-alert-color: #0969da; }
+div ::deep .markdown-alert-tip { --markdown-alert-color: #1a7f37; }
+div ::deep .markdown-alert-important { --markdown-alert-color: #8250df; }
+div ::deep .markdown-alert-warning { --markdown-alert-color: #9a6700; }
+div ::deep .markdown-alert-caution { --markdown-alert-color: #cf222e; }
+
+div ::deep blockquote.markdown-alert {
+    border-left: 4px solid var(--markdown-alert-color);
+    margin: 1rem 0;
+    padding: .5rem 1rem;
+    color: inherit;
+}
+
+div ::deep .markdown-alert > .markdown-alert-title {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 0 0 1rem;
+    color: var(--markdown-alert-color);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+div ::deep .markdown-alert-icon {
+    flex-shrink: 0;
+}
+
+div ::deep .markdown-alert > :last-child {
+    margin-bottom: 0;
+}
+
+    .markdown-body ::deep h1, .markdown-body ::deep h2, .markdown-body ::deep h3 {
+        margin-top: 1.2em;
+    }
+
+    div ::deep .markdown-code-block {
+        position: relative;
+    }
+
+    div ::deep .markdown-code-block > pre {
+        padding-right: 3.5rem;
+    }
+
+    div ::deep .markdown-copy-button {
+        position: absolute;
+        top: .5rem;
+        right: .5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: .4rem;
+        border: 0;
+        border-radius: .3rem;
+        background: var(--markdown-code-background, #f3f3f3);
+        color: #57606a;
+        cursor: pointer;
+    }
+
+    div ::deep .markdown-copy-button:hover { color: #0969da; }
+    div ::deep .markdown-copy-button:focus-visible { outline: 2px solid #0969da; }
+
+    div ::deep .markdown-copy-tooltip {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        padding: .25rem .5rem;
+        border-radius: .25rem;
+        background: #24292f;
+        color: white;
+        font: .75rem sans-serif;
+        white-space: nowrap;
+        pointer-events: none;
+        visibility: hidden;
+        z-index: 1;
+    }
+
+    div ::deep .markdown-copy-button:hover .markdown-copy-tooltip,
+    div ::deep .markdown-copy-button:focus-visible .markdown-copy-tooltip {
+        visibility: visible;
+    }
+
+    div ::deep pre {
+        /* Override on the MarkdownView container or an ancestor to theme code blocks. */
+        background: var(--markdown-code-background, #f3f3f3);
+        color: #24292f;
+        padding: .75rem;
+        overflow: auto;
+        border-radius: .5rem;
+    }
+
+    .markdown-body ::deep code {
+        background: #f6f8fa;
+        padding: .1rem .3rem;
+        border-radius: .3rem;
+    }
+
+    div ::deep pre > code {
+        background: transparent;
+        color: inherit;
+        padding: 0;
+        font-family: Consolas, "Liberation Mono", monospace;
+        white-space: pre;
+    }
+
+    div ::deep .hljs-keyword, div ::deep .hljs-selector-tag { color: #cf222e; }
+    div ::deep .hljs-string, div ::deep .hljs-regexp, div ::deep .hljs-doctag { color: #0a3069; }
+    div ::deep .hljs-comment, div ::deep .hljs-quote { color: #57606a; font-style: italic; }
+    div ::deep .hljs-number, div ::deep .hljs-literal, div ::deep .hljs-attr,
+    div ::deep .hljs-variable, div ::deep .hljs-built_in { color: #0550ae; }
+    div ::deep .hljs-title, div ::deep .hljs-type { color: #8250df; }
+    div ::deep .hljs-name, div ::deep .hljs-tag { color: #116329; }
+    div ::deep .hljs-meta, div ::deep .hljs-symbol { color: #953800; }
+
+    .markdown-body ::deep ul, .markdown-body ::deep ol {
+        padding-left: 1.6rem;
+    }
+
+    .markdown-body ::deep blockquote {
+        border-left: 4px solid #ddd;
+        padding-left: .8rem;
+        color: #555;
+        margin: .8rem 0;
+    }
+
+    .markdown-body ::deep img {
+        max-width: 100%;
+    }
+
+    /* Tehtävälistat */
+    .markdown-body ::deep .task-list {
+        list-style: none;
+        padding-left: 1.4rem;
+    }
+
+    .markdown-body ::deep .task-list-item {
+        position: relative;
+        margin: .25rem 0;
+    }
+
+        .markdown-body ::deep .task-list-item > input[type="checkbox"] {
+            margin-right: .5rem;
+            vertical-align: middle;
+        }
+
+    .markdown-body ::deep table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+    }
+
+    .markdown-body ::deep th,
+    .markdown-body ::deep td {
+        border: 1px solid #8885;
+        padding: .5rem .75rem;
+        text-align: left;
+    }

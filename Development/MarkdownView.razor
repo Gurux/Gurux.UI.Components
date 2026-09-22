@@ -1,0 +1,626 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@using System.Text
+@using System.Text.RegularExpressions
+@using System.Net.Http
+@using Microsoft.JSInterop
+@implements IDisposable
+@implements IAsyncDisposable
+@inject IServiceProvider Services
+
+@if (_loading)
+{
+    <p role="status">@LoadingText</p>
+}
+else if (_error)
+{
+    <p role="alert">@ErrorText</p>
+}
+else if (!string.IsNullOrEmpty(_html))
+{
+    <div @ref="_root" class="@CssClass">@((MarkupString)_html)</div>
+}
+
+@code {
+    private static readonly Regex ReTask = new(@"^\[( |x|X)\]\s+(.*)$", RegexOptions.Compiled);
+    [Parameter] public string? Content { get; set; }
+    /// <summary>Markdown URL relative to HttpClient.BaseAddress. Content takes precedence when supplied.</summary>
+    [Parameter] public string? Source { get; set; }
+    [Parameter] public string LoadingText { get; set; } = "Loading...";
+    [Parameter] public string ErrorText { get; set; } = "Unable to load the documentation.";
+    [Parameter] public string CssClass { get; set; } = "markdown-body";
+    [Parameter] public bool AllowRawHtml { get; set; } = false;    // turvallinen oletus: ei sallita
+    [Parameter] public bool GenerateHeadingIds { get; set; } = true;
+
+    private string _html = string.Empty;
+    private ElementReference _root;
+    private Task<IJSObjectReference>? _highlighter;
+    private Task<IJSObjectReference>? _sectionLinks;
+    private bool _disposed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _loading || _error || string.IsNullOrEmpty(_html)) return;
+        if (Services.GetService(typeof(IJSRuntime)) is not IJSRuntime js) return;
+        try
+        {
+            _sectionLinks ??= js.InvokeAsync<IJSObjectReference>("import",
+                "./_content/Gurux.UI.Components/MarkdownView/sections.js").AsTask();
+            var sections = await _sectionLinks;
+            if (!_disposed) await sections.InvokeVoidAsync("initialize", _root, _html);
+            if (!_disposed && _html.Contains("<pre><code"))
+            {
+                _highlighter ??= js.InvokeAsync<IJSObjectReference>("import",
+                    "./_content/Gurux.UI.Components/MarkdownView/highlight.js").AsTask();
+                var module = await _highlighter;
+                if (!_disposed) await module.InvokeVoidAsync("highlight", _root);
+            }
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        foreach (var module in new[] { _highlighter, _sectionLinks })
+        {
+            if (module is null) continue;
+            try { await (await module).DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
+    private static bool TryParseTask(string text, out bool isChecked, out string body)
+    {
+        var m = ReTask.Match(text);
+        if (m.Success)
+        {
+            isChecked = m.Groups[1].Value.Equals("x", StringComparison.OrdinalIgnoreCase);
+            body = m.Groups[2].Value;
+            return true;
+        }
+        isChecked = false;
+        body = text;
+        return false;
+    }
+
+    private string? _lastContent;
+    private bool _lastAllowRawHtml;
+    private bool _lastGenerateHeadingIds;
+
+
+    private string? _loadedSource;
+    private string? _sourceContent;
+    private CancellationTokenSource? _request;
+    private bool _loading;
+    private bool _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var source = Content is null && !string.IsNullOrWhiteSpace(Source) ? Source : null;
+        if (source != _loadedSource)
+        {
+            _request?.Cancel();
+            _request?.Dispose();
+            _request = null;
+            _loadedSource = source;
+            _sourceContent = null;
+            _error = false;
+            _loading = source is not null;
+            if (source is not null)
+            {
+                var request = _request = new CancellationTokenSource();
+                try
+                {
+                    var http = Services.GetService(typeof(HttpClient)) as HttpClient
+                        ?? throw new InvalidOperationException("Register HttpClient to load MarkdownView.Source.");
+                    var text = await http.GetStringAsync(source, request.Token);
+                    if (_request != request) return;
+                    _sourceContent = text;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException or UriFormatException)
+                {
+                    if (_request != request)
+                    {
+                        return;
+                    }
+                    _error = true;
+                }
+                finally
+                {
+                    if (_request == request) _loading = false;
+                }
+            }
+        }
+        var content = Content ?? _sourceContent ?? string.Empty;
+        // Laske HTML vain jos parametrit muuttuivat
+        if (!string.Equals(content, _lastContent, StringComparison.Ordinal) ||
+            _lastAllowRawHtml != AllowRawHtml ||
+            _lastGenerateHeadingIds != GenerateHeadingIds)
+        {
+            _html = MiniMarkdown.ToHtml(content, new MiniMarkdown.Options
+            {
+                AllowRawHtml = AllowRawHtml,
+                GenerateHeadingIds = GenerateHeadingIds
+            });
+
+            // Päivitä välimuistin avaimet
+            _lastContent = content;
+            _lastAllowRawHtml = AllowRawHtml;
+            _lastGenerateHeadingIds = GenerateHeadingIds;
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        var request = _request;
+        _request = null;
+        request?.Cancel();
+        request?.Dispose();
+    }
+
+    // Markdown to HTML
+    internal static class MiniMarkdown
+    {
+        public sealed class Options
+        {
+            public bool AllowRawHtml { get; set; }
+            public bool GenerateHeadingIds { get; set; } = true;
+        }
+
+        private static readonly Regex ReHeading = new(@"^(#{1,6})\s+(.*)$", RegexOptions.Compiled);
+        private static readonly Regex ReUl = new(@"^\s*([-+*])\s+(.*)$", RegexOptions.Compiled);
+        private static readonly Regex ReOl = new(@"^\s*(\d+)\.\s+(.*)$", RegexOptions.Compiled);
+        private static readonly Regex ReBlockquote = new(@"^\s*>\s?(.*)$", RegexOptions.Compiled);
+        private static readonly Regex ReHr = new(@"^\s*([-*_])(?:\s*\1){2,}\s*$", RegexOptions.Compiled);
+        private static readonly Regex ReFencedStart = new(@"^\s*```([^`]*)$", RegexOptions.Compiled);
+        private static readonly Regex ReFencedEnd = new(@"^\s*```\s*$", RegexOptions.Compiled);
+
+        private static readonly Regex ReCodeInline = new(@"`([^`]+)`", RegexOptions.Compiled);
+        private static readonly Regex ReBold = new(@"\*\*(.+?)\*\*|__(.+?)__", RegexOptions.Compiled);
+        private static readonly Regex ReItalic = new(@"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)|_(.+?)_", RegexOptions.Compiled);
+        private static readonly Regex ReImage = new(@"!\[([^\]]*)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
+        private static readonly Regex ReLink = new(@"\[([^\]]+)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
+        private static (string Title, string Icon) GetAlert(string marker) => marker.Trim() switch
+        {
+            "[!NOTE]" => ("Note", "<circle cx=\"12\" cy=\"12\" r=\"9\" /><path d=\"M12 11v6M12 7h.01\" />"),
+            "[!TIP]" => ("Tip", "<path d=\"M9 18h6M10 21h4M9 15c0-3-4-4-4-8a7 7 0 0 1 14 0c0 4-4 5-4 8v1H9Z\" />"),
+            "[!IMPORTANT]" => ("Important", "<path d=\"M3 3h18v15h-8l-5 4v-4H3ZM12 7v5M12 15h.01\" />"),
+            "[!WARNING]" => ("Warning", "<path d=\"m12 3 10 18H2ZM12 9v5M12 17h.01\" />"),
+            "[!CAUTION]" => ("Caution", "<path d=\"M8 2h8l6 6v8l-6 6H8l-6-6V8ZM12 7v6M12 17h.01\" />"),
+            _ => (string.Empty, string.Empty)
+        };
+
+        public static string ToHtml(string md, Options opt)
+            => ToHtml(md, opt, new HashSet<string>(StringComparer.Ordinal));
+
+        private static string ToHtml(string md, Options opt, HashSet<string> headingIds)
+        {
+            if (string.IsNullOrEmpty(md)) return string.Empty;
+
+            var sb = new StringBuilder();
+            void AppendHeading(int level, string text)
+            {
+                var inner = ProcessInline(text, opt);
+                sb.Append($"<h{level}");
+                string? id = null;
+                if (opt.GenerateHeadingIds)
+                {
+                    var slug = Slugify(inner);
+                    id = slug;
+                    for (int suffix = 1; !headingIds.Add(id); ++suffix) id = $"{slug}-{suffix}";
+                    sb.Append(" id=\"").Append(HtmlEncode(id)).Append('"');
+                }
+                sb.Append('>').Append(inner);
+                if (id is not null)
+                {
+                    sb.Append("<a class=\"heading-link\" href=\"#").Append(Uri.EscapeDataString(id))
+                      .Append("\" aria-label=\"Link to section\" title=\"Link to section\">")
+                      .Append("<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\" focusable=\"false\">")
+                      .Append("<path d=\"m10 13 4-4m-6 6-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m4 2 2-2a4 4 0 0 0-6-6l-4 4a4 4 0 0 0 0 6\" transform=\"translate(3 2)\" /></svg></a>");
+                }
+                sb.Append($"</h{level}>\n");
+            }
+            var lines = md.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+
+            bool inUl = false, inOl = false, inQuote = false;
+            bool inFence = false; string fenceLang = "";
+            var para = new StringBuilder();
+            bool paragraphEndsWithBreak = false;
+
+            void FlushPara()
+            {
+                if (para.Length > 0)
+                {
+                    sb.Append("<p>").Append(para.ToString()).Append("</p>\n");
+                    para.Clear();
+                    paragraphEndsWithBreak = false;
+                }
+            }
+            void CloseLists()
+            {
+                if (inUl) { sb.Append("</ul>\n"); inUl = false; }
+                if (inOl) { sb.Append("</ol>\n"); inOl = false; }
+            }
+            void CloseQuote()
+            {
+                if (inQuote) { sb.Append("</blockquote>\n"); inQuote = false; }
+            }
+
+            for (int lineIndex = 0; lineIndex < lines.Length; ++lineIndex)
+            {
+                var line = lines[lineIndex];
+
+                // Fenced code start ```lang
+                if (!inFence)
+                {
+                    var fs = ReFencedStart.Match(line);
+                    if (fs.Success)
+                    {
+                        FlushPara(); CloseLists(); CloseQuote();
+                        inFence = true;
+                        fenceLang = fs.Groups[1].Value.Trim().ToLowerInvariant() switch
+                        {
+                            "ansi c" or "ansi-c" => "c",
+                            "ansi c++" or "ansi-c++" or "c++" => "cpp",
+                            var language => language.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? ""
+                        };
+                        sb.Append("<pre><code");
+                        if (!string.IsNullOrWhiteSpace(fenceLang))
+                            sb.Append(" class=\"language-").Append(HtmlEncode(fenceLang)).Append("\"");
+                        sb.Append(">");
+                        continue;
+                    }
+                }
+                else
+                {
+                    if (ReFencedEnd.IsMatch(line))
+                    {
+                        sb.Append("</code></pre>\n");
+                        inFence = false; fenceLang = "";
+                        continue;
+                    }
+                    sb.Append(HtmlEncodePreserveTabs(line)).Append('\n');
+                    continue;
+                }
+
+                // Tyhjä rivi -> kappale/listat/blockquote päätökset
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    FlushPara(); CloseLists(); CloseQuote();
+                    continue;
+                }
+
+                // Pipe tables use a delimiter row after the header.
+                if (lineIndex + 1 < lines.Length && line.Contains('|'))
+                {
+                    var headers = SplitCells(line);
+                    var separators = SplitCells(lines[lineIndex + 1]);
+                    if (headers.Length == separators.Length && separators.All(cell => Regex.IsMatch(cell, @"^:?-{3,}:?$")))
+                    {
+                        FlushPara(); CloseLists(); CloseQuote();
+                        sb.Append("<table><thead><tr>");
+                        foreach (var cell in headers)
+                            sb.Append("<th>").Append(ProcessInline(cell, opt)).Append("</th>");
+                        sb.Append("</tr></thead><tbody>\n");
+                        lineIndex += 2;
+                        while (lineIndex < lines.Length && lines[lineIndex].Contains('|') && !string.IsNullOrWhiteSpace(lines[lineIndex]))
+                        {
+                            var cells = SplitCells(lines[lineIndex]);
+                            sb.Append("<tr>");
+                            for (int column = 0; column < headers.Length; ++column)
+                            {
+                                var separator = separators[column];
+                                var alignment = separator.EndsWith(':') ? (separator.StartsWith(':') ? "center" : "right")
+                                    : separator.StartsWith(':') ? "left" : null;
+                                sb.Append("<td");
+                                if (alignment is not null) sb.Append(" style=\"text-align:").Append(alignment).Append("\"");
+                                sb.Append('>').Append(ProcessInline(column < cells.Length ? cells[column] : "", opt)).Append("</td>");
+                            }
+                            sb.Append("</tr>\n");
+                            ++lineIndex;
+                        }
+                        --lineIndex;
+                        sb.Append("</tbody></table>\n");
+                        continue;
+                    }
+                }
+
+                // Underlined README headings.
+                if (lineIndex + 1 < lines.Length &&
+                    !ReHeading.IsMatch(line) && !ReUl.IsMatch(line) && !ReOl.IsMatch(line) &&
+                    !ReBlockquote.IsMatch(line) && !ReHr.IsMatch(line) &&
+                    Regex.IsMatch(lines[lineIndex + 1], @"^\s*(=+|-+)\s*$"))
+                {
+                    FlushPara(); CloseLists(); CloseQuote();
+                    int level = lines[++lineIndex].TrimStart()[0] == '=' ? 1 : 2;
+                    AppendHeading(level, line.Trim());
+                    continue;
+                }
+
+                // Vaakaviiva
+                if (ReHr.IsMatch(line))
+                {
+                    FlushPara(); CloseLists(); CloseQuote();
+                    sb.Append("<hr />\n");
+                    continue;
+                }
+
+                // Lainaus
+                var bq = ReBlockquote.Match(line);
+                if (bq.Success)
+                {
+                    FlushPara(); CloseLists();
+                    var alert = GetAlert(bq.Groups[1].Value);
+                    if (!inQuote && alert.Title.Length != 0)
+                    {
+                        var body = new StringBuilder();
+                        while (lineIndex + 1 < lines.Length)
+                        {
+                            var nextQuote = ReBlockquote.Match(lines[lineIndex + 1]);
+                            if (!nextQuote.Success || GetAlert(nextQuote.Groups[1].Value).Title.Length != 0) break;
+                            body.AppendLine(nextQuote.Groups[1].Value);
+                            ++lineIndex;
+                        }
+                        sb.Append("<blockquote class=\"markdown-alert markdown-alert-")
+                          .Append(alert.Title.ToLowerInvariant()).Append("\">\n")
+                          .Append("<p class=\"markdown-alert-title\">")
+                          .Append("<svg class=\"markdown-alert-icon\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">")
+                          .Append(alert.Icon).Append("</svg>")
+                          .Append(alert.Title).Append("</p>\n")
+                          .Append(ToHtml(body.ToString(), opt, headingIds))
+                          .Append("</blockquote>\n");
+                        continue;
+                    }
+                    if (!inQuote) { sb.Append("<blockquote>\n"); inQuote = true; }
+                    var quoteLine = ProcessLine(bq.Groups[1].Value, opt);
+                    sb.Append(quoteLine);
+                    if (!quoteLine.EndsWith("<br />", StringComparison.Ordinal)) sb.Append("<br />");
+                    sb.Append('\n');
+                    continue;
+                }
+                else
+                {
+                    CloseQuote();
+                }
+
+                // Otsikot
+                var h = ReHeading.Match(line);
+                if (h.Success)
+                {
+                    FlushPara(); CloseLists();
+                    int level = h.Groups[1].Value.Length;
+                    string text = Regex.Replace(h.Groups[2].Value.Trim(), @"\s+#+$", "");
+                    AppendHeading(level, text);
+                    continue;
+                }
+
+                // Luettelot (UL) + tehtävälistat
+                var ulm = ReUl.Match(line);
+                if (ulm.Success)
+                {
+                    FlushPara();
+
+                    var itemTextRaw = ulm.Groups[2].Value.Trim();
+                    var isTaskItem = TryParseTask(itemTextRaw, out var isChecked, out var itemBody);
+
+                    if (!inUl)
+                    {
+                        CloseLists();
+                        sb.Append(isTaskItem ? "<ul class=\"task-list\">\n" : "<ul>\n");
+                        inUl = true;
+                    }
+
+                    if (isTaskItem)
+                    {
+                        sb.Append("<li class=\"task-list-item\">")
+                          .Append("<input type=\"checkbox\" disabled")
+                          .Append(isChecked ? " checked" : "")
+                          .Append(" /> ")
+                          .Append(ProcessInline(itemBody, opt))
+                          .Append("</li>\n");
+                    }
+                    else
+                    {
+                        sb.Append("<li>")
+                          .Append(ProcessInline(itemTextRaw, opt))
+                          .Append("</li>\n");
+                    }
+                    continue;
+                }
+
+                // Numeroidut luettelot (OL) + tehtävälistat
+                var olm = ReOl.Match(line);
+                if (olm.Success)
+                {
+                    FlushPara();
+
+                    var itemTextRaw = olm.Groups[2].Value.Trim();
+                    var isTaskItem = TryParseTask(itemTextRaw, out var isChecked, out var itemBody);
+
+                    if (!inOl)
+                    {
+                        CloseLists();
+                        sb.Append(isTaskItem ? "<ol class=\"task-list\">\n" : "<ol>\n");
+                        inOl = true;
+                    }
+
+                    if (isTaskItem)
+                    {
+                        sb.Append("<li class=\"task-list-item\">")
+                          .Append("<input type=\"checkbox\" disabled")
+                          .Append(isChecked ? " checked" : "")
+                          .Append(" /> ")
+                          .Append(ProcessInline(itemBody, opt))
+                          .Append("</li>\n");
+                    }
+                    else
+                    {
+                        sb.Append("<li>")
+                          .Append(ProcessInline(itemTextRaw, opt))
+                          .Append("</li>\n");
+                    }
+                    continue;
+                }
+
+                // Kappale (yhdistetään peräkkäiset rivit samaan <p>:hen)
+                if (para.Length > 0 && !paragraphEndsWithBreak) para.Append(' ');
+                var paragraphLine = ProcessLine(line, opt);
+                para.Append(paragraphLine);
+                paragraphEndsWithBreak = paragraphLine.EndsWith("<br />", StringComparison.Ordinal);
+            }
+
+            // Sulje keskeneräiset blokit
+            if (inFence) sb.Append("</code></pre>\n");
+            FlushPara(); CloseLists(); CloseQuote();
+            return sb.ToString();
+        }
+
+        private static string[] SplitCells(string line)
+        {
+            return Regex.Split(line.Trim().Trim('|'), @"(?<!\\)\|")
+                .Select(cell => cell.Trim().Replace(@"\|", "|")).ToArray();
+        }
+
+        private static string ProcessLine(string line, Options opt)
+        {
+            int backslashes = 0;
+            for (int index = line.Length - 1; index >= 0 && line[index] == '\\'; --index) ++backslashes;
+            bool slashBreak = backslashes % 2 != 0;
+            bool hardBreak = slashBreak || line.EndsWith("  ", StringComparison.Ordinal);
+            var text = slashBreak ? line[..^1] : line;
+            return ProcessInline(text.Trim(), opt) + (hardBreak ? "<br />" : "");
+        }
+
+        // Allow only the attribute-free line-break tag, not arbitrary raw HTML.
+        private static readonly Regex ReLineBreak = new(@"(?<!\\)<br\s*/?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex[] InlinePatterns = [ReCodeInline, ReImage, ReLink, ReBold, ReItalic, ReLineBreak];
+
+        private static string ProcessInline(string s, Options opt, int depth = 0)
+        {
+            if (depth > 16) return HtmlEncode(s);
+            var result = new StringBuilder();
+            int position = 0;
+            while (position < s.Length)
+            {
+                Match? next = null;
+                int kind = -1;
+                for (int i = 0; i < InlinePatterns.Length; ++i)
+                {
+                    var match = InlinePatterns[i].Match(s, position);
+                    if (match.Success && (next is null || match.Index < next.Index))
+                    {
+                        next = match;
+                        kind = i;
+                    }
+                }
+                if (next is null)
+                {
+                    result.Append(HtmlEncode(s[position..]));
+                    break;
+                }
+                result.Append(HtmlEncode(s[position..next.Index]));
+                // Parse source tokens only, never generated HTML or code.
+                if (kind == 0)
+                    result.Append("<code>").Append(HtmlEncode(next.Groups[1].Value)).Append("</code>");
+                else if (kind == 5)
+                    result.Append("<br />");
+                else if (kind is 1 or 2)
+                {
+                    var label = next.Groups[1].Value;
+                    var url = SafeUrl(next.Groups[2].Value);
+                    var title = next.Groups[3].Success ? $" title=\"{HtmlEncode(next.Groups[3].Value)}\"" : "";
+                    if (kind == 1)
+                        result.Append($"<img src=\"{url}\" alt=\"{HtmlEncode(label)}\"{title} />");
+                    else
+                        result.Append($"<a href=\"{url}\" rel=\"noopener noreferrer\"{title}>{ProcessInline(label, opt, depth + 1)}</a>");
+                }
+                else
+                {
+                    var tag = kind == 3 ? "strong" : "em";
+                    var text = next.Groups[1].Success ? next.Groups[1].Value : next.Groups[2].Value;
+                    result.Append($"<{tag}>{ProcessInline(text, opt, depth + 1)}</{tag}>");
+                }
+                position = next.Index + next.Length;
+            }
+            return result.ToString();
+        }
+        private static string HtmlEncode(string? s)
+        {
+            if (s is null) return "";
+            // Jos raaka HTML sallitaan, älä escapettaa *valmiita* tageja —
+            // mutta tämä toteutus EI tue raaka-HTML:ää sisälinjoissa.
+            return s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+        }
+
+        private static string HtmlEncodePreserveTabs(string? s)
+        {
+            // Koodiblokissa säilytetään sisennys (tab->4 väliä); escapetus silti.
+            var enc = HtmlEncode(s);
+            return enc.Replace("\t", "    ");
+        }
+
+        private static string SafeUrl(string url)
+        {
+            var value = System.Net.WebUtility.HtmlDecode(url).Trim();
+            if (value.Any(char.IsControl) || value.Contains('\\') || value.StartsWith("//")) return "#";
+            if (Uri.TryCreate(value, UriKind.Absolute, out var absolute))
+            {
+                if (absolute.Scheme is not ("http" or "https" or "mailto")) return "#";
+            }
+            else
+            {
+                int colon = value.IndexOf(':');
+                int separator = value.IndexOfAny(['/', '?', '#']);
+                if (colon >= 0 && (separator < 0 || colon < separator)) return "#";
+            }
+            return HtmlEncode(value);
+        }
+        private static string Slugify(string s)
+        {
+            // Use rendered text so link URLs and formatting do not become part of the anchor.
+            s = System.Net.WebUtility.HtmlDecode(Regex.Replace(s, "<[^>]*>", "")).Trim();
+            var sb = new StringBuilder();
+            foreach (var ch in s.ToLowerInvariant())
+            {
+                if (char.IsLetterOrDigit(ch) || ch is '-' or '_' ||
+                    char.GetUnicodeCategory(ch) is System.Globalization.UnicodeCategory.NonSpacingMark
+                        or System.Globalization.UnicodeCategory.SpacingCombiningMark) sb.Append(ch);
+                else if (ch == ' ') sb.Append('-');
+            }
+            var slug = sb.ToString();
+            return string.IsNullOrEmpty(slug) ? "section" : slug;
+        }
+    }
+}
