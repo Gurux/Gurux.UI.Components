@@ -36,8 +36,6 @@
 @inherits ComponentBase
 @inject NavigationManager NavigationManager
 @inject HttpClient Http
-@inject IGXNotifier Notifier
-
 
 @if (!_hidden)
 {
@@ -116,6 +114,12 @@
     [Parameter]
     public Visibility Visibility { get; set; } = Visibility.All;
 
+
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    public IGXNavigationGuardService? NavigationGuardService { get; private set; }
+
     /// <summary>
     /// Is hidden.
     /// </summary>
@@ -143,8 +147,13 @@
         }
         if (!string.IsNullOrEmpty(Link))
         {
-            Notifier?.ChangePage(NavigationManager.Uri);
-            NavigationManager.NavigateTo(Link);
+            NavigationGuardService?.CanNavigateAsync(NavigationManager.Uri).ContinueWith(t =>
+            {
+                if (t.Result == true)
+                {
+                    NavigationManager.NavigateTo(Link);
+                }
+            });
         }
     }
 
@@ -159,5 +168,6 @@
         }
         _hidden = Parent.IsHidden(Id);
         base.OnInitialized();
+        NavigationGuardService = Services.GetService<IGXNavigationGuardService>();
     }
 }

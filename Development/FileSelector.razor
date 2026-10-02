@@ -35,7 +35,6 @@
 @using Microsoft.JSInterop
 @typeparam TType
 
-@inject IGXNotifier Notifier
 @implements IAsyncDisposable
 
 <fieldset disabled="@Disabled" style="@Style">
@@ -46,6 +45,20 @@
     </div>
 </fieldset>
 @code {
+
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    public IGXNotificationService? NotificationService { get; private set; }
+
+    public IGXProgress? Progress { get; private set; }
+
+
+    protected override void OnInitialized()
+    {
+        NotificationService = Services.GetService<IGXNotificationService>();
+        Progress = Services.GetService<IGXProgress>();
+    }
 
     [Inject]
     public IJSRuntime? JSRuntime { get; set; }
@@ -125,8 +138,7 @@
         }
         try
         {
-            using var progress = Notifier.ProgressStart(null);
-            Notifier.ClearStatus();
+            using var progress = Progress?.ProgressStart(null);
             await OnLoading.InvokeAsync(e.File.Name);
             using var ms = new MemoryStream();
             using (var stream = e.File.OpenReadStream(MaxFileSize))
@@ -158,7 +170,7 @@
         }
         catch (Exception ex)
         {
-            Notifier.ProcessError(ex);
+            NotificationService?.ReportError(ex);
         }
     }
 
@@ -179,7 +191,7 @@
             }
             catch (Exception ex)
             {
-                Notifier.ProcessError(ex);
+                NotificationService?.ReportError(ex);
             }
         }
     }

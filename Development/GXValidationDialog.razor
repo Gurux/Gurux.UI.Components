@@ -31,7 +31,7 @@
 //---------------------------------------------------------------------------
 *@
 @using Gurux.UI.Components.Help
-<Dialog Title="@Title" OkButtonTitle="@OkButtonTitle" CancelButtonTitle="@CancelButtonTitle" OnOk="OnOk" OnCancel="OnCancel"
+<Dialog Id="@Id" Save="@Save" Resizable="@Resizable" Title="@Title" OkButtonTitle="@OkButtonTitle" CancelButtonTitle="@CancelButtonTitle" OnOk="OnOk" OnCancel="OnCancel"
         HeaderContent="@(string.IsNullOrWhiteSpace(HelpTopic) ? null : RenderHelp)">
     <ChildContent>
         <CascadingValue Value="_context">
@@ -51,6 +51,9 @@
     [Parameter] public object? Model { get; set; }
     [Parameter] public EditContext? EditContext { get; set; }
     [Parameter] public string? Title { get; set; }
+    [Parameter] public bool Resizable { get; set; }
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public bool Save { get; set; } = true;
     [Parameter] public string? HelpTopic { get; set; }
     [Parameter] public string OkButtonTitle { get; set; } = "Save";
     [Parameter] public string CancelButtonTitle { get; set; } = "Cancel";

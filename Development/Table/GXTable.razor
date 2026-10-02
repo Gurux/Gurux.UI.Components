@@ -39,7 +39,6 @@
 
 @typeparam TItem
 @implements IGXTable
-@inject IGXNotifier Notifier
 @inject IGXLocalStorage LocalStorage
 @inject ILogger<GXTable<TItem>> Logger
 
@@ -240,6 +239,16 @@
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    public IGXNotificationService? NotificationService { get; private set; }
+
+    protected override void OnInitialized()
+    {
+        NotificationService = Services.GetService<IGXNotificationService>();
+    }
 
     /// <summary>
     /// Return the id from the AdditionalAttributes.
@@ -893,7 +902,7 @@
             }
             else
             {
-                Notifier?.ProcessError(ex);
+                NotificationService?.ReportError(ex);
             }
         }
     }

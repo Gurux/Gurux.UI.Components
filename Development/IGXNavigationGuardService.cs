@@ -31,32 +31,9 @@
 //---------------------------------------------------------------------------
 namespace Gurux.UI.Components
 {
-    /// <summary>
-    /// This interface is used to listen and notification events.
-    /// </summary>
-    public interface IGXProgress
+    public interface IGXNavigationGuardService
     {
-        /// <summary>Raised when the active operations change.</summary>
-        event Action? Changed;
-
-        /// <summary>True while at least one operation is active, including unnamed operations.</summary>
-        bool IsBusy { get; }
-
-        /// <summary>A snapshot of nonempty messages for active operations.</summary>
-        IReadOnlyList<string> Tasks { get; }
-
-        /// <summary>Requests cancellation of all currently active operations.</summary>
-        Task CancelAllAsync();
-
-        /// <summary>
-        /// Starts progress. Dispose the returned scope to call ProgressEnd with its unique ID.
-        /// </summary>
-        GXProgressScope ProgressStart(string? message);
-
-        /// <summary>
-        /// Progress ended.
-        /// </summary>
-        void ProgressEnd(Guid id);
+        Task<bool> CanNavigateAsync(string url);
     }
 }
 

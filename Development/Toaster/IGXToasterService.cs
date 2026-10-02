@@ -30,61 +30,61 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 
-using Gurux.UI.Components.Enums;
-using Microsoft.AspNetCore.Components;
-
-namespace Gurux.UI.Components
+namespace Gurux.UI.Component.Toaster
 {
     /// <summary>
-    /// Top menu item.
+    /// This interface is used to handle toaster services.
     /// </summary>
-    public class GXMenuItem
+    public interface IGXToasterService
     {
         /// <summary>
-        /// Menu text.
+        /// Maximum toast count.
         /// </summary>
-        public string Text { get; set; } = "";
-
-        /// <summary>
-        /// Menu icon.
-        /// </summary>
-        public string? Icon { get; set; }
-
-        /// <summary>
-        /// User clients the menu item.
-        /// </summary>
-        public EventCallback OnClick;
-
-        /// <summary>
-        /// Is button enabled when user has modifed the content of the page.
-        /// </summary>
-        public EnableStyle? Enabled
+        int MaxCount
         {
             get;
             set;
-        } = EnableStyle.Always;
-
-        /// <summary>
-        /// Constructor.
-        /// </summary>
-        public GXMenuItem()
-        {
         }
 
+        /// <summary>
+        /// Add new toast.
+        /// </summary>
+        /// <param name="toast"></param>
+        void Add(GXToast toast);
 
         /// <summary>
-        /// Constructor.
+        /// Are the any toasts.
         /// </summary>
-        /// <param name="text">Menu text.</param>
-        /// <param name="icon">Menu icon.</param>
-        /// <param name="onClick">Menu action.</param>
-        /// <param name="enabled">Is menu ebabled.</param>
-        public GXMenuItem(string text, string? icon, EventCallback onClick, EnableStyle enabled = EnableStyle.Always)
-        {
-            Text = text;
-            Icon = icon;
-            OnClick = onClick;
-            Enabled = enabled;
-        }
+        bool Any { get; }
+
+        /// <summary>
+        /// Get toasts.
+        /// </summary>
+        /// <returns></returns>
+        List<GXToast> GetToasts();
+
+        /// <summary>
+        /// Remove toasts.
+        /// </summary>
+        /// <param name="toast">Toast to remove.</param>
+        void Remove(GXToast toast);
+
+        /// <summary>
+        /// Filters are used to check if toast is shown to the user. 
+        /// If filters are empty, any toast is shown.
+        /// </summary>
+        /// <param name="filters"></param>
+        void Filter(IEnumerable<string> filters);
+
+        /// <summary>
+        /// Notification that toaster has changed.
+        /// </summary>
+        event EventHandler? ToasterChanged;
+        /// <summary>
+        /// Notification that toaster time has elapsed and it's removed.
+        /// </summary>
+        event EventHandler? ToasterTimerElapsed;
+
+
     }
 }

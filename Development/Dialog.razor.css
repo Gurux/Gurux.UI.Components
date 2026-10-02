@@ -8,3 +8,30 @@
 .dialog-header-actions + .btn-close {
     margin-left: 0;
 }
+
+/* Override Bootstrap's width limit only when resizing is enabled. */
+.modal-dialog.dialog-resizable {
+    resize: both;
+    pointer-events: auto;
+    overflow: auto;
+    width: min(500px, calc(100vw - 1rem));
+    max-width: calc(100vw - 1rem);
+    min-width: min(18rem, calc(100vw - 1rem));
+    min-height: 12rem;
+    max-height: calc(100vh - 1rem);
+}
+
+.dialog-resizable > .modal-content {
+    height: 100%;
+    min-height: 12rem;
+}
+
+.dialog-resizable .modal-body {
+    overflow: auto;
+    min-height: 0;
+}
+
+.dialog-resizable .modal-header,
+.dialog-resizable .modal-footer {
+    flex-shrink: 0;
+}

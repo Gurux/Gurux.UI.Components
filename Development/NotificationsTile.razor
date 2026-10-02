@@ -1,0 +1,144 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+
+@namespace Gurux.UI.Components
+@using Gurux.UI.Components.Enums
+@implements IDisposable
+
+@inject IGXNotificationService NotificationService
+
+@if (_visibleNotifications.Count != 0)
+{
+    <ul class="notification-list list-unstyled mt-3 mb-0 text-start"
+        aria-label="Notifications">
+        @foreach (GXNotificationItem notification in _visibleNotifications)
+        {
+            <li @key="notification.Id" class="@GetDivClass(notification)" role="@GetRole(notification)">
+                @if (notification.Closable)
+                {
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="() => Close(notification.Id)">
+                    </button>
+                }
+                @if (NotificationService.VisibleFields.HasFlag(NotificationFields.Title) && !string.IsNullOrWhiteSpace(notification.Title))
+                {
+                    <h4 class="alert-heading">@notification.Title</h4>
+                }
+                @if (NotificationService.VisibleFields.HasFlag(NotificationFields.CreatedAt))
+                {
+                    <div class="small text-muted">
+                        <time datetime="@notification.CreatedAt.ToString("O")">@notification.CreatedAt.ToLocalTime().ToString("g")</time>
+                    </div>
+                }
+                @if (NotificationService.VisibleFields.HasFlag(NotificationFields.Id))
+                {
+                    <div class="small text-muted">Id: @notification.Id</div>
+                }
+                <div style="white-space: pre-wrap; overflow-wrap: anywhere;">@notification.Description</div>
+            </li>
+        }
+    </ul>
+}
+@ChildContent
+
+@code
+{
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private readonly List<GXNotificationItem> _visibleNotifications = new();
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        NotificationService.Changed += OnChanged;
+    }
+
+    protected override void OnParametersSet() => UpdateVisibleNotifications();
+
+    private void UpdateVisibleNotifications()
+    {
+        IEnumerable<GXNotificationItem> notifications = NotificationService.Notifications
+            .Where(notification => (notification.Level & NotificationService.LevelFilter) != NotificationLevel.None)
+            .OrderByDescending(notification => notification.CreatedAt);
+
+        int maxVisibleNotifications = NotificationService.MaxVisibleNotifications;
+        if (maxVisibleNotifications > 0)
+        {
+            notifications = notifications.Take(maxVisibleNotifications);
+        }
+
+        _visibleNotifications.Clear();
+        _visibleNotifications.AddRange(notifications);
+    }
+
+    private void Close(Guid id)
+    {
+        NotificationService.Remove(id);
+        UpdateVisibleNotifications();
+    }
+
+    private void OnChanged()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            UpdateVisibleNotifications();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        NotificationService.Changed -= OnChanged;
+    }
+
+    private static string GetDivClass(GXNotificationItem item)
+    {
+        string style = item.Level switch
+        {
+            NotificationLevel.Information => "alert-info",
+            NotificationLevel.Success => "alert-success",
+            NotificationLevel.Warning => "alert-warning",
+            NotificationLevel.Error => "alert-danger",
+            _ => "alert-info"
+        };
+        return $"alert {style} fade show" + (item.Closable ? " alert-dismissible" : "");
+    }
+
+    private static string GetRole(GXNotificationItem item) =>
+        item.Level is NotificationLevel.Warning or NotificationLevel.Error ? "alert" : "status";
+}
+
+
