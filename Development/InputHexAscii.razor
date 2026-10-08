@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Edits a byte array as ASCII or hexadecimal text with a display mode switch.
+</summary>
+*@
+
 @using System.Text;
 @using Gurux.UI.Components.Validation;
 
@@ -37,69 +43,71 @@
 
 <CascadingValue Value="this">
     <div class="form-inline">
-        <Switch Id="@Id"
+        <Switch TItem="bool" Id="@(Id == null ? null : Id + "-hex")"
                 OnChange="OnHexChanged"
                 PreText="@Title"
                 Text="@Properties.Resources.Hex"
                 Disabled="@IsHexDisabled()" Value="@Hex">
         </Switch>
     </div>
-    <InputText class="form-control"
+    <InputText id="@Id" @attributes="AdditionalAttributes" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")"
                @bind-Value="@HexValue" disabled="@Disabled" />
 </CascadingValue>
 @ChildContent
 @code
 {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets the optional value persistence setting.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Validator.
+    /// Gets or sets the validation callback for the edited byte value.
     /// </summary>
     [Parameter]
     public GXValidator? Validator { get; set; }
 
     /// <summary>
-    /// Title.
+    /// Gets or sets the title displayed by the component.
     /// </summary>
     [Parameter]
     public string? Title { get; set; }
 
     /// <summary>
-    /// Is value shown in hex format.
+    /// Gets or sets whether the byte value is displayed as hexadecimal instead of ASCII text.
     /// </summary>
     [Parameter]
     public bool Hex { get; set; }
 
     /// <summary>
-    /// Notified when system title hex is updated.
+    /// Gets or sets the callback invoked when the hexadecimal display mode changes.
     /// </summary>
     [Parameter]
     public EventCallback<bool> HexChanged { get; set; }
 
     /// <summary>
-    /// Is hex disabled.
+    /// Gets or sets whether the hexadecimal display mode switch is disabled.
     /// </summary>
     [Parameter]
     public bool HexDisabled { get; set; }
@@ -107,20 +115,22 @@
     private bool IsASCIIString;
 
     /// <summary>
-    /// HEX button is disabled when user wants it or there is non ASCII string.
+    /// Returns whether the display mode switch is disabled.
     /// </summary>
-    /// <returns></returns>
     private bool IsHexDisabled()
     {
         return HexDisabled;
     }
 
     /// <summary>
-    /// Is value disabled.
+    /// Gets or sets whether user interaction with the input is disabled.
     /// </summary>
     [Parameter]
     public bool Disabled { get; set; }
 
+    /// <summary>
+    /// Gets or sets the displayed hexadecimal or ASCII text and converts edits to the underlying bytes.
+    /// </summary>
     private string? HexValue
     {
         get
@@ -167,14 +177,23 @@
         }
     }
 
+    /// <summary>
+    /// Gets or sets the byte array edited as ASCII or hexadecimal text.
+    /// </summary>
     [Parameter]
     public byte[]? Value { get; set; }
 
+    /// <summary>
+    /// Synchronizes the current byte value with its ASCII or hexadecimal display mode.
+    /// </summary>
     protected override void OnParametersSet()
     {
         UpdateInputMode();
     }
 
+    /// <summary>
+    /// Synchronizes the display mode with the current byte value's ASCII compatibility.
+    /// </summary>
     private void UpdateInputMode()
     {
         if (Value == null || !Value.Any())
@@ -191,15 +210,14 @@
     }
 
     /// <summary>
-    /// Notified when value is updated.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<byte[]?> ValueChanged { get; set; }
 
     /// <summary>
-    /// User changes string from ASCII to HEX or vice versa.
+    /// Changes between hexadecimal and ASCII display and notifies the display mode callback.
     /// </summary>
-    /// <param name="value"></param>
     private void OnHexChanged(bool value)
     {
         try
@@ -218,9 +236,8 @@
     }
 
     /// <summary>
-    /// Get byte array.
+    /// Returns the current byte array, or an empty array when the value is null.
     /// </summary>
-    /// <returns></returns>
     public byte[] GetByteArray()
     {
         if (Value == null)
@@ -231,10 +248,8 @@
     }
 
     /// <summary>
-    /// Check is byte buffer ASCII string.
+    /// Determines whether the supplied bytes or current value can be displayed as ASCII text.
     /// </summary>
-    /// <param name="value"></param>
-    /// <returns></returns>
     [System.Diagnostics.DebuggerStepThrough]
     public static bool IsAsciiString(byte[]? value)
     {
@@ -251,11 +266,17 @@
         return true;
     }
 
+    /// <summary>
+    /// Determines whether the supplied bytes or current value can be displayed as ASCII text.
+    /// </summary>
     public bool IsAsciiString()
     {
         return IsAsciiString(Value);
     }
 
+    /// <summary>
+    /// Initializes the hexadecimal display mode from the supplied byte value.
+    /// </summary>
     protected override void OnInitialized()
     {
         if (!Hex && Value != null)

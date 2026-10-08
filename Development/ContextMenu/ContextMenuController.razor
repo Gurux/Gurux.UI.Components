@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays registered context menu items and manages pointer activation and delayed closing.
+</summary>
+*@
+
 @using System.Timers
 @using Microsoft.AspNetCore.Components.Web;
 <div tabindex="0"
@@ -69,6 +75,9 @@
 </CascadingValue>
 
 @code {
+    /// <summary>
+    /// Returns the CSS visibility value for the context menu's current open state.
+    /// </summary>
     string GetVisibility()
     {
         if (_show)
@@ -87,6 +96,9 @@
     int _index = 0;
     System.Timers.Timer _timer = new System.Timers.Timer();
 
+    /// <summary>
+    /// Allocates the next tab index for a context menu entry.
+    /// </summary>
     private string GetTabIndex()
     {
         ++_index;
@@ -94,6 +106,9 @@
     }
 
 
+    /// <summary>
+    /// Opens the context menu when the primary mouse button is clicked.
+    /// </summary>
     void HandleClick(MouseEventArgs args)
     {
         if (args.Button == 0)
@@ -102,17 +117,26 @@
         }
     }
 
+    /// <summary>
+    /// Opens the context menu in response to a context menu event.
+    /// </summary>
     void OnContextMenu(MouseEventArgs args)
     {
         Show();
     }
 
+    /// <summary>
+    /// Stops the delayed context menu close timer after a mouse button is released.
+    /// </summary>
     void HandleMouseUp(MouseEventArgs args)
     {
         //        Show();
         _timer.Stop();
     }
 
+    /// <summary>
+    /// Starts the delayed close timer when the context menu loses focus.
+    /// </summary>
     void OnBlur(FocusEventArgs args)
     {
         _timer.Interval = 300;
@@ -121,17 +145,23 @@
         _timer.Start();
     }
 
+    /// <summary>
+    /// Hides the context menu and stops its delayed close timer.
+    /// </summary>
     private void TimerElapsed(object? sender, ElapsedEventArgs e)
     {
         Hide();
         _timer.Stop();
     }
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Show contect menu.
+    /// Displays the context menu.
     /// </summary>
     internal void Show()
     {
@@ -140,7 +170,7 @@
     }
 
     /// <summary>
-    /// Hide contect menu.
+    /// Hides the context menu.
     /// </summary>
     internal void Hide()
     {
@@ -152,7 +182,7 @@
     }
 
     /// <summary>
-    /// Add new menu item.
+    /// Registers a child menu item with the containing menu.
     /// </summary>
     /// <param name="menu">New menu item.</param>
     internal void AddMenuItem(ContextMenuItem menu)

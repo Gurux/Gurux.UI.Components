@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders child content and periodically refreshes it using a timer.
+</summary>
+*@
+
 @implements IDisposable
 
 <div>
@@ -37,16 +43,22 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
 
     /// <summary>
-    /// Update interval in milliseconds.
+    /// Gets or sets the automatic refresh interval in milliseconds.
     /// </summary>
     [Parameter] public int Interval { get; set; } = 1000;
 
     private System.Timers.Timer? _timer;
 
+    /// <summary>
+    /// Starts a repeating timer that requests rendering at the configured interval.
+    /// </summary>
     protected override void OnInitialized()
     {
         _timer = new System.Timers.Timer(Interval);
@@ -58,6 +70,9 @@
         _timer.Enabled = true;
     }
 
+    /// <summary>
+    /// Stops and disposes the component's automatic refresh timer.
+    /// </summary>
     public void Dispose()
     {
         _timer?.Stop();

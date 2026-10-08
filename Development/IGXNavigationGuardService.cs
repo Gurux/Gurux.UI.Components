@@ -31,8 +31,14 @@
 //---------------------------------------------------------------------------
 namespace Gurux.UI.Components
 {
+    /// <summary>
+    /// Determines whether a requested navigation may proceed.
+    /// </summary>
     public interface IGXNavigationGuardService
     {
+        /// <summary>
+        /// Asynchronously determines whether navigation to the specified URL is allowed.
+        /// </summary>
         Task<bool> CanNavigateAsync(string url);
     }
 }

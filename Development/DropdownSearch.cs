@@ -39,32 +39,31 @@ using System.Diagnostics.CodeAnalysis;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// A dropdown search component.
+    /// Renders a typed search input with selectable suggestions and keyboard navigation.
     /// </summary>
     public class DropdownSearch<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TValue>
         : GXInputDropdown<TValue>
     {
         /// <summary>
-        /// If immediate filtering is used, the query is executed when the user presses any key.
-        /// If immediate is false, the query is executed when the user presses enter.
+        /// Gets or sets the requested immediate filtering mode.
         /// </summary>
         [Parameter]
         public bool Immediate { get; set; }
 
         /// <summary>
-        /// Maximum number of displayed items. Defaults to 10; zero displays no items.
+        /// Gets or sets the maximum number of suggestions shown; zero hides all suggestions.
         /// </summary>
         [Parameter]
         public int MaxItems { get; set; } = 10;
 
         /// <summary>
-        /// Whether to show items when the search input is empty. Defaults to false.
+        /// Gets or sets whether suggestions are shown when the search text is empty.
         /// </summary>
         [Parameter]
         public bool ShowItemsWhenEmpty { get; set; }
 
         /// <summary>
-        /// Display text for a null value. Does not change the bound value.
+        /// Gets or sets the display label for a null selection without changing its bound value.
         /// </summary>
         [Parameter]
         public string? NullText { get; set; }
@@ -75,13 +74,22 @@ namespace Gurux.UI.Components
         private bool _keyboardOpen;
         private bool _dismissed;
         private bool _hasFocus;
+        /// <summary>
+        /// Opens the suggestion editing state when the search input receives focus.
+        /// </summary>
         private void HandleFocus()
         {
-            if (_hasFocus) return;
+            if (_hasFocus)
+            {
+                return;
+            }
             _hasFocus = true;
             _dismissed = false;
             Filter ??= string.Empty;
         }
+        /// <summary>
+        /// Clears the suggestion list's focus, keyboard navigation, and temporary editing state.
+        /// </summary>
         private void HandleBlur()
         {
             _hasFocus = false;
@@ -92,12 +100,22 @@ namespace Gurux.UI.Components
         }
         private bool _editing;
         private TValue? _editOriginal;
+        /// <summary>
+        /// Captures the original selection before keyboard editing starts.
+        /// </summary>
         private void BeginEdit()
         {
-            if (!_editing) { _editOriginal = Value; _editing = true; }
+            if (!_editing)
+            {
+                _editOriginal = Value;
+                _editing = true;
+            }
         }
         private readonly string _listId = "dropdown-" + Guid.NewGuid().ToString("N");
 
+        /// <summary>
+        /// Handles suggestion navigation, selection, dismissal, and restoration using keyboard shortcuts.
+        /// </summary>
         private void HandleKeyDown(KeyboardEventArgs e)
         {
             if (e.Key is "ArrowDown" or "ArrowUp")
@@ -107,15 +125,17 @@ namespace Gurux.UI.Components
                 _keyboardOpen = true;
                 int count = Math.Min(_items.Count, MaxItems);
                 if (count > 0)
-                    _highlightedIndex = _highlightedIndex < 0
-                        ? (e.Key == "ArrowDown" ? 0 : count - 1)
-                        : Math.Clamp(_highlightedIndex + (e.Key == "ArrowDown" ? 1 : -1), 0, count - 1);
+                {
+                    _highlightedIndex = _highlightedIndex < 0 ? (e.Key == "ArrowDown" ? 0 : count - 1) : Math.Clamp(_highlightedIndex + (e.Key == "ArrowDown" ? 1 : -1), 0, count - 1);
+                }
                 return;
             }
             if (e.Key == "Enter")
             {
                 if (!_dismissed && _highlightedIndex >= 0 && _highlightedIndex < Math.Min(_items.Count, MaxItems))
+                {
                     OnItemSelected(_items[_highlightedIndex]);
+                }
                 return;
             }
             if (e.Key == "Escape")
@@ -146,10 +166,15 @@ namespace Gurux.UI.Components
             _clearNullTextInput = false;
         }
 
+        /// <summary>
+        /// Gets or sets the injected logger used to report component activity and errors.
+        /// </summary>
         [Inject]
         ILogger<DropdownSearch<TValue>>? Logger { get; set; }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Resolves an unmatched string selection to a case-insensitive match in the supplied static items.
+        /// </summary>
         protected override void OnParametersSet()
         {
             base.OnParametersSet();
@@ -170,7 +195,9 @@ namespace Gurux.UI.Components
         }
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Builds the component's HTML elements, attributes, and event handlers.
+        /// </summary>
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
             if (ItemsProvider == null && Items != null)
@@ -194,7 +221,10 @@ namespace Gurux.UI.Components
             }
             bool hasSelectedItem = (ItemsProvider == null ? Items ?? _items : _items)
                 .Any(item => EqualityComparer<TValue>.Default.Equals(item, Value));
-            if (_highlightedIndex >= Math.Min(_items.Count, MaxItems)) _highlightedIndex = -1;
+            if (_highlightedIndex >= Math.Min(_items.Count, MaxItems))
+            {
+                _highlightedIndex = -1;
+            }
             bool showMenu = _hasFocus && !_dismissed && (_keyboardOpen || !string.IsNullOrEmpty(Filter) ||
                 (!hasSelectedItem && ShowItemsWhenEmpty && (Filter != null || string.IsNullOrEmpty(Value?.ToString()))));
             var seq = 0;
@@ -211,15 +241,14 @@ namespace Gurux.UI.Components
             builder.AddAttribute(seq++, "aria-controls", _listId);
             builder.AddAttribute(seq++, "aria-autocomplete", "list");
             if (showMenu && _highlightedIndex >= 0)
+            {
                 builder.AddAttribute(seq++, "aria-activedescendant", $"{_listId}-{_highlightedIndex}");
+            }
             if (!string.IsNullOrEmpty(NameAttributeValue))
             {
                 builder.AddAttribute(seq++, "name", NameAttributeValue);
             }
-            if (!string.IsNullOrEmpty(CssClass))
-            {
-                builder.AddAttribute(seq++, "class", CssClass);
-            }
+            builder.AddAttribute(seq++, "class", GXComponentAttributes.CombineClasses("form-control", CssClass));
 
             if (string.IsNullOrEmpty(Filter))
             {
@@ -336,9 +365,8 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// User has select the new item.
+        /// Applies the clicked suggestion and clears keyboard and editing state.
         /// </summary>
-        /// <param name="e"></param>
         private void OnItemSelected(TValue? e)
         {
             _editing = false;
@@ -352,9 +380,8 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Refresh search values.
+        /// Loads initial suggestions when an item provider exists and initializes the base dropdown.
         /// </summary>
-        /// <returns></returns>
         protected override async Task OnInitializedAsync()
         {
             if (ItemsProvider != null)

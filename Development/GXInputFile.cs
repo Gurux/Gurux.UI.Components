@@ -35,25 +35,31 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace Gurux.UI.Components
 {
+    /// <summary>
+    /// Renders a file input restricted to the configured file types.
+    /// </summary>
     public class GXInputFile : InputFile
     {
         /// <summary>
-        /// Accepted file types.
+        /// Gets or sets the accepted file types passed to the file input.
         /// </summary>
         [Parameter]
         public string? Filter { get; set; }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Builds the component's HTML elements, attributes, and event handlers.
+        /// </summary>
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
             builder.OpenElement(0, "input");
             builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "type", "file");
+            builder.AddAttribute(3, "class", GXComponentAttributes.GetClass(AdditionalAttributes, "form-control"));
             if (!string.IsNullOrEmpty(Filter))
             {
                 builder.AddAttribute(4, "accept", Filter);
             }
-            builder.AddElementReferenceCapture(3, elementReference => Element = elementReference);
+            builder.AddElementReferenceCapture(5, elementReference => Element = elementReference);
             builder.CloseElement();
         }
     }

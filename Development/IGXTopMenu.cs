@@ -34,29 +34,33 @@ using Microsoft.AspNetCore.Components.Forms;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// This interface is used to listen and notification events.
+    /// Provides shared top menu commands and the edit context used to determine their enabled state.
     /// </summary>
     public interface IGXTopMenu
     {
-        /// <summary>Raised when menu items or the edit state change.</summary>
+        /// <summary>
+        /// Occurs when menu commands or their enabled state need to be refreshed.
+        /// </summary>
         event Action? Changed;
 
-        /// <summary>Current menu commands.</summary>
+        /// <summary>
+        /// Gets the commands registered with the shared menu service.
+        /// </summary>
         IReadOnlyList<GXMenuItem> Items { get; }
 
         /// <summary>
-        /// Add new menu items.
+        /// Adds the supplied commands to the shared top menu and notifies listeners.
         /// </summary>
         /// <param name="menus">Menu items to add</param>
         void AddMenuItems(params IEnumerable<GXMenuItem> menus);
 
         /// <summary>
-        /// Clear menu items.
+        /// Clears menu commands and their associated edit context.
         /// </summary>
         void Clear();
 
         /// <summary>
-        /// EditContext is used to show when user edit the page content.
+        /// Gets or sets the edit context used to track form changes and validation.
         /// </summary>
         EditContext? EditContext
         {

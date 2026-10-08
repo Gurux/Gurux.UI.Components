@@ -33,45 +33,44 @@
 namespace Gurux.UI.Components.Enums
 {
     /// <summary>
-    /// Responsive determines the order 
-    /// in which the contents are hidden if they do not fit the screen.
+    /// Defines responsive breakpoint and print visibility options for table cells.
     /// </summary>
     public enum Visibility
     {
         /// <summary>
-        /// Content is always shown.
+        /// Displays the cell at every screen size.
         /// </summary>
         All,
         /// <summary>
-        /// Content is hidden for screens smaller than extra large.
+        /// Displays the cell only at the largest configured responsive breakpoint.
         /// </summary>
         ExtraLargeLarge,
         /// <summary>
-        /// Content is hidden for screens smaller than extra large.
+        /// Displays the cell at extra-large screen sizes and above.
         /// </summary>
         ExtraLarge,
         /// <summary>
-        /// Content is hidden for screens smaller than large.
+        /// Displays the cell at large screen sizes and above.
         /// </summary>
         Large,
         /// <summary>
-        /// Content is hidden for screens smaller medium.
+        /// Displays the cell at medium screen sizes and above.
         /// </summary>
         Medium,
         /// <summary>
-        /// Content is hidden for screens smaller than medium.
+        /// Displays the cell at small screen sizes and above.
         /// </summary>
         Small,
         /// <summary>
-        /// Content is hidden for screens smaller than small.
+        /// Displays the cell at extra-small screen sizes and above.
         /// </summary>
         ExtraSmall,
         /// <summary>
-        /// Content is shown only when printing.
+        /// Shows the cell in printed output.
         /// </summary>
         Print,
         /// <summary>
-        /// Content is hidden when printing.
+        /// Hides the cell in printed output.
         /// </summary>
         PrintHide
     }

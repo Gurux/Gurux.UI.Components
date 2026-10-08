@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays collapsible content with a text or templated header.
+</summary>
+*@
+
 @namespace Gurux.UI.Components.Accordion
 
 @inject NavigationManager NavigationManager
@@ -61,49 +67,60 @@
 </CascadingValue>
 
 @code {
+    /// <summary>
+    /// Gets or sets the current expanded state of the accordion item.
+    /// </summary>
     internal bool IsExpand { get; set; }
 
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Is the accordion item collapsed or expanded.
+    /// Gets or sets the initial expanded state of the accordion item.
     /// </summary>
     [Parameter]
     public bool Expand { get; set; }
 
     /// <summary>
-    /// Accordion header template.
+    /// Gets or sets the template rendered in the accordion header.
     /// </summary>
     [Parameter]
     public RenderFragment? HeaderTemplate { get; set; }
 
-    ///<summary>
-    ///Accordion item header text.
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the accordion header text.
+    /// </summary>
     [Parameter]
     public string? Header { get; set; }
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>
+    /// Toggles the accordion's expanded state and schedules rendering.
+    /// </summary>
     private void Toggle()
     {
         IsExpand = !IsExpand;
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Returns the accordion header button classes for the current expanded state.
+    /// </summary>
     private string GetButtonClass()
     {
         if (IsExpand)
@@ -113,6 +130,9 @@
         return "accordion-button collapsed";
     }
 
+    /// <summary>
+    /// Returns the accordion body classes for the current expanded state.
+    /// </summary>
     private string GetCollapseClass()
     {
         if (IsExpand)
@@ -122,6 +142,9 @@
         return "accordion-collapse collapse";
     }
 
+    /// <summary>
+    /// Sets the current expanded state from the initial Expand parameter.
+    /// </summary>
     protected override void OnInitialized()
     {
         IsExpand = Expand;

@@ -33,12 +33,12 @@
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// Cookie storage is used to save user cookies.
+    /// Provides asynchronous access to browser cookies with configurable expiration.
     /// </summary>
     public interface IGXCookieStorage
     {
         /// <summary>
-        /// Set cookie value.
+        /// Writes a browser cookie with the specified value and expiration in days.
         /// </summary>
         /// <param name="key">Key.</param>
         /// <param name="value">Value</param>
@@ -49,7 +49,7 @@ namespace Gurux.UI.Components
             int days = 30);
 
         /// <summary>
-        /// Get cookie value.
+        /// Reads a browser cookie, returning the supplied default when the key is not found.
         /// </summary>
         /// <param name="key">Key</param>
         /// <param name="def">Default value.</param>

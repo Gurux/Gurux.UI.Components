@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays stored notifications using severity filters, field settings, and optional close buttons.
+</summary>
+*@
+
 
 @namespace Gurux.UI.Components
 @using Gurux.UI.Components.Enums
@@ -72,19 +78,31 @@
 
 @code
 {
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     private readonly List<GXNotificationItem> _visibleNotifications = new();
     private bool _disposed;
 
+    /// <summary>
+    /// Subscribes to notification service changes.
+    /// </summary>
     protected override void OnInitialized()
     {
         NotificationService.Changed += OnChanged;
     }
 
+    /// <summary>
+    /// Refreshes the visible notification snapshot using the latest display settings.
+    /// </summary>
     protected override void OnParametersSet() => UpdateVisibleNotifications();
 
+    /// <summary>
+    /// Rebuilds the displayed notification list using severity flags, newest-first ordering, and the display limit.
+    /// </summary>
     private void UpdateVisibleNotifications()
     {
         IEnumerable<GXNotificationItem> notifications = NotificationService.Notifications
@@ -101,29 +119,47 @@
         _visibleNotifications.AddRange(notifications);
     }
 
+    /// <summary>
+    /// Removes the selected notification or toast from its backing service.
+    /// </summary>
     private void Close(Guid id)
     {
         NotificationService.Remove(id);
         UpdateVisibleNotifications();
     }
 
+    /// <summary>
+    /// Schedules a component render when the backing service changes, unless the component is disposed.
+    /// </summary>
     private void OnChanged()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _ = InvokeAsync(() =>
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
             UpdateVisibleNotifications();
             StateHasChanged();
         });
     }
 
+    /// <summary>
+    /// Detaches the notification change handler and prevents subsequent UI updates.
+    /// </summary>
     public void Dispose()
     {
         _disposed = true;
         NotificationService.Changed -= OnChanged;
     }
 
+    /// <summary>
+    /// Returns alert classes matching the notification severity and whether its close button is enabled.
+    /// </summary>
     private static string GetDivClass(GXNotificationItem item)
     {
         string style = item.Level switch
@@ -137,6 +173,9 @@
         return $"alert {style} fade show" + (item.Closable ? " alert-dismissible" : "");
     }
 
+    /// <summary>
+    /// Uses alert for warning and error notifications and status for other severities.
+    /// </summary>
     private static string GetRole(GXNotificationItem item) =>
         item.Level is NotificationLevel.Warning or NotificationLevel.Error ? "alert" : "status";
 }

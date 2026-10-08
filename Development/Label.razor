@@ -30,26 +30,46 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays child content as a label and can mark the associated input as required.
+</summary>
+*@
+
 @using Microsoft.Extensions.Logging
 
 @inject IGXLocalStorage localStorage
 @inject ILogger<Label> Logger
 
-<label class="@GetClass()">@ChildContent</label>
+<label @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GetClass()" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">@ChildContent</label>
 
 @code {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Is value required.
+    /// Gets or sets whether the input is marked as requiring a value.
     /// </summary>
     [Parameter]
     public bool Required { get; set; } = false;
 
-    [Parameter]
-    public string? CssClass { get; set; }
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
 
+    /// <summary>
+    /// Combines default CSS classes with the captured class attribute.
+    /// </summary>
     private string? GetClass()
     {
         string? str = CssClass;

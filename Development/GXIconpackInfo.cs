@@ -33,16 +33,16 @@
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// Iconpack info
+    /// Describes an icon pack's resource URL and available icon names.
     /// </summary>
     public class GXIconpackInfo
     {
         /// <summary>
-        /// Iconpack url.
+        /// Gets or sets the resource URL of the icon pack.
         /// </summary>
         public string Url { get; set; } = default!;
         /// <summary>
-        /// Iconpack names..
+        /// Gets or sets the icon names available in the pack.
         /// </summary>
         public IEnumerable<string> Names { get; set; } = new List<string>();
     }

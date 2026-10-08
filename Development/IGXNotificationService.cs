@@ -33,6 +33,15 @@ using Gurux.UI.Components.Enums;
 
 namespace Gurux.UI.Components
 {
+    /// <summary>
+    /// Describes a notification's severity, content, grouping key, dismissibility, and display scope.
+    /// </summary>
+    /// <param name="Level">The notification severity.</param>
+    /// <param name="Title">The notification title.</param>
+    /// <param name="Description">The notification details.</param>
+    /// <param name="Key">An optional key used to remove related notifications.</param>
+    /// <param name="Closable">Whether the notification can be dismissed.</param>
+    /// <param name="Scope">Whether the notification applies to a page or the application.</param>
     public sealed record GXNotificationItem
     (
         NotificationLevel Level,
@@ -44,45 +53,47 @@ namespace Gurux.UI.Components
     )
     {
         /// <summary>
-        /// Notification identifier. This is used to remove the notification from the list.
+        /// Gets the Guid used to identify and remove this notification.
         /// </summary>
         public Guid Id { get; init; } = Guid.NewGuid();
         /// <summary>
-        /// Notification creation time. This is used to sort the notifications in the list.
+        /// Gets the notification creation time used to order notifications.
         /// </summary>
         public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     }
 
     /// <summary>
-    /// Provides methods to display and manage user notifications.
+    /// Stores user notifications and exposes display settings and change notifications.
     /// </summary>
     public interface IGXNotificationService
     {
         /// <summary>
-        /// Maximum number of notifications shown. Zero or a negative value shows all notifications.
+        /// Gets or sets the maximum number of displayed notifications; nonpositive values show all matching notifications.
         /// </summary>
         public int MaxVisibleNotifications { get; set; }
 
-        /// <summary>Optional fields to display. Defaults to Title.</summary>
+        /// <summary>
+        /// Gets or sets the optional notification fields displayed by consumers.
+        /// </summary>
         NotificationFields VisibleFields { get; set; }
 
-        /// <summary>Levels to display. Defaults to all levels; None hides all notifications.</summary>
+        /// <summary>
+        /// Gets or sets the notification severity flags included in the displayed list.
+        /// </summary>
         NotificationLevel LevelFilter { get; set; }
 
         /// <summary>
-        /// Displays a notification with the specified severity, title, and description.
+        /// Stores the supplied notification and returns its identifier.
         /// </summary>
-        /// <param name="level">The severity of the notification.</param>
-        /// <param name="title">The notification title.</param>
-        /// <param name="description">The notification description.</param>
-        /// <param name="closable">Whether the user can close the notification.</param>
         /// <returns>The identifier of the notification.</returns>
         Guid Add(GXNotificationItem item);
 
         /// <summary>
-        /// Displays an error notification for the specified exception.
+        /// Creates an error notification using the exception message and details.
         /// </summary>
         /// <param name="exception">The exception to report.</param>
+        /// <param name="key">An optional grouping key used to replace or remove related notifications.</param>
+        /// <param name="scope">Whether the error applies to the current page or the entire application.</param>
         /// <returns>The identifier of the error notification.</returns>
         Guid ReportError(Exception exception,
             string? key = null,
@@ -94,15 +105,24 @@ namespace Gurux.UI.Components
         /// <param name="id">The identifier of the notification to remove.</param>
         void Remove(Guid id);
 
+        /// <summary>
+        /// Removes every notification with the specified grouping key.
+        /// </summary>
         void RemoveByKey(string key);
 
         /// <summary>
-        /// Removes all notifications.
+        /// Removes all stored notifications.
         /// </summary>
         void Clear();
 
+        /// <summary>
+        /// Occurs when notifications or their display settings change.
+        /// </summary>
         event Action? Changed;
 
+        /// <summary>
+        /// Gets a snapshot of all stored notifications regardless of severity filters or display limits.
+        /// </summary>
         IReadOnlyList<GXNotificationItem> Notifications { get; }
     }
 }

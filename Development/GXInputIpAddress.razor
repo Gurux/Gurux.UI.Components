@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Edits supported IP address representations and can persist the bound value.
+</summary>
+*@
+
 @using System.Diagnostics.CodeAnalysis
 @using System.Globalization
 @using Microsoft.Extensions.Logging
@@ -44,8 +50,7 @@
     <input id="@Id"
            value="@ValueToString()"
            placeholder="@Placeholder"
-           class="@CssClass"
-           attributes="@AdditionalAttributes"
+           @attributes="AdditionalAttributes" class="@CssClass"
            onreset="@(() => Reset())"
            onchange="@((ChangeEventArgs e) => UpdateIpAddress(e.Value))"
            required="@Required"
@@ -56,28 +61,27 @@
 @code
 {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = true;
 
     /// <summary>
-    /// Is datetime value required.
+    /// Gets or sets whether the IP address input is marked as requiring a value.
     /// </summary>
     [Parameter]
     public bool Required
@@ -87,7 +91,7 @@
     }
 
     /// <summary>
-    /// Constructor.
+    /// Creates the IP address input and verifies the supported address representation.
     /// </summary>
     public GXInputIpAddress()
     {
@@ -99,7 +103,7 @@
     }
 
     /// <summary>
-    /// Datetime value.
+    /// Gets or sets the IP address as a supported address, numeric, or string representation.
     /// </summary>
     [Parameter]
     public TItem? Value
@@ -109,7 +113,7 @@
     }
 
     /// <summary>
-    /// Reset value.
+    /// Clears the selected IP address value and requests rendering.
     /// </summary>
     private void Reset()
     {
@@ -117,7 +121,7 @@
     }
 
     /// <summary>
-    /// Notified when the selected value is changed.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<TItem?> ValueChanged
@@ -126,6 +130,9 @@
         set;
     }
 
+    /// <summary>
+    /// Converts the supported numeric address representation to IP address text.
+    /// </summary>
     private static string IpToString(UInt64 value)
     {
         string ip;
@@ -145,6 +152,9 @@
         return ip;
     }
 
+    /// <summary>
+    /// Formats the supported IPAddress, numeric address, or string value for the input.
+    /// </summary>
     private string? ValueToString()
     {
         if (Value is IPAddress ip)
@@ -166,19 +176,20 @@
         return string.Empty;
     }
 
-    [Parameter]
-    public string? CssClass
-    {
-        get;
-        set;
-    } = "form-control";
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
 
     /// <summary>
-    /// Placeholder text.
+    /// Gets or sets the hint displayed when the input has no value.
     /// </summary>
     [Parameter]
     public string? Placeholder { get; set; }
 
+    /// <summary>
+    /// Processes an edited IP address value, notifies changes, and saves it when persistence is enabled.
+    /// </summary>
     private void UpdateIpAddress(object? value, bool init = false)
     {
         bool change = false;
@@ -231,7 +242,7 @@
     }
 
     /// <summary>
-    /// Update default cookie value.
+    /// Restores a saved IP address value after the first render when persistence is enabled.
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

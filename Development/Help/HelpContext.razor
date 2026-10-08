@@ -30,22 +30,34 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Registers a contextual help topic for the lifetime of the component.
+</summary>
+*@
+
 @implements IDisposable
 @inject GXHelpService HelpService
 
 @code {
     /// <summary>
-    /// Gets or sets the help topic for the current page.
+    /// Gets or sets the contextual help topic registered while this component is present.
     /// </summary>
     [Parameter]
     [EditorRequired]
     public string Topic { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Registers or updates this component's help topic with the help service.
+    /// </summary>
     protected override void OnParametersSet()
     {
         HelpService.SetContext(this, Topic);
     }
 
+    /// <summary>
+    /// Unregisters this component's contextual help topic.
+    /// </summary>
     public void Dispose()
     {
         HelpService.RemoveContext(this);

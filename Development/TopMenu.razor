@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays shared top menu commands and updates their enabled state from progress and form changes.
+</summary>
+*@
+
 @using Gurux.UI.Components.Enums
 @using Microsoft.AspNetCore.Components.Routing
 
@@ -54,20 +60,32 @@
 </div>
 @ChildContent
 @code {
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     private bool _disposed;
 
+    /// <summary>
+    /// Disables commands during progress operations or when their required form edit state is not satisfied.
+    /// </summary>
     private bool IsDisabled(GXMenuItem item)
     {
-        if (Progress.IsBusy) return true;
+        if (Progress.IsBusy)
+        {
+            return true;
+        }
         var enabled = item.Enabled == EnableStyle.Always ||
             item.Enabled == EnableStyle.Modified && Menu.EditContext?.IsModified() == true ||
             item.Enabled == EnableStyle.Unmodified && Menu.EditContext?.IsModified() == false;
         return !enabled;
     }
 
+    /// <summary>
+    /// Subscribes to menu, progress, and navigation changes that affect displayed commands.
+    /// </summary>
     protected override void OnInitialized()
     {
         Menu.Changed += OnChanged;
@@ -75,17 +93,32 @@
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
+    /// <summary>
+    /// Clears shared menu commands and their edit context after navigation.
+    /// </summary>
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => Menu.Clear();
 
+    /// <summary>
+    /// Schedules a component render when the backing service changes, unless the component is disposed.
+    /// </summary>
     private void OnChanged()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _ = InvokeAsync(() =>
         {
-            if (!_disposed) StateHasChanged();
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
         });
     }
 
+    /// <summary>
+    /// Detaches menu, progress, and navigation change handlers.
+    /// </summary>
     public void Dispose()
     {
         _disposed = true;

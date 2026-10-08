@@ -34,7 +34,7 @@ using Microsoft.AspNetCore.Components.Web.Virtualization;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// This delegate is used to list values from Gurux.DLMS.AMI.
+    /// Asynchronously supplies a page of items and its total count for the specified request.
     /// </summary>
     /// <param name="request">Request argument.</param>
     /// <returns>Collection of listed items.</returns>

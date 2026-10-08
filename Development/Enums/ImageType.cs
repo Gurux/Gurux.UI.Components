@@ -1,28 +1,28 @@
 namespace Gurux.UI.Components.Enums
 {
     /// <summary>
-    /// Used image type.
+    /// Defines how an image value is interpreted and rendered.
     /// </summary>
     public enum ImageType : byte
     {
         /// <summary>
-        /// From file extension.
+        /// Detects the rendering type from the image value.
         /// </summary>
         Auto,
         /// <summary>
-        /// Png/jpg/gif/webp/ico format.
+        /// Treats the value as a raster image URI or Base64 image content.
         /// </summary>
         Raster,
         /// <summary>
-        /// Svg format
+        /// Treats the value as SVG markup.
         /// </summary>
         Svg,
         /// <summary>
-        /// Icon name e.g. from material Icons.
+        /// Treats the value as an icon ligature or icon class identifier.
         /// </summary>
         IconLigature,
         /// <summary>
-        /// Html icon.
+        /// Treats the value as HTML markup.
         /// </summary>
         Html
     }

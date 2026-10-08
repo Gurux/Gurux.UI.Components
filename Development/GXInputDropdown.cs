@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 //  Gurux Ltd
 //
 //
@@ -40,7 +40,7 @@ using System.Globalization;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// This component is used to shown enumerated items.
+    /// Renders a typed select input with static or asynchronously provided items and optional value persistence.
     /// </summary>
     public class GXInputDropdown<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TValue> : InputBase<TValue>
     {
@@ -54,54 +54,54 @@ namespace Gurux.UI.Components
         protected string? Filter;
 
         /// <summary>
-        /// Gets or sets the child content to be rendering inside the select element.
+        /// Gets or sets the content rendered inside the component.
         /// </summary>
         [Parameter] public RenderFragment? ChildContent { get; set; }
 
         /// <summary>
-        /// Gets or sets the <c>select</c> <see cref="ElementReference"/>.
-        /// <para>
-        /// May be <see langword="null"/> if accessed before the component is rendered.
-        /// </para>
+        /// Gets or sets the select element reference, available after rendering.
         /// </summary>
         [DisallowNull] public ElementReference? Element { get; protected set; }
 
         /// <summary>
-        /// Format event handler is used to convert class to string.
+        /// Converts an item to the display text used by a dropdown.
         /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
         public delegate string? FormatEventHandler(TValue value);
 
         /// <summary>
-        /// Return the id from the AdditionalAttributes.
+        /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
         /// </summary>
-        private string? Id =>
-           AdditionalAttributes?.TryGetValue("id", out var value) == true
-               ? value?.ToString()
-               : null;
+        private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+        private string? _generatedId;
 
         /// <summary>
-        /// Whether to load and store the value in a cookie.
+        /// Gets or sets whether the most recently used value is restored from and saved to browser local storage.
         /// </summary>
-        /// <seealso cref="Id"/>see
+        /// <seealso cref="Id" />
         [Parameter]
         public bool LastValue { get; set; } = true;
 
+        /// <summary>
+        /// Gets or sets the injected browser local storage service used for value persistence.
+        /// </summary>
         [Inject]
         IGXLocalStorage? localStorage { get; set; }
 
+        /// <summary>
+        /// Gets or sets the injected logger used to report component activity and errors.
+        /// </summary>
         [Inject]
         ILogger<GXInputDropdown<TValue>>? Logger { get; set; }
 
         /// <summary>
-        /// Notified when the selected item is changed.
+        /// Gets or sets the callback invoked when the user selects an item.
         /// </summary>
         [Parameter]
         public EventCallback<TValue> OnSelected { get; set; }
 
         /// <summary>
-        /// Available values.
+        /// Gets or sets the items available for display or selection.
         /// </summary>
         [Parameter]
         public IEnumerable<TValue>? Items
@@ -117,14 +117,14 @@ namespace Gurux.UI.Components
 
 
         /// <summary>
-        /// Gets or sets the items provider.
+        /// Gets or sets the asynchronous provider used to retrieve items and their total count.
         /// </summary>
         [Parameter]
         public GXItemsProviderDelegate<TValue>? ItemsProvider { get; set; }
 
 
         /// <summary>
-        /// Update default cookie value.
+        /// Initializes item loading and restores the saved selection when persistence is enabled.
         /// </summary>
         protected override async Task OnInitializedAsync()
         {
@@ -156,7 +156,7 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Read values async.
+        /// Retrieves items from the provider and optionally requests rendering after a successful load.
         /// </summary>
         /// <param name="renderOnSuccess">Is UI render after success operation.</param>
         public async Task RefreshDataAsync(bool renderOnSuccess = true)
@@ -194,7 +194,7 @@ namespace Gurux.UI.Components
         private readonly bool _isMultipleSelect;
 
         /// <summary>
-        /// Constructor.
+        /// Detects multiple selection and populates enumeration values, including a null option for nullable enums.
         /// </summary>
         public GXInputDropdown()
         {
@@ -214,7 +214,9 @@ namespace Gurux.UI.Components
             }
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Builds the component's HTML elements, attributes, and event handlers.
+        /// </summary>
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
             if (Items is not null)
@@ -227,33 +229,32 @@ namespace Gurux.UI.Components
                 CurrentValue = Items.FirstOrDefault();
             }
             builder.OpenElement(0, "select");
-            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(1, "id", Id);
+            builder.AddMultipleAttributes(2, AdditionalAttributes);
             if (!string.IsNullOrEmpty(NameAttributeValue))
             {
-                builder.AddAttribute(2, "name", NameAttributeValue);
+                builder.AddAttribute(3, "name", NameAttributeValue);
             }
-            string cssClass = AdditionalAttributes?.ContainsKey("class") == true
-                ? CssClass
-                : string.IsNullOrEmpty(CssClass) ? "form-select" : $"form-select {CssClass}";
-            builder.AddAttribute(3, "class", cssClass);
-            builder.AddAttribute(4, "multiple", _isMultipleSelect);
+            string? cssClass = GXComponentAttributes.CombineClasses("form-select", CssClass);
+            builder.AddAttribute(4, "class", cssClass);
+            builder.AddAttribute(5, "multiple", _isMultipleSelect);
             if (_isMultipleSelect)
             {
-                builder.AddAttribute(5, "value", BindConverter.FormatValue(CurrentValue)?.ToString());
-                builder.AddAttribute(6, "onchange", EventCallback.Factory.CreateBinder<string?[]?>(this, SetCurrentValueAsStringArray, default));
+                builder.AddAttribute(6, "value", BindConverter.FormatValue(CurrentValue)?.ToString());
+                builder.AddAttribute(7, "onchange", EventCallback.Factory.CreateBinder<string?[]?>(this, SetCurrentValueAsStringArray, default));
             }
             else
             {
-                builder.AddAttribute(7, "value", Value == null ? string.Empty : _items.IndexOf(Value!).ToString(CultureInfo.InvariantCulture));
-                builder.AddAttribute(8, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+                builder.AddAttribute(8, "value", Value == null ? string.Empty : _items.IndexOf(Value!).ToString(CultureInfo.InvariantCulture));
+                builder.AddAttribute(9, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
                 this, async e => await SetCurrentValueAsStringAsync(e.Value)));
             }
-            builder.AddAttribute(9, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, OnKeyDown));
+            builder.AddAttribute(10, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, OnKeyDown));
             builder.SetUpdatesAttributeName("value");
-            builder.AddElementReferenceCapture(10, __selectReference => Element = __selectReference);
-            builder.AddContent(11, ChildContent);
+            builder.AddElementReferenceCapture(11, __selectReference => Element = __selectReference);
+            builder.AddContent(12, ChildContent);
 
-            int index = 12;
+            int index = 13;
             int pos = 0;
             foreach (var value in _items)
             {
@@ -284,7 +285,7 @@ namespace Gurux.UI.Components
         private TValue? _original;
 
         /// <summary>
-        /// Handle key down event.
+        /// Tracks the original selection during keyboard navigation and handles selection or cancellation keys.
         /// </summary>
         protected void OnKeyDown(KeyboardEventArgs e)
         {
@@ -337,6 +338,9 @@ namespace Gurux.UI.Components
             }
         }
 
+        /// <summary>
+        /// Converts a multiple-selection value to the bound type and clears the original keyboard selection.
+        /// </summary>
         protected void SetCurrentValueAsStringArray(string?[]? value)
         {
             _original = default!;
@@ -345,17 +349,26 @@ namespace Gurux.UI.Components
                 : default;
         }
 
+        /// <summary>
+        /// Resolves a selected option index, updates the bound item, and invokes the selection callback.
+        /// </summary>
         protected void SetCurrentValueAsString(object? value)
         {
             _original = default!;
             int index = value is string text && text.Length == 0
                 ? _items.FindIndex(item => item == null)
                 : Convert.ToInt32(value);
-            if (index < 0 || index >= _items.Count) return;
+            if (index < 0 || index >= _items.Count)
+            {
+                return;
+            }
             CurrentValue = _items[index];
             OnSelected.InvokeAsync(Value);
         }
 
+        /// <summary>
+        /// Applies the selected option and persists the resulting value when enabled.
+        /// </summary>
         private async Task SetCurrentValueAsStringAsync(object? value)
         {
             SetCurrentValueAsString(value);
@@ -372,7 +385,9 @@ namespace Gurux.UI.Components
             }
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Converts text to the bound type, applies changed values, and notifies selection callbacks; throws when conversion fails.
+        /// </summary>
         protected override bool TryParseValueFromString(string? value, [MaybeNullWhen(false)] out TValue result, [NotNullWhen(false)] out string? validationErrorMessage)
         {
             validationErrorMessage = null;
@@ -409,13 +424,13 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Formatter is used to format class to string.
+        /// Gets or sets the function used to convert an item to display text.
         /// </summary>
         [Parameter]
         public FormatEventHandler? Formatter { get; set; }
 
         /// <summary>
-        /// Item template.
+        /// Gets or sets the template used to render an individual item.
         /// </summary>
         [Parameter]
         public RenderFragment<TValue>? Template { get; set; }

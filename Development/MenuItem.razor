@@ -30,40 +30,63 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Defines a menu command with text, an icon, authorization, and a click callback.
+</summary>
+*@
+
 @code {
     /// <summary>
-    /// Menu ID.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the identifier of the menu command.
     /// </summary>
     [Parameter]
     public string? Id { get; set; }
 
     /// <summary>
-    /// Menu image.
+    /// Gets or sets the icon or image identifier displayed for the menu command.
     /// </summary>
     [Parameter]
     public string? Image { get; set; }
 
 
+    /// <summary>
+    /// Gets or sets the containing component supplied through a cascading parameter.
+    /// </summary>
     [CascadingParameter]
     private MenuControl? Parent { get; set; }
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
-    [Parameter]
-    public string CssClass { get; set; } = "btn button";
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    internal string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "btn button");
 
+    /// <summary>
+    /// Gets or sets the text displayed by the component.
+    /// </summary>
     [Parameter]
     public string? Text { get; set; }
 
     /// <summary>
-    /// The policy name that determines whether the content can be displayed.
+    /// Gets or sets the named authorization policy required to display the content.
     /// </summary>
     [Parameter]
     public string? Policy { get; set; }
 
     /// <summary>
-    /// Is menu item read-only.
+    /// Gets or sets whether the menu command is disabled.
     /// </summary>
     [Parameter]
     public bool ReadOnly
@@ -72,20 +95,28 @@
         set;
     }
 
+    /// <summary>
+    /// Gets or sets the callback invoked when the menu command is clicked.
+    /// </summary>
     [Parameter]
     public EventCallback OnClick { get; set; }
 
+    /// <summary>
+    /// Registers the menu item with its containing menu control.
+    /// </summary>
     protected override void OnInitialized()
     {
         if (Parent == null)
+        {
             throw new ArgumentNullException(nameof(Parent), "MenuItem must exist within a MenuControl");
+        }
         base.OnInitialized();
         Parent.AddMenuItem(this);
     }
 
 
     /// <summary>
-    /// Create menu item.
+    /// Creates a menu item with the supplied identifier, label, click action, and read-only state.
     /// </summary>
     /// <param name="id">Menu Id</param>
     /// <param name="text">Menu text.</param>

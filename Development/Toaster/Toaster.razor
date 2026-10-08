@@ -30,13 +30,19 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays transient toast messages and refreshes them as messages are added, removed, or expired.
+</summary>
+*@
+
 
 @using Gurux.UI.Components
 @using Gurux.UI.Components.Enums
 @namespace Gurux.UI.Component.Toaster
 
-@inject IGXToasterService ToasterService
-@if (ToasterService.Any)
+@inject IServiceProvider Services
+@if (ToasterService?.Any == true)
 {
     <div>
         <div class="toast-container position-absolute top-0 end-0 mt-5 pt-5 pe-2" style="z-index: 1080;">
@@ -63,43 +69,53 @@
 
 @code
 {
-    ///<summary>
-    ///Start listen toaster events.
-    ///</summary>
+    private IGXToasterService? ToasterService;
+
+    /// <summary>
+    /// Subscribes to toast list changes and expiration notifications.
+    /// </summary>
     protected override void OnInitialized()
     {
-        ToasterService.ToasterChanged += ToastChanged;
-        ToasterService.ToasterTimerElapsed += ToastChanged;
+        ToasterService = Services.GetService<IGXToasterService>();
+        if (ToasterService != null)
+        {
+            ToasterService.ToasterChanged += ToastChanged;
+            ToasterService.ToasterTimerElapsed += ToastChanged;
+        }
     }
 
-    ///<summary>
-    ///Close toast.
-    ///</summary>
+    /// <summary>
+    /// Removes the selected notification or toast from its backing service.
+    /// </summary>
     private void Close(GXToast toast)
     {
-        ToasterService.Remove(toast);
+        ToasterService?.Remove(toast);
     }
 
-    ///<summary>
-    ///Toasts are changed. Update the UI.
-    ///</summary>
+    /// <summary>
+    /// Schedules rendering after the toaster service reports a change.
+    /// </summary>
     private void ToastChanged(object? sender, EventArgs e)
     {
         StateHasChanged();
     }
 
-    ///<summary>
-    ///Stop listen events.
-    ///</summary>
+    /// <summary>
+    /// Detaches toaster service change and expiration event handlers.
+    /// </summary>
     public void Dispose()
     {
-        ToasterService.ToasterChanged -= ToastChanged;
-        ToasterService.ToasterTimerElapsed -= ToastChanged;
+        if (ToasterService != null)
+        {
+            ToasterService.ToasterChanged -= ToastChanged;
+            ToasterService.ToasterTimerElapsed -= ToastChanged;
+            ToasterService = null;
+        }
     }
 
-    ///<summary>
-    ///Get toaster CSS.
-    ///</summary>
+    /// <summary>
+    /// Returns the contextual CSS class for the toast's color.
+    /// </summary>
     private string GetCss(GXToast toast)
     {
         var colour = Enum.GetName(typeof(Color), toast.Color)?.ToLower();

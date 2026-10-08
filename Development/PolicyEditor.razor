@@ -1,0 +1,292 @@
+
+@*
+<summary>
+Loads available authorization policy names and edits a filtered selection of policies.
+</summary>
+*@
+@namespace Gurux.UI.Components
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using System.Net.Http.Json
+@using System.Text.Json
+@implements IDisposable
+@inject HttpClient Http
+@inject IServiceProvider Services
+
+<details class="accordion-item" id="@instanceId" open>
+    <summary class="accordion-header p-3">
+        <strong>Policies</strong>
+        <div class="small text-break">@string.Join(", ", selected.Order(StringComparer.Ordinal))</div>
+    </summary>
+    <div class="accordion-body">
+        <label for="@(instanceId + "-filter")" class="visually-hidden">Filter policies by name</label>
+        <input id="@(instanceId + "-filter")" class="form-control" type="search" placeholder="Filter by name"
+               value="@filter" @oninput="FilterChanged" disabled="@Disabled" />
+        @if (loadFailed)
+        {
+            <button type="button" class="btn btn-outline-secondary mt-2" @onclick="LoadAsync" disabled="@loading">Retry</button>
+        }
+        <hr />
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">
+                        <div class="form-check form-switch">
+                            <input id="@(instanceId + "-all")" class="form-check-input" type="checkbox"
+                                   checked="@AllVisibleSelected" disabled="@(Disabled || invalidValue || VisibleNames.Length == 0)"
+                                   @onchange="SelectVisibleAsync" />
+                            <label class="form-check-label" for="@(instanceId + "-all")">Select visible</label>
+                        </div>
+                    </th>
+                    <th scope="col">Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var name in VisibleNames)
+                {
+                    var id = instanceId + "-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(name));
+                    <tr @key="name">
+                        <td>
+                            <div class="form-check form-switch">
+                                <input id="@id" class="form-check-input" type="checkbox" checked="@selected.Contains(name)"
+                                       disabled="@(Disabled || invalidValue)" @onchange="@(e => SelectAsync(name, e))" />
+                            </div>
+                        </td>
+                        <td>
+                            <label for="@id">@name</label>
+                            @if (loaded && !available.Contains(name))
+                            {
+                                <span class="badge text-bg-secondary ms-2">Unavailable</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (VisibleNames.Length == 0 && !loading)
+                {
+                    <tr><td colspan="2">No policies found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</details>
+
+@code {
+    /// <summary>
+    /// Gets or sets the selected authorization policy names.
+    /// </summary>
+    [Parameter] public List<string>? Value { get; set; }
+    /// <summary>
+    /// Gets or sets the callback invoked with the validated, ordered policy selection.
+    /// </summary>
+    [Parameter] public EventCallback<List<string>?> ValueChanged { get; set; }
+    /// <summary>
+    /// Gets or sets whether user interaction with the input is disabled.
+    /// </summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    private readonly string instanceId = "policy-editor-" + Guid.NewGuid().ToString("N");
+    private readonly CancellationTokenSource lifetime = new();
+    private HashSet<string> selected = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> available = new(StringComparer.OrdinalIgnoreCase);
+    private string[] observedValue = [];
+    private string filter = "";
+    private bool loadFailed;
+    private bool invalidValue;
+    private bool initialized;
+    private bool loading;
+    private bool loaded;
+    private bool disposed;
+
+    /// <summary>
+    /// Gets selected and available policy names matching the current filter, ordered by name.
+    /// </summary>
+    private string[] VisibleNames => selected.Concat(available).Distinct(StringComparer.OrdinalIgnoreCase)
+        .Where(name => name.Contains(filter, StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).ToArray();
+    /// <summary>
+    /// Gets whether every currently visible policy is selected and the list is nonempty.
+    /// </summary>
+    private bool AllVisibleSelected => VisibleNames.Length > 0 && VisibleNames.All(selected.Contains);
+
+    /// <summary>
+    /// Validates and normalizes supplied policy names and synchronizes the current selection.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        var names = (Value ?? []).Select(name => name?.Trim() ?? "").ToArray();
+        if (initialized && observedValue.SequenceEqual(names, StringComparer.Ordinal))
+        {
+            return;
+        }
+        initialized = true;
+        observedValue = names.ToArray();
+        if (names.Any(name => name.Length is 0 or > 128))
+        {
+            invalidValue = true;
+            NotificationService?.ReportError(new ArgumentException("Each selected policy must contain 1-128 characters."), ValueErrorKey);
+            return;
+        }
+        selected = names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        invalidValue = false;
+        NotificationService?.RemoveByKey(ValueErrorKey);
+    }
+    /// <summary>
+    /// Loads the available authorization policy names.
+    /// </summary>
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    /// <summary>
+    /// Gets the optional service used to report component errors as notifications.
+    /// </summary>
+    private IGXNotificationService? NotificationService => Services.GetService<IGXNotificationService>();
+    /// <summary>
+    /// Gets the optional service used to track and cancel asynchronous operations.
+    /// </summary>
+    private IGXProgress? Progress => Services.GetService<IGXProgress>();
+    /// <summary>
+    /// Gets the notification key used for policy loading failures.
+    /// </summary>
+    private string LoadErrorKey => instanceId + ".Load";
+    /// <summary>
+    /// Gets the notification key used for invalid selected policy names.
+    /// </summary>
+    private string ValueErrorKey => instanceId + ".Value";
+    /// <summary>
+    /// Gets the notification key used for failures in the value changed callback.
+    /// </summary>
+    private string CallbackErrorKey => instanceId + ".ValueChanged";
+
+    /// <summary>
+    /// Loads available policy names from the server with progress tracking, cancellation, and error reporting.
+    /// </summary>
+    private async Task LoadAsync()
+    {
+        if (disposed || loading)
+        {
+            return;
+        }
+        loading = true;
+        loadFailed = false;
+        NotificationService?.RemoveByKey(LoadErrorKey);
+        using var progress = Progress?.ProgressStart("Loading policies…");
+        using var cancellation = progress == null ? null : CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, progress.CancellationToken);
+        var token = cancellation?.Token ?? lifetime.Token;
+        try
+        {
+            var names = await Http.GetFromJsonAsync<string[]>("api/Policy/Available", token);
+            if (disposed)
+            {
+                return;
+            }
+            available = (names ?? []).Select(name => name?.Trim() ?? "").Where(name => name.Length is > 0 and <= 128).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            loaded = true;
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { loadFailed = true; }
+        catch (Exception ex)
+        {
+            if (!disposed)
+            {
+                loadFailed = true;
+                NotificationService?.ReportError(ex, LoadErrorKey);
+            }
+        }
+        finally { loading = false; }
+    }
+    /// <summary>
+    /// Updates the policy name filter from the search input.
+    /// </summary>
+    private void FilterChanged(ChangeEventArgs e) => filter = e.Value?.ToString() ?? "";
+
+    /// <summary>
+    /// Adds or removes one policy from the selection and publishes the resulting value.
+    /// </summary>
+    private async Task SelectAsync(string name, ChangeEventArgs e)
+    {
+        if (Disabled || invalidValue || disposed)
+        {
+            return;
+        }
+        var next = new HashSet<string>(selected, StringComparer.OrdinalIgnoreCase);
+        if (e.Value is true)
+        {
+            next.Add(name);
+        }
+        else
+        {
+            next.Remove(name);
+        }
+        await PublishAsync(next);
+    }
+
+    /// <summary>
+    /// Adds or removes all filtered policy names and publishes the resulting value.
+    /// </summary>
+    private async Task SelectVisibleAsync(ChangeEventArgs e)
+    {
+        if (Disabled || invalidValue || disposed)
+        {
+            return;
+        }
+        var next = new HashSet<string>(selected, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in VisibleNames)
+        {
+            if (e.Value is true)
+            {
+                next.Add(name);
+            }
+            else
+            {
+                next.Remove(name);
+            }
+        }
+        await PublishAsync(next);
+    }
+
+    /// <summary>
+    /// Validates and publishes the selected policy names, restoring the prior selection when the callback fails.
+    /// </summary>
+    private async Task PublishAsync(HashSet<string> next)
+    {
+        var names = next.Order(StringComparer.Ordinal).ToList();
+        if (names.Any(name => name.Length is 0 or > 128))
+        {
+            invalidValue = true;
+            NotificationService?.ReportError(new ArgumentException("Each selected policy must contain 1-128 characters."), ValueErrorKey);
+            return;
+        }
+        var previousSelection = selected;
+        var previousValue = observedValue;
+        selected = new HashSet<string>(next, StringComparer.OrdinalIgnoreCase);
+        observedValue = names.ToArray();
+        try
+        {
+            await ValueChanged.InvokeAsync(names.ToList());
+            NotificationService?.RemoveByKey(CallbackErrorKey);
+        }
+        catch (Exception ex)
+        {
+            selected = previousSelection;
+            observedValue = previousValue;
+            if (!disposed)
+            {
+                NotificationService?.ReportError(ex, CallbackErrorKey);
+            }
+        }
+    }
+    /// <summary>
+    /// Cancels pending policy loading and clears notifications owned by this editor.
+    /// </summary>
+    public void Dispose()
+    {
+        if (disposed)
+        {
+            return;
+        }
+        disposed = true;
+        lifetime.Cancel();
+        lifetime.Dispose();
+        NotificationService?.RemoveByKey(LoadErrorKey);
+        NotificationService?.RemoveByKey(ValueErrorKey);
+        NotificationService?.RemoveByKey(CallbackErrorKey);
+    }
+}

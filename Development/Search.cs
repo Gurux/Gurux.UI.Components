@@ -1,4 +1,4 @@
-﻿//
+//
 // --------------------------------------------------------------------------
 //  Gurux Ltd
 //
@@ -39,12 +39,12 @@ using System.Globalization;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// A search component.
+    /// Renders a search input that publishes changes immediately or when Enter is pressed.
     /// </summary>
     public class Search : ComponentBase
     {
         /// <summary>
-        /// Value to search for.
+        /// Gets or sets the current search text.
         /// </summary>
         [Parameter]
         public string? Value
@@ -54,7 +54,7 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Notified when the selected value is changed.
+        /// Gets or sets the callback invoked when the bound value changes.
         /// </summary>
         [Parameter]
         public EventCallback<string?> ValueChanged
@@ -64,42 +64,37 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Notified when the selected value is changed.
-        /// </summary>
-        [Parameter]
-        public EventCallback<string?> OnValueChanged
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// Whether to load and store the value used value in a local storage.
+        /// Gets or sets whether the most recently used value is restored from and saved to browser local storage.
         /// </summary>
         [Parameter]
         public bool LastValue { get; set; } = true;
 
 
+        /// <summary>
+        /// Gets or sets the injected browser local storage service used for value persistence.
+        /// </summary>
         [Inject]
         IGXLocalStorage? localStorage { get; set; }
 
+        /// <summary>
+        /// Gets or sets the injected logger used to report component activity and errors.
+        /// </summary>
         [Inject]
         ILogger<Search>? Logger { get; set; }
 
         /// <summary>
-        /// If immediate filtering is used, the query is executed when the user presses any key.
-        /// If immediate is false, the query is executed when the user presses enter.
+        /// Gets or sets whether filtering is triggered as the user types instead of waiting for Enter.
         /// </summary>
         [Parameter]
         public bool Immediate { get; set; }
 
         /// <summary>
-        /// Gets or sets a collection of additional attributes that will be applied to the created element.
+        /// Gets or sets captured HTML attributes forwarded to the underlying element.
         /// </summary>
         [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
         /// <summary>
-        /// Gets the value to be used for the input's "name" attribute.
+        /// Gets the captured name attribute used by the search input.
         /// </summary>
         protected string NameAttributeValue
         {
@@ -114,44 +109,25 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Gets a CSS class string that combines the <c>class</c> attribute and a string indicating
-        /// the status of the field being edited (a combination of "modified", "valid", and "invalid").
-        /// Derived components should typically use this value for the primary HTML element's 'class' attribute.
+        /// Gets the CSS classes obtained by combining component defaults with captured attributes.
         /// </summary>
-        protected string CssClass
-        {
-            get
-            {
-                if (AdditionalAttributes?.TryGetValue("class", out var nameAttributeValue) ?? false)
-                {
-                    return Convert.ToString(nameAttributeValue, CultureInfo.InvariantCulture) ?? string.Empty;
-                }
-                return "form-control";
-            }
-        }
+        private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
 
         /// <summary>
-        /// Gets a CSS class string that combines the <c>class</c> attribute and a string indicating
-        /// the status of the field being edited (a combination of "modified", "valid", and "invalid").
-        /// Derived components should typically use this value for the primary HTML element's 'class' attribute.
+        /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
         /// </summary>
-        protected string Id
-        {
-            get
-            {
-                if (AdditionalAttributes?.TryGetValue("id", out var nameAttributeValue) ?? false)
-                {
-                    return Convert.ToString(nameAttributeValue, CultureInfo.InvariantCulture) ?? string.Empty;
-                }
-                return string.Empty;
-            }
-        }
+        protected string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
-        /// <inheritdoc />
+        private string? _generatedId;
+
+        /// <summary>
+        /// Builds the component's HTML elements, attributes, and event handlers.
+        /// </summary>
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
             var seq = 0;
             builder.OpenElement(seq++, "input");
+            builder.AddAttribute(seq++, "id", Id);
             builder.AddAttribute(seq++, "placeholder", Properties.Resources.Search);
             builder.AddAttribute(seq++, "type", "search");
             builder.AddMultipleAttributes(seq++, AdditionalAttributes);
@@ -169,6 +145,9 @@ namespace Gurux.UI.Components
             builder.CloseElement();
         }
 
+        /// <summary>
+        /// Updates the search text and publishes it when immediate filtering is enabled.
+        /// </summary>
         private async Task OnInputChanged(ChangeEventArgs e)
         {
             Value = e.Value?.ToString();
@@ -178,6 +157,9 @@ namespace Gurux.UI.Components
             }
         }
 
+        /// <summary>
+        /// Publishes the search text when the Enter key is pressed.
+        /// </summary>
         private async Task OnKeydown(KeyboardEventArgs e)
         {
             if (e.Key == "Enter")
@@ -186,14 +168,15 @@ namespace Gurux.UI.Components
             }
         }
 
+        /// <summary>
+        /// Publishes the current value and saves it when persistence is enabled.
+        /// </summary>
         private async Task UpdateValue()
         {
             try
             {
                 //Update the new value.
                 await ValueChanged.InvokeAsync(Value);
-                //Notify that value has been changed.
-                await OnValueChanged.InvokeAsync(Value);
                 if (localStorage != null && LastValue && !string.IsNullOrEmpty(Id))
                 {
                     await localStorage.SetValueAsync(Id, Value);
@@ -206,7 +189,7 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Update default cookie value.
+        /// Restores the most recently saved search text when persistence is enabled.
         /// </summary>
         protected override async Task OnInitializedAsync()
         {
@@ -225,10 +208,6 @@ namespace Gurux.UI.Components
                             if (ValueChanged.HasDelegate)
                             {
                                 await ValueChanged.InvokeAsync(value);
-                            }
-                            if (OnValueChanged.HasDelegate)
-                            {
-                                await OnValueChanged.InvokeAsync(value);
                             }
                         }
                     }

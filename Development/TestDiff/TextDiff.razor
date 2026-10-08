@@ -1,4 +1,10 @@
-﻿@using System.Text
+﻿
+@*
+<summary>
+Displays original and changed text side by side with word differences highlighted.
+</summary>
+*@
+@using System.Text
 @using System.Text.RegularExpressions
 
 <div class="input-container">
@@ -27,28 +33,31 @@
 }
 @code {
     /// <summary>
-    /// Original text.
+    /// Gets or sets the original text displayed on the left side of the comparison.
     /// </summary>
     [Parameter]
     public string? OriginalText { get; set; }
     /// <summary>
-    /// Changed text.
+    /// Gets or sets the updated text displayed on the right side of the comparison.
     /// </summary>
     [Parameter]
     public string? ChangedText { get; set; }
 
     /// <summary>
-    /// Original title.
+    /// Gets or sets the heading displayed above the original text.
     /// </summary>
     [Parameter]
     public string? OriginalTitle { get; set; } = "Original text";
 
     /// <summary>
-    /// Original text.
+    /// Gets or sets the heading displayed above the updated text.
     /// </summary>
     [Parameter]
     public string? ChangedTitle { get; set; } = "Changed text";
 
+    /// <summary>
+    /// Renders one side of a word comparison with changed words highlighted and whitespace preserved.
+    /// </summary>
     private MarkupString BuildDiffHtml(string left, string right, string color, bool renderLeft)
     {
         left ??= string.Empty;
@@ -86,7 +95,7 @@
     }
 
     /// <summary>
-    /// Count LCS and return boolean table from different words.
+    /// Uses the longest common subsequence of words to mark differences on both sides of the comparison.
     /// </summary>
     private (bool[] leftDiff, bool[] rightDiff) ComputeDiffFlags(
         List<string> leftWords,
@@ -150,6 +159,9 @@
         return (leftDiff, rightDiff);
     }
 
+    /// <summary>
+    /// Extracts non-whitespace words from the supplied text.
+    /// </summary>
     private List<string> ExtractWords(string text)
     {
         var list = new List<string>();
@@ -160,6 +172,9 @@
         return list;
     }
 
+    /// <summary>
+    /// Appends encoded whitespace while preserving spaces, tabs, and line breaks in the rendered comparison.
+    /// </summary>
     private void AppendWhitespaceHtml(StringBuilder sb, string whitespace)
     {
         foreach (char ch in whitespace)
@@ -186,6 +201,9 @@
         }
     }
 
+    /// <summary>
+    /// Appends an encoded word, wrapping changed words in a highlight span.
+    /// </summary>
     private void AppendWordHtml(StringBuilder sb, string word, bool different, string color)
     {
         string encoded = System.Net.WebUtility.HtmlEncode(word);

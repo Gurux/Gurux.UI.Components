@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders a typed dropdown with static items, selection callbacks, and optional value persistence.
+</summary>
+*@
+
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using Microsoft.Extensions.Logging
 @using System.Linq.Expressions
@@ -41,9 +47,9 @@
 
 @if (Items != null)
 {
-    <select id="@Id"
+    <select @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" id="@Id"
             @ref="_element"
-            class="form-select"
+            class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" disabled="@Disabled"
             value="@Value"
             onchange="@((ChangeEventArgs e) => SelectionChanged(e))">
         @foreach (var it in Items)
@@ -54,39 +60,44 @@
 }
 
 @code {
+    /// <summary>
+    /// Gets or sets the expression identifying the bound value for form validation.
+    /// </summary>
     [Parameter]
     public Expression<Func<TItem?>>? ValueExpression { get; set; }
 
     private ElementReference _element;
 
+    /// <summary>
+    /// Completes the base component's post-render lifecycle.
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         await base.OnAfterRenderAsync(firstRender);
     }
 
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = true;
 
     /// <summary>
-    /// Selected item.
+    /// Gets or sets the selected dropdown item.
     /// </summary>
     [Parameter]
     public TItem? Value
@@ -96,7 +107,7 @@
     }
 
     /// <summary>
-    /// Notified when the selected value is changed.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<TItem?> ValueChanged
@@ -106,20 +117,25 @@
     }
 
     /// <summary>
-    /// Notified when the selected item is changed.
+    /// Gets or sets the callback invoked when the user selects an item.
     /// </summary>
     [Parameter]
     public EventCallback<TItem> OnSelected { get; set; }
 
-    [Parameter]
-    public string? CssClass { get; set; }
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-select");
 
     /// <summary>
-    /// Is the drop down control disabled.
+    /// Gets or sets whether user interaction with the input is disabled.
     /// </summary>
     [Parameter]
     public bool Disabled { get; set; }
 
+    /// <summary>
+    /// Updates the selected item, notifies selection callbacks, and saves the value when persistence is enabled.
+    /// </summary>
     private async Task SelectionChanged(ChangeEventArgs e)
     {
         Value = default;
@@ -156,7 +172,7 @@
     }
 
     /// <summary>
-    /// Update default cookie value.
+    /// Restores the saved dropdown selection when value persistence is enabled.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
@@ -199,11 +215,9 @@
     }
 
     /// <summary>
-    /// Possible static values.
+    /// Gets or sets the items available for display or selection.
     /// </summary>
-    /// <remarks>
-    /// If values are added they are not asked from the Gurux.DLMS.AMI.
-    /// </remarks>
+    /// <remarks> If values are added they are not asked from the Gurux.DLMS.AMI. </remarks>
     [Parameter]
     public IEnumerable<TItem>? Items
     {

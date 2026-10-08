@@ -1,43 +1,41 @@
 namespace Gurux.UI.Components.Enums
 {
     /// <summary>
-    /// Used colors.
+    /// Defines the Bootstrap contextual colors used by components.
     /// </summary>
-    /// <remarks>
-    /// Colors are defined in bootstrap.css.
-    /// </remarks>
+    /// <remarks> Colors are defined in bootstrap.css. </remarks>
     public enum Color
     {
         /// <summary>
-        /// Primary background.
+        /// Uses the primary contextual color.
         /// </summary>
         Primary,
         /// <summary>
-        /// Secondary background.
+        /// Uses the secondary contextual color.
         /// </summary>
         Secondary,
         /// <summary>
-        /// Information background.
+        /// Uses the dark contextual color.
         /// </summary>
         Dark,
         /// <summary>
-        /// Light background.
+        /// Uses the light contextual color.
         /// </summary>
         Light,
         /// <summary>
-        /// Success background.
+        /// Uses the success contextual color.
         /// </summary>
         Success,
         /// <summary>
-        /// Danger background.
+        /// Uses the danger contextual color.
         /// </summary>
         Danger,
         /// <summary>
-        /// Warning background.
+        /// Uses the warning contextual color.
         /// </summary>
         Warning, 
         /// <summary>
-        /// Information background.
+        /// Uses the information contextual color.
         /// </summary>
         Info
     }   

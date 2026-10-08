@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Edits an integer duration using time and optional day inputs in the configured unit.
+</summary>
+*@
+
 @using Gurux.UI.Components.Enums
 @using System.Diagnostics.CodeAnalysis
 @using System.Globalization
@@ -38,36 +44,38 @@
 @inherits InputBase<TValue>
 @if (Days == true)
 {
-    <span class="@(CssClass + ";inline-block")" @attributes="AdditionalAttributes">
-        <input type="number" step="1" min="0" max="365"
+    <span class="d-inline-block">
+        <input @attributes="AdditionalAttributes" class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))" type="number" step="1" min="0" max="365"
                value="@GetDaysAsString()"
                onchange="@((ChangeEventArgs __e) => SetDaysAsString(__e.Value))" />
-        <input type="time" step="@Step"
+        <input class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))" type="time" step="@Step"
                value="@BindConverter.FormatValue(CurrentValueAsString)"
                onchange="@((ChangeEventArgs __e) => SetTimeAsString(__e.Value))" />
     </span>
 }
 else
 {
-    <input type="time" class="@CssClass" step="@Step"
-           @attributes="AdditionalAttributes" value="@BindConverter.FormatValue(CurrentValueAsString)"
+    <input @attributes="AdditionalAttributes" type="time" class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))" step="@Step" value="@BindConverter.FormatValue(CurrentValueAsString)"
            onchange="@((ChangeEventArgs __e) => CurrentValueAsString = Convert.ToString(__e.Value))" />
 
 }
 @code {
     /// <summary>
-    /// Value is get as a milliseconds.
+    /// Gets or sets whether the numeric duration represents seconds, minutes, or hours.
     /// </summary>
     [Parameter]
     public TimeSpanUnit TimeSpanUnit { get; set; } = TimeSpanUnit.Second;
 
     /// <summary>
-    /// Days is added to time span.
+    /// Gets or sets whether a separate input for the duration's day component is shown.
     /// </summary>
     [Parameter]
     public bool? Days { get; set; }
 
 
+    /// <summary>
+    /// Gets the HTML time input increment in seconds corresponding to the configured duration unit.
+    /// </summary>
     private int Step
     {
         get
@@ -93,15 +101,29 @@ else
 
 
 
+    /// <summary>
+    /// Creates the duration input and verifies that its bound type is int or nullable int.
+    /// </summary>
     public InputIntegerTimeSpan()
     {
         if ((Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue)) != typeof(int))
+        {
             throw new InvalidOperationException("InputIntegerTimeSpan supports only int and int?.");
+        }
     }
 
+    /// <summary>
+    /// Gets the current duration converted to its integer representation.
+    /// </summary>
     private int IntegerValue => Convert.ToInt32(CurrentValue, CultureInfo.InvariantCulture);
+    /// <summary>
+    /// Converts an integer duration to the component's supported bound type.
+    /// </summary>
     private static TValue FromInteger(int value) => (TValue)(object)value;
 
+    /// <summary>
+    /// Parses a TimeSpan to an integer duration and reports empty, invalid, or out-of-range values.
+    /// </summary>
     protected override bool TryParseValueFromString(string? value,
         [MaybeNullWhen(false)] out TValue result,
         [NotNullWhen(false)] out string? validationErrorMessage)
@@ -110,7 +132,10 @@ else
         validationErrorMessage = null;
         if (string.IsNullOrWhiteSpace(value))
         {
-            if (Nullable.GetUnderlyingType(typeof(TValue)) is not null) return true;
+            if (Nullable.GetUnderlyingType(typeof(TValue))is not null)
+            {
+                return true;
+            }
             validationErrorMessage = "Enter a time value.";
             return false;
         }
@@ -137,6 +162,9 @@ else
         }
     }
 
+    /// <summary>
+    /// Updates the duration's day component while retaining the time-of-day component.
+    /// </summary>
     private void SetDaysAsString(object? value)
     {
         if (string.IsNullOrWhiteSpace(Convert.ToString(value)))
@@ -171,6 +199,9 @@ else
         }
     }
 
+    /// <summary>
+    /// Updates the duration's time component while retaining its whole-day component.
+    /// </summary>
     private void SetTimeAsString(object? value)
     {
         if (string.IsNullOrWhiteSpace(Convert.ToString(value)))
@@ -197,9 +228,15 @@ else
         }
     }
 
+    /// <summary>
+    /// Returns the current duration's day component for the days input.
+    /// </summary>
     private string? GetDaysAsString()
     {
-        if (CurrentValue is null) return null;
+        if (CurrentValue is null)
+        {
+            return null;
+        }
         string? result;
         switch (TimeSpanUnit)
         {
@@ -219,6 +256,9 @@ else
         return result;
     }
 
+    /// <summary>
+    /// Converts a numeric duration to a TimeSpan using the configured unit.
+    /// </summary>
     private TimeSpan GetTime(int value)
     {
         TimeSpan result;
@@ -239,9 +279,15 @@ else
         return result;
     }
 
+    /// <summary>
+    /// Formats the integer duration as a TimeSpan using the configured unit.
+    /// </summary>
     protected override string? FormatValueAsString(TValue? value)
     {
-        if (value is null) return null;
+        if (value is null)
+        {
+            return null;
+        }
         int integer = Convert.ToInt32(value, CultureInfo.InvariantCulture);
         string result;
         switch (TimeSpanUnit)

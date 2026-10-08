@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders a table filter header with responsive visibility and captured styling.
+</summary>
+*@
+
 @using Gurux.UI.Components.Enums
 @inherits ComponentBase
 
@@ -39,7 +45,7 @@
     <th id="@Id"
         style="@CssStyle"
         class="@GetCssClass()"
-        @attributes="@AdditionalAttributes">
+        @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)">
         @ChildContent
     </th>
 }
@@ -47,46 +53,42 @@
 @code
 {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Parent table.
+    /// Gets or sets the containing component supplied through a cascading parameter.
     /// </summary>
     [CascadingParameter]
     private IGXTable? Parent { get; set; }
 
     /// <summary>
-    /// Gets or sets the item template for the list.
+    /// Gets or sets the content rendered inside the component.
     /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// CSS style.
+    /// Gets the inline CSS declarations obtained from the captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssStyle { get; set; }
+    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
 
     /// <summary>
-    /// CSS class.
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssClass { get; set; }
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes);
 
     /// <summary>
-    /// Responsive determines the order
-    /// in which the contents are hidden if they do not fit the screen.
+    /// Gets or sets the responsive breakpoints and print settings at which the cell is displayed.
     /// </summary>
     [Parameter]
     public Visibility Visibility { get; set; } = Visibility.All;
@@ -96,11 +98,17 @@
     /// </summary>
     bool _hidden;
 
+    /// <summary>
+    /// Combines captured CSS classes with Bootstrap display classes for the requested responsive and print visibility.
+    /// </summary>
     private string? GetCssClass()
     {
         return GetCssClass(Visibility, CssClass);
     }
 
+    /// <summary>
+    /// Combines captured CSS classes with Bootstrap display classes for the requested responsive and print visibility.
+    /// </summary>
     internal static string? GetCssClass(Visibility visibility, string? CssClass)
     {
         string? str = null;
@@ -175,7 +183,7 @@
     }
 
     /// <summary>
-    /// Initialize filter.
+    /// Verifies that a parent table exists and determines whether the filter column is hidden.
     /// </summary>
     protected override void OnInitialized()
     {

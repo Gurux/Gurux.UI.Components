@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Uses a checkbox to set or clear selected bits in a bound numeric value.
+</summary>
+*@
+
 @using System.Diagnostics.CodeAnalysis
 @using System.Globalization
 @using Microsoft.Extensions.Logging
@@ -46,8 +52,7 @@
                type="checkbox"
                checked="@IsChecked"
                placeholder="@Placeholder"
-               class="@CssClass"
-               attributes="@AdditionalAttributes"
+               @attributes="AdditionalAttributes" class="@CssClass"
                disabled="@IsDisabled()"
                onchange="@(async (ChangeEventArgs e) => await UpdateString(e.Value))" />
     </div>
@@ -56,34 +61,33 @@
 @code
 {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Checbox text.
+    /// Gets or sets the text displayed by the component.
     /// </summary>
     [Parameter]
     public string? Text { get; set; }
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = false;
 
     /// <summary>
-    /// Is string value required.
+    /// Gets or sets whether the input is marked as requiring a value.
     /// </summary>
     [Parameter]
     public bool Required
@@ -93,18 +97,21 @@
     }
 
     /// <summary>
-    /// Is checkbox disabled
+    /// Gets or sets whether user interaction with the input is disabled.
     /// </summary>
     [Parameter]
     public bool Disabled { get; set; }
 
+    /// <summary>
+    /// Returns the required HTML attribute when a value is required.
+    /// </summary>
     private string? IsRequired()
     {
         return Required ? " required" : null;
     }
 
     /// <summary>
-    /// Value.
+    /// Gets or sets the numeric value containing the bits controlled by the checkbox mask.
     /// </summary>
     [Parameter]
     public TItem? Value
@@ -114,7 +121,7 @@
     }
 
     /// <summary>
-    /// Mask.
+    /// Gets or sets the bit mask that the checkbox or switch updates within the bound value.
     /// </summary>
     [Parameter]
     public TItem? Mask
@@ -123,6 +130,9 @@
         set;
     }
 
+    /// <summary>
+    /// Gets whether all bits selected by the mask are set in the current value.
+    /// </summary>
     private bool IsChecked
     {
         get
@@ -219,7 +229,7 @@
     }
 
     /// <summary>
-    /// Notified when the selected value is changed.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<TItem?> ValueChanged
@@ -228,20 +238,28 @@
         set;
     }
 
-    [Parameter]
-    public string? CssClass { get; set; }
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-check-input");
 
+    /// <summary>
+    /// Returns the disabled HTML attribute when editing is disabled.
+    /// </summary>
     private string? IsDisabled()
     {
         return Disabled ? "disabled" : null;
     }
 
     /// <summary>
-    /// Placeholder text.
+    /// Gets or sets the hint displayed when the input has no value.
     /// </summary>
     [Parameter]
     public string? Placeholder { get; set; }
 
+    /// <summary>
+    /// Sets or clears the masked bits according to the checked state, then notifies and optionally persists the value.
+    /// </summary>
     private async Task UpdateString(object? value, bool init = false)
     {
         bool change = false;
@@ -289,6 +307,9 @@
         }
     }
 
+    /// <summary>
+    /// Returns the text representation of the masked input's bound value.
+    /// </summary>
     private string? ValueToString()
     {
         TItem? result;
@@ -300,7 +321,7 @@
     }
 
     /// <summary>
-    /// Update default cookie value.
+    /// Restores the masked checkbox's saved value after the first render when persistence is enabled.
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

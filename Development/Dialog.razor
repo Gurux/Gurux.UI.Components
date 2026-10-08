@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays a movable, optionally resizable dialog and can persist its position and size.
+</summary>
+*@
+
 @using Microsoft.AspNetCore.Components.Web
 @inject IGXLocalStorage LocalStorage
 @inject Microsoft.JSInterop.IJSRuntime JS
@@ -37,12 +43,12 @@
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 
-<div class="modal fade show d-block" @attributes="AdditionalAttributes" id="@(Id ?? _elementId)" tabindex="-1" role="dialog" @onkeydown="OnKeyDown"
-     @onpointermove="OnPointerMove" @onpointerup="OnPointerUp" style="left:@LeftPx; top:@TopPx;">
+<div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "modal fade show d-block")" id="@ElementId" tabindex="-1" role="dialog" @onkeydown="OnKeyDown"
+     @onpointermove="OnPointerMove" @onpointerup="OnPointerUp" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, $"left:{LeftPx}; top:{TopPx};")">
     <div @ref="_dialog" class="modal-dialog @(Resizable ? "dialog-resizable" : null)" role="document">
         <div class="modal-content">
             <div class="modal-header" @onpointerdown="OnPointerDown">
-                <h5 class="modal-title" id="confirmanceModalLabel">@Title</h5>
+                <h5 class="modal-title" id="@(ElementId + "-title")">@Title</h5>
                 @if (HeaderContent is not null)
                 {
                     <div class="dialog-header-actions" @onpointerdown:stopPropagation="true">
@@ -79,53 +85,68 @@
 
 @code
 {
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>Optional actions displayed at the right of the dialog title.</summary>
+    /// <summary>
+    /// Gets or sets optional content rendered alongside the dialog title.
+    /// </summary>
     [Parameter] public RenderFragment? HeaderContent { get; set; }
 
     /// <summary>
-    /// Can the dialog be resized by dragging its bottom-right corner.
-    /// If false, user can only move the dialog by dragging the header.
+    /// Gets or sets whether the dialog can be resized by dragging its bottom-right corner.
     /// </summary>
     [Parameter]
     public bool Resizable { get; set; }
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the dialog's position and size are restored from and saved to browser local storage.
     /// </summary>
-    /// <seealso cref="Id"/>
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = true;
 
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
-    /// <summary>Stable identifier used for the element and its saved layout.</summary>
+    /// <summary>
+    /// Gets or sets the preferred dialog id used for its element and saved layout; captured attributes or a generated Guid provide the fallback.
+    /// </summary>
     [Parameter] public string? Id { get; set; }
 
     /// <summary>
-    /// User has accept the action.
+    /// Gets or sets the callback invoked when the dialog is accepted.
     /// </summary>
     [Parameter]
     public EventCallback OnOk { get; set; }
 
     /// <summary>
-    /// User has Cancel the action.
+    /// Gets or sets the callback invoked when the user requests cancellation.
     /// </summary>
     [Parameter]
     public EventCallback OnCancel { get; set; }
 
+    /// <summary>
+    /// Gets or sets the title displayed by the component.
+    /// </summary>
     [Parameter]
     public string? Title { get; set; }
 
+    /// <summary>
+    /// Gets or sets the accept button label; an empty label hides the button.
+    /// </summary>
     [Parameter]
     public string OkButtonTitle { get; set; } = "Save";
 
+    /// <summary>
+    /// Gets or sets the cancel button label; an empty label hides the button.
+    /// </summary>
     [Parameter]
     public string CancelButtonTitle { get; set; } = "Cancel";
 
@@ -133,29 +154,55 @@
     private bool _dragging;
     private double _startX, _startY;
     private double _offsetX = 80, _offsetY = 80; // current top-left (px)
+    /// <summary>
+    /// Gets the dialog's horizontal position formatted as a CSS pixel value.
+    /// </summary>
     private string LeftPx => _offsetX.ToString("0") + "px";
+    /// <summary>
+    /// Gets the dialog's vertical position formatted as a CSS pixel value.
+    /// </summary>
     private string TopPx => _offsetY.ToString("0") + "px";
 
-    private readonly string _elementId = "dialog-" + Guid.NewGuid().ToString("N");
+    private string? _generatedId;
+    /// <summary>
+    /// Gets the effective dialog id, preferring the explicit parameter over captured attributes and a generated Guid.
+    /// </summary>
+    private string ElementId => !string.IsNullOrWhiteSpace(Id)
+        ? Id : GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
     private ElementReference _dialog;
     private IJSObjectReference? _module;
     private DotNetObjectReference<Dialog>? _reference;
     private string? _loadedKey;
     private bool _ready, _disposed;
     private double _width, _height;
-    private string? StorageKey => Save && !string.IsNullOrWhiteSpace(Id)
-        ? "Dialog:" + Uri.EscapeDataString(Id) + ":Layout" : null;
+    /// <summary>
+    /// Gets the local storage key for the dialog layout, or null when layout persistence is disabled.
+    /// </summary>
+    private string? StorageKey => Save
+        ? "Dialog:" + Uri.EscapeDataString(ElementId) + ":Layout" : null;
 
+    /// <summary>
+    /// Restores the layout for a changed storage key and connects browser size observation when persistence is enabled.
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         string? key = StorageKey;
-        if (_disposed || key == _loadedKey) return;
+        if (_disposed || key == _loadedKey)
+        {
+            return;
+        }
         _ready = false;
         _loadedKey = key;
         try
         {
-            if (_module != null) await _module.InvokeVoidAsync("disconnect", _dialog);
-            if (key == null) return;
+            if (_module != null)
+            {
+                await _module.InvokeVoidAsync("disconnect", _dialog);
+            }
+            if (key == null)
+            {
+                return;
+            }
             double[]? layout = null;
             string? json = await LocalStorage.GetValueAsync(key);
             if (!string.IsNullOrWhiteSpace(json))
@@ -163,16 +210,24 @@
                 try { layout = System.Text.Json.JsonSerializer.Deserialize<double[]>(json); }
                 catch (System.Text.Json.JsonException) { }
             }
-            if (_disposed || StorageKey != key) return;
-            if (layout is not { Length: 4 } || layout.Any(value => !double.IsFinite(value)) ||
-                layout[2] <= 0 || layout[3] <= 0) layout = null;
+            if (_disposed || StorageKey != key)
+            {
+                return;
+            }
+            if (layout is not { Length: 4 } || layout.Any(value => !double.IsFinite(value)) || layout[2] <= 0 || layout[3] <= 0)
+            {
+                layout = null;
+            }
             if (layout != null)
             {
                 _offsetX = layout[0];
                 _offsetY = layout[1];
             }
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Dialog.razor.js");
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
             _reference ??= DotNetObjectReference.Create(this);
             var size = await _module.InvokeAsync<double[]>("observe", _dialog, _reference, key,
                 layout == null ? 0 : layout[2], layout == null ? 0 : layout[3]);
@@ -185,20 +240,31 @@
         catch (Exception ex) { ReportStorageError(ex); }
     }
 
+    /// <summary>
+    /// Accepts a valid browser size notification for the active layout key and persists the dialog layout.
+    /// </summary>
     [JSInvokable]
     public async Task SizeChanged(string key, double width, double height)
     {
-        if (_disposed || !_ready || key != StorageKey || !double.IsFinite(width) ||
-            !double.IsFinite(height) || width <= 0 || height <= 0) return;
+        if (_disposed || !_ready || key != StorageKey || !double.IsFinite(width) || !double.IsFinite(height) || width <= 0 || height <= 0)
+        {
+            return;
+        }
         _width = width;
         _height = height;
         await SaveLayoutAsync();
     }
 
+    /// <summary>
+    /// Measures the dialog and saves its current position and size when layout tracking is ready.
+    /// </summary>
     private async Task SaveLayoutAsync()
     {
         string? key = StorageKey;
-        if (_disposed || !_ready || key == null || key != _loadedKey) return;
+        if (_disposed || !_ready || key == null || key != _loadedKey)
+        {
+            return;
+        }
         try
         {
             if (_module != null)
@@ -214,16 +280,22 @@
         catch (Exception ex) { ReportStorageError(ex); }
     }
 
+    /// <summary>
+    /// Replaces the dialog's storage error notification with the specified exception.
+    /// </summary>
     private void ReportStorageError(Exception exception)
     {
         if (Services.GetService(typeof(IGXNotificationService)) is IGXNotificationService notifications)
         {
-            string key = _elementId + ":storage";
+            string key = ElementId + ":storage";
             notifications.RemoveByKey(key);
             notifications.ReportError(exception, key);
         }
     }
 
+    /// <summary>
+    /// Disconnects layout observation and releases the JavaScript module and .NET callback reference.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
@@ -239,6 +311,9 @@
         finally { _reference?.Dispose(); }
     }
 
+    /// <summary>
+    /// Starts dragging the dialog and records the pointer offset from its current position.
+    /// </summary>
     private void OnPointerDown(PointerEventArgs e)
     {
         _dragging = true;
@@ -246,6 +321,9 @@
         _startY = e.ClientY - _offsetY;
     }
 
+    /// <summary>
+    /// Updates the dialog position while a drag operation is active.
+    /// </summary>
     private void OnPointerMove(PointerEventArgs e)
     {
         if (!_dragging)
@@ -257,6 +335,9 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Ends dragging and saves the final dialog layout.
+    /// </summary>
     private async Task OnPointerUp(PointerEventArgs e)
     {
         _dragging = false;
@@ -264,7 +345,7 @@
     }
 
     /// <summary>
-    /// User has accept the action.
+    /// Invokes the dialog's accept callback.
     /// </summary>
     private async Task Ok()
     {
@@ -274,7 +355,7 @@
     }
 
     /// <summary>
-    /// User has Cancel the action.
+    /// Invokes the dialog's cancel callback.
     /// </summary>
     private async Task Cancel()
     {
@@ -283,6 +364,9 @@
         await OnCancel.InvokeAsync(false);
     }
 
+    /// <summary>
+    /// Invokes the cancel callback when Escape is pressed.
+    /// </summary>
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Escape")

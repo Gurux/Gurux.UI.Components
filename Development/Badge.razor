@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays a contextual badge with text or a numeric count alongside optional child content.
+</summary>
+*@
+
 @using System.Diagnostics
 @using Gurux.UI.Components.Enums
 
@@ -40,49 +46,50 @@
 }
 @code {
     /// <summary>
-    /// Child content that the badge is attached to (for example an icon or text).
+    /// Gets or sets the content rendered inside the component.
     /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    ///
+    /// Gets or sets the text displayed alongside the badge value.
     /// </summary>
     [Parameter]
     public string? Label { get; set; }
 
     /// <summary>
-    /// When true the badge is rendered as a pill (rounded) badge.
-    /// Default is true.
+    /// Gets or sets whether the badge uses a rounded pill shape; enabled by default.
     /// </summary>
     [Parameter]
     public bool Pill { get; set; } = true;
 
     /// <summary>
-    /// Badge color. Uses the project's <see cref="Color"/> enum.
+    /// Gets or sets the Bootstrap contextual color of the badge.
     /// </summary>
     [Parameter]
     public Color Color { get; set; }
 
     /// <summary>
-    /// Badge color. Uses the project's <see cref="Color"/> enum.
+    /// Gets or sets the diagnostic level used to choose the badge's contextual color.
     /// </summary>
     [Parameter]
     public TraceLevel TraceLevel { get; set; }
 
     /// <summary>
-    /// Backwards-compatible default count value. If consumer does not set <see cref="Value"/>,
-    /// the component will initialize <see cref="Value"/> from this value.
+    /// Gets or sets the initial badge count used when no nonzero value has been supplied.
     /// </summary>
     [Parameter]
     public int Default { get; set; } = 0;
 
     /// <summary>
-    /// The numeric value displayed inside the badge.
+    /// Gets or sets the numeric count displayed inside the badge.
     /// </summary>
     [Parameter]
     public int Value { get; set; } = 0;
 
+    /// <summary>
+    /// Formats the badge count, displaying 99+ for values greater than 99.
+    /// </summary>
     private string ValueToString()
     {
         if (Value > 99)
@@ -93,9 +100,7 @@
     }
 
     /// <summary>
-    /// Ensure compatibility between <see cref="Default"/> and <see cref="Value"/>.
-    /// If consumer provided no explicit <see cref="Value"/> but <see cref="Default"/> is non-zero,
-    /// initialize <see cref="Value"/> from <see cref="Default"/>.
+    /// Initializes the badge count from Default when Value remains zero.
     /// </summary>
     protected override void OnParametersSet()
     {
@@ -107,7 +112,7 @@
     }
 
     /// <summary>
-    /// Compute the CSS class for the badge based on <see cref="Color"/> and <see cref="Pill"/>.
+    /// Returns the badge classes for the configured contextual color and pill shape.
     /// </summary>
     /// <returns>A CSS class string to apply to the badge element.</returns>
     private string GetBadgeClass()

@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders inline or downloaded Markdown with section links and optional syntax highlighting.
+</summary>
+*@
+
 @using System.Text
 @using System.Text.RegularExpressions
 @using System.Net.Http
@@ -40,26 +46,52 @@
 
 @if (_loading)
 {
-    <p role="status">@LoadingText</p>
+    <p @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" role="status">@LoadingText</p>
 }
 else if (_error)
 {
-    <p role="alert">@ErrorText</p>
+    <p @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" role="alert">@ErrorText</p>
 }
 else if (!string.IsNullOrEmpty(_html))
 {
-    <div @ref="_root" class="@CssClass">@((MarkupString)_html)</div>
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" @ref="_root" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">@((MarkupString)_html)</div>
 }
 
 @code {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
     private static readonly Regex ReTask = new(@"^\[( |x|X)\]\s+(.*)$", RegexOptions.Compiled);
+    /// <summary>
+    /// Gets or sets inline Markdown content, which takes precedence over the source URL.
+    /// </summary>
     [Parameter] public string? Content { get; set; }
-    /// <summary>Markdown URL relative to HttpClient.BaseAddress. Content takes precedence when supplied.</summary>
+    /// <summary>
+    /// Gets or sets the URL from which Markdown is loaded when inline content is not supplied.
+    /// </summary>
     [Parameter] public string? Source { get; set; }
+    /// <summary>
+    /// Gets or sets the status text displayed while Markdown content is loading.
+    /// </summary>
     [Parameter] public string LoadingText { get; set; } = "Loading...";
+    /// <summary>
+    /// Gets or sets the message displayed when Markdown content cannot be loaded.
+    /// </summary>
     [Parameter] public string ErrorText { get; set; } = "Unable to load the documentation.";
-    [Parameter] public string CssClass { get; set; } = "markdown-body";
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "markdown-body");
+    /// <summary>
+    /// Gets or sets whether raw HTML blocks are included without encoding; disabled by default.
+    /// </summary>
     [Parameter] public bool AllowRawHtml { get; set; } = false;    // turvallinen oletus: ei sallita
+    /// <summary>
+    /// Gets or sets whether headings receive unique identifiers for section links; enabled by default.
+    /// </summary>
     [Parameter] public bool GenerateHeadingIds { get; set; } = true;
 
     private string _html = string.Empty;
@@ -68,38 +100,62 @@ else if (!string.IsNullOrEmpty(_html))
     private Task<IJSObjectReference>? _sectionLinks;
     private bool _disposed;
 
+    /// <summary>
+    /// Initializes section links and syntax highlighting for the rendered Markdown when browser interop is available.
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_disposed || _loading || _error || string.IsNullOrEmpty(_html)) return;
-        if (Services.GetService(typeof(IJSRuntime)) is not IJSRuntime js) return;
+        if (_disposed || _loading || _error || string.IsNullOrEmpty(_html))
+        {
+            return;
+        }
+        if (Services.GetService(typeof(IJSRuntime))is not IJSRuntime js)
+        {
+            return;
+        }
         try
         {
             _sectionLinks ??= js.InvokeAsync<IJSObjectReference>("import",
                 "./_content/Gurux.UI.Components/MarkdownView/sections.js").AsTask();
             var sections = await _sectionLinks;
-            if (!_disposed) await sections.InvokeVoidAsync("initialize", _root, _html);
+            if (!_disposed)
+            {
+                await sections.InvokeVoidAsync("initialize", _root, _html);
+            }
             if (!_disposed && _html.Contains("<pre><code"))
             {
                 _highlighter ??= js.InvokeAsync<IJSObjectReference>("import",
                     "./_content/Gurux.UI.Components/MarkdownView/highlight.js").AsTask();
                 var module = await _highlighter;
-                if (!_disposed) await module.InvokeVoidAsync("highlight", _root);
+                if (!_disposed)
+                {
+                    await module.InvokeVoidAsync("highlight", _root);
+                }
             }
         }
         catch (JSDisconnectedException) { }
     }
 
+    /// <summary>
+    /// Cancels content loading and releases the loaded syntax highlighting and section link modules.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         Dispose();
         foreach (var module in new[] { _highlighter, _sectionLinks })
         {
-            if (module is null) continue;
+            if (module is null)
+            {
+                continue;
+            }
             try { await (await module).DisposeAsync(); }
             catch (JSDisconnectedException) { }
         }
     }
 
+    /// <summary>
+    /// Parses a Markdown task marker into its checked state and item text.
+    /// </summary>
     private static bool TryParseTask(string text, out bool isChecked, out string body)
     {
         var m = ReTask.Match(text);
@@ -125,6 +181,9 @@ else if (!string.IsNullOrEmpty(_html))
     private bool _loading;
     private bool _error;
 
+    /// <summary>
+    /// Loads changed Markdown sources with cancellation and converts the latest inline or downloaded content to HTML.
+    /// </summary>
     protected override async Task OnParametersSetAsync()
     {
         var source = Content is null && !string.IsNullOrWhiteSpace(Source) ? Source : null;
@@ -145,7 +204,10 @@ else if (!string.IsNullOrEmpty(_html))
                     var http = Services.GetService(typeof(HttpClient)) as HttpClient
                         ?? throw new InvalidOperationException("Register HttpClient to load MarkdownView.Source.");
                     var text = await http.GetStringAsync(source, request.Token);
-                    if (_request != request) return;
+                    if (_request != request)
+                    {
+                        return;
+                    }
                     _sourceContent = text;
                 }
                 catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException or UriFormatException)
@@ -158,7 +220,10 @@ else if (!string.IsNullOrEmpty(_html))
                 }
                 finally
                 {
-                    if (_request == request) _loading = false;
+                    if (_request == request)
+                    {
+                        _loading = false;
+                    }
                 }
             }
         }
@@ -181,6 +246,9 @@ else if (!string.IsNullOrEmpty(_html))
         }
     }
 
+    /// <summary>
+    /// Marks the component as disposed and cancels any pending Markdown download.
+    /// </summary>
     public void Dispose()
     {
         _disposed = true;
@@ -191,11 +259,23 @@ else if (!string.IsNullOrEmpty(_html))
     }
 
     // Markdown to HTML
+    /// <summary>
+    /// Converts Markdown blocks and inline formatting to HTML using the configured rendering options.
+    /// </summary>
     internal static class MiniMarkdown
     {
+        /// <summary>
+        /// Controls raw HTML handling and heading identifier generation during Markdown rendering.
+        /// </summary>
         public sealed class Options
         {
+            /// <summary>
+            /// Gets or sets whether raw HTML blocks are included without encoding; disabled by default.
+            /// </summary>
             public bool AllowRawHtml { get; set; }
+            /// <summary>
+            /// Gets or sets whether headings receive unique identifiers for section links; enabled by default.
+            /// </summary>
             public bool GenerateHeadingIds { get; set; } = true;
         }
 
@@ -212,6 +292,9 @@ else if (!string.IsNullOrEmpty(_html))
         private static readonly Regex ReItalic = new(@"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)|_(.+?)_", RegexOptions.Compiled);
         private static readonly Regex ReImage = new(@"!\[([^\]]*)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
         private static readonly Regex ReLink = new(@"\[([^\]]+)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
+        /// <summary>
+        /// Returns the title and SVG icon markup for a supported Markdown alert marker.
+        /// </summary>
         private static (string Title, string Icon) GetAlert(string marker) => marker.Trim() switch
         {
             "[!NOTE]" => ("Note", "<circle cx=\"12\" cy=\"12\" r=\"9\" /><path d=\"M12 11v6M12 7h.01\" />"),
@@ -222,12 +305,21 @@ else if (!string.IsNullOrEmpty(_html))
             _ => (string.Empty, string.Empty)
         };
 
+        /// <summary>
+        /// Converts Markdown to HTML with the configured raw HTML and heading identifier options.
+        /// </summary>
         public static string ToHtml(string md, Options opt)
             => ToHtml(md, opt, new HashSet<string>(StringComparer.Ordinal));
 
+        /// <summary>
+        /// Converts Markdown to HTML with the configured raw HTML and heading identifier options.
+        /// </summary>
         private static string ToHtml(string md, Options opt, HashSet<string> headingIds)
         {
-            if (string.IsNullOrEmpty(md)) return string.Empty;
+            if (string.IsNullOrEmpty(md))
+            {
+                return string.Empty;
+            }
 
             var sb = new StringBuilder();
             void AppendHeading(int level, string text)
@@ -239,7 +331,10 @@ else if (!string.IsNullOrEmpty(_html))
                 {
                     var slug = Slugify(inner);
                     id = slug;
-                    for (int suffix = 1; !headingIds.Add(id); ++suffix) id = $"{slug}-{suffix}";
+                    for (int suffix = 1; !headingIds.Add(id); ++suffix)
+                    {
+                        id = $"{slug}-{suffix}";
+                    }
                     sb.Append(" id=\"").Append(HtmlEncode(id)).Append('"');
                 }
                 sb.Append('>').Append(inner);
@@ -270,12 +365,24 @@ else if (!string.IsNullOrEmpty(_html))
             }
             void CloseLists()
             {
-                if (inUl) { sb.Append("</ul>\n"); inUl = false; }
-                if (inOl) { sb.Append("</ol>\n"); inOl = false; }
+                if (inUl)
+                {
+                    sb.Append("</ul>\n");
+                    inUl = false;
+                }
+                if (inOl)
+                {
+                    sb.Append("</ol>\n");
+                    inOl = false;
+                }
             }
             void CloseQuote()
             {
-                if (inQuote) { sb.Append("</blockquote>\n"); inQuote = false; }
+                if (inQuote)
+                {
+                    sb.Append("</blockquote>\n");
+                    inQuote = false;
+                }
             }
 
             for (int lineIndex = 0; lineIndex < lines.Length; ++lineIndex)
@@ -298,7 +405,9 @@ else if (!string.IsNullOrEmpty(_html))
                         };
                         sb.Append("<pre><code");
                         if (!string.IsNullOrWhiteSpace(fenceLang))
+                        {
                             sb.Append(" class=\"language-").Append(HtmlEncode(fenceLang)).Append("\"");
+                        }
                         sb.Append(">");
                         continue;
                     }
@@ -332,7 +441,9 @@ else if (!string.IsNullOrEmpty(_html))
                         FlushPara(); CloseLists(); CloseQuote();
                         sb.Append("<table><thead><tr>");
                         foreach (var cell in headers)
+                        {
                             sb.Append("<th>").Append(ProcessInline(cell, opt)).Append("</th>");
+                        }
                         sb.Append("</tr></thead><tbody>\n");
                         lineIndex += 2;
                         while (lineIndex < lines.Length && lines[lineIndex].Contains('|') && !string.IsNullOrWhiteSpace(lines[lineIndex]))
@@ -345,7 +456,10 @@ else if (!string.IsNullOrEmpty(_html))
                                 var alignment = separator.EndsWith(':') ? (separator.StartsWith(':') ? "center" : "right")
                                     : separator.StartsWith(':') ? "left" : null;
                                 sb.Append("<td");
-                                if (alignment is not null) sb.Append(" style=\"text-align:").Append(alignment).Append("\"");
+                                if (alignment is not null)
+                                {
+                                    sb.Append(" style=\"text-align:").Append(alignment).Append("\"");
+                                }
                                 sb.Append('>').Append(ProcessInline(column < cells.Length ? cells[column] : "", opt)).Append("</td>");
                             }
                             sb.Append("</tr>\n");
@@ -389,7 +503,10 @@ else if (!string.IsNullOrEmpty(_html))
                         while (lineIndex + 1 < lines.Length)
                         {
                             var nextQuote = ReBlockquote.Match(lines[lineIndex + 1]);
-                            if (!nextQuote.Success || GetAlert(nextQuote.Groups[1].Value).Title.Length != 0) break;
+                            if (!nextQuote.Success || GetAlert(nextQuote.Groups[1].Value).Title.Length != 0)
+                            {
+                                break;
+                            }
                             body.AppendLine(nextQuote.Groups[1].Value);
                             ++lineIndex;
                         }
@@ -403,10 +520,17 @@ else if (!string.IsNullOrEmpty(_html))
                           .Append("</blockquote>\n");
                         continue;
                     }
-                    if (!inQuote) { sb.Append("<blockquote>\n"); inQuote = true; }
+                    if (!inQuote)
+                    {
+                        sb.Append("<blockquote>\n");
+                        inQuote = true;
+                    }
                     var quoteLine = ProcessLine(bq.Groups[1].Value, opt);
                     sb.Append(quoteLine);
-                    if (!quoteLine.EndsWith("<br />", StringComparison.Ordinal)) sb.Append("<br />");
+                    if (!quoteLine.EndsWith("<br />", StringComparison.Ordinal))
+                    {
+                        sb.Append("<br />");
+                    }
                     sb.Append('\n');
                     continue;
                 }
@@ -495,28 +619,45 @@ else if (!string.IsNullOrEmpty(_html))
                 }
 
                 // Kappale (yhdistetään peräkkäiset rivit samaan <p>:hen)
-                if (para.Length > 0 && !paragraphEndsWithBreak) para.Append(' ');
+                // Kappale (yhdistetään peräkkäiset rivit samaan <p>:hen)
+                if (para.Length > 0 && !paragraphEndsWithBreak)
+                {
+                    para.Append(' ');
+                }
                 var paragraphLine = ProcessLine(line, opt);
                 para.Append(paragraphLine);
                 paragraphEndsWithBreak = paragraphLine.EndsWith("<br />", StringComparison.Ordinal);
             }
 
             // Sulje keskeneräiset blokit
-            if (inFence) sb.Append("</code></pre>\n");
+            // Sulje keskeneräiset blokit
+            if (inFence)
+            {
+                sb.Append("</code></pre>\n");
+            }
             FlushPara(); CloseLists(); CloseQuote();
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Splits a Markdown table row into trimmed cells while preserving escaped pipe characters.
+        /// </summary>
         private static string[] SplitCells(string line)
         {
             return Regex.Split(line.Trim().Trim('|'), @"(?<!\\)\|")
                 .Select(cell => cell.Trim().Replace(@"\|", "|")).ToArray();
         }
 
+        /// <summary>
+        /// Formats inline Markdown and appends a line break when the line ends with a hard-break marker.
+        /// </summary>
         private static string ProcessLine(string line, Options opt)
         {
             int backslashes = 0;
-            for (int index = line.Length - 1; index >= 0 && line[index] == '\\'; --index) ++backslashes;
+            for (int index = line.Length - 1; index >= 0 && line[index] == '\\'; --index)
+            {
+                ++backslashes;
+            }
             bool slashBreak = backslashes % 2 != 0;
             bool hardBreak = slashBreak || line.EndsWith("  ", StringComparison.Ordinal);
             var text = slashBreak ? line[..^1] : line;
@@ -527,9 +668,15 @@ else if (!string.IsNullOrEmpty(_html))
         private static readonly Regex ReLineBreak = new(@"(?<!\\)<br\s*/?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex[] InlinePatterns = [ReCodeInline, ReImage, ReLink, ReBold, ReItalic, ReLineBreak];
 
+        /// <summary>
+        /// Formats inline Markdown tokens while encoding literal text and limiting recursive parsing depth.
+        /// </summary>
         private static string ProcessInline(string s, Options opt, int depth = 0)
         {
-            if (depth > 16) return HtmlEncode(s);
+            if (depth > 16)
+            {
+                return HtmlEncode(s);
+            }
             var result = new StringBuilder();
             int position = 0;
             while (position < s.Length)
@@ -552,19 +699,28 @@ else if (!string.IsNullOrEmpty(_html))
                 }
                 result.Append(HtmlEncode(s[position..next.Index]));
                 // Parse source tokens only, never generated HTML or code.
+                // Parse source tokens only, never generated HTML or code.
                 if (kind == 0)
+                {
                     result.Append("<code>").Append(HtmlEncode(next.Groups[1].Value)).Append("</code>");
+                }
                 else if (kind == 5)
+                {
                     result.Append("<br />");
+                }
                 else if (kind is 1 or 2)
                 {
                     var label = next.Groups[1].Value;
                     var url = SafeUrl(next.Groups[2].Value);
                     var title = next.Groups[3].Success ? $" title=\"{HtmlEncode(next.Groups[3].Value)}\"" : "";
                     if (kind == 1)
+                    {
                         result.Append($"<img src=\"{url}\" alt=\"{HtmlEncode(label)}\"{title} />");
+                    }
                     else
+                    {
                         result.Append($"<a href=\"{url}\" rel=\"noopener noreferrer\"{title}>{ProcessInline(label, opt, depth + 1)}</a>");
+                    }
                 }
                 else
                 {
@@ -576,14 +732,23 @@ else if (!string.IsNullOrEmpty(_html))
             }
             return result.ToString();
         }
+        /// <summary>
+        /// Encodes HTML-sensitive characters in literal text.
+        /// </summary>
         private static string HtmlEncode(string? s)
         {
-            if (s is null) return "";
+            if (s is null)
+            {
+                return "";
+            }
             // Jos raaka HTML sallitaan, älä escapettaa *valmiita* tageja —
             // mutta tämä toteutus EI tue raaka-HTML:ää sisälinjoissa.
             return s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
         }
 
+        /// <summary>
+        /// Encodes code block content and expands tabs to four spaces.
+        /// </summary>
         private static string HtmlEncodePreserveTabs(string? s)
         {
             // Koodiblokissa säilytetään sisennys (tab->4 väliä); escapetus silti.
@@ -591,22 +756,37 @@ else if (!string.IsNullOrEmpty(_html))
             return enc.Replace("\t", "    ");
         }
 
+        /// <summary>
+        /// Returns a supported link destination, replacing invalid or unsupported URLs with a fragment placeholder.
+        /// </summary>
         private static string SafeUrl(string url)
         {
             var value = System.Net.WebUtility.HtmlDecode(url).Trim();
-            if (value.Any(char.IsControl) || value.Contains('\\') || value.StartsWith("//")) return "#";
+            if (value.Any(char.IsControl) || value.Contains('\\') || value.StartsWith("//"))
+            {
+                return "#";
+            }
             if (Uri.TryCreate(value, UriKind.Absolute, out var absolute))
             {
-                if (absolute.Scheme is not ("http" or "https" or "mailto")) return "#";
+                if (absolute.Scheme is not ("http" or "https" or "mailto"))
+                {
+                    return "#";
+                }
             }
             else
             {
                 int colon = value.IndexOf(':');
                 int separator = value.IndexOfAny(['/', '?', '#']);
-                if (colon >= 0 && (separator < 0 || colon < separator)) return "#";
+                if (colon >= 0 && (separator < 0 || colon < separator))
+                {
+                    return "#";
+                }
             }
             return HtmlEncode(value);
         }
+        /// <summary>
+        /// Generates a heading anchor from rendered text while preserving Unicode letters and combining marks.
+        /// </summary>
         private static string Slugify(string s)
         {
             // Use rendered text so link URLs and formatting do not become part of the anchor.
@@ -614,10 +794,14 @@ else if (!string.IsNullOrEmpty(_html))
             var sb = new StringBuilder();
             foreach (var ch in s.ToLowerInvariant())
             {
-                if (char.IsLetterOrDigit(ch) || ch is '-' or '_' ||
-                    char.GetUnicodeCategory(ch) is System.Globalization.UnicodeCategory.NonSpacingMark
-                        or System.Globalization.UnicodeCategory.SpacingCombiningMark) sb.Append(ch);
-                else if (ch == ' ') sb.Append('-');
+                if (char.IsLetterOrDigit(ch) || ch is '-' or '_' || char.GetUnicodeCategory(ch)is System.Globalization.UnicodeCategory.NonSpacingMark or System.Globalization.UnicodeCategory.SpacingCombiningMark)
+                {
+                    sb.Append(ch);
+                }
+                else if (ch == ' ')
+                {
+                    sb.Append('-');
+                }
             }
             var slug = sb.ToString();
             return string.IsNullOrEmpty(slug) ? "section" : slug;

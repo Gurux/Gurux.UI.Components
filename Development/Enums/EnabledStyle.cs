@@ -33,24 +33,24 @@
 namespace Gurux.UI.Components.Enums
 {
     /// <summary>
-    /// When the component is enabled.
+    /// Defines the form edit states in which a menu command is enabled.
     /// </summary>
     public enum EnableStyle : byte
     {
         /// <summary>
-        /// Component is never enabled.
+        /// Disables the menu command in every edit state.
         /// </summary>
         None,
         /// <summary>
-        /// Component is always enabled.
+        /// Enables the command regardless of the form's modified state.
         /// </summary>
         Always,
         /// <summary>
-        /// Component is enabled when user has edit the content of the page.
+        /// Enables the command only when the form has unsaved changes.
         /// </summary>
         Modified,
         /// <summary>
-        /// Component is enabled when user has not edit the content of the page.
+        /// Enables the command only when the form has no unsaved changes.
         /// </summary>
         Unmodified,
     }

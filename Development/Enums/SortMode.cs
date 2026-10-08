@@ -33,20 +33,20 @@
 namespace Gurux.UI.Components.Enums
 {
     /// <summary>
-    /// Sort mode.
+    /// Defines whether items are unsorted or ordered ascending or descending.
     /// </summary>
     public enum SortMode : int
     {
         /// <summary>
-        /// Sorting is not used.
+        /// Leaves items in their original order.
         /// </summary>
         None = 0,
         /// <summary>
-        /// Sort by ascending.
+        /// Orders items from lowest to highest.
         /// </summary>
         Ascending = 1,
         /// <summary>
-        /// Sort by descending.
+        /// Orders items from highest to lowest.
         /// </summary>
         Descending = 2
     };

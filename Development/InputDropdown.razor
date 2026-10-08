@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Binds a typed select input to static values with selection callbacks and optional persistence.
+</summary>
+*@
+
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using Microsoft.Extensions.Logging
 @using System.Linq.Expressions
@@ -43,8 +49,8 @@
 
 @if (Values != null)
 {
-    <select id="@Id"
-            class="form-select"
+    <select @attributes="AdditionalAttributes" id="@Id"
+            class="@(GXComponentAttributes.CombineClasses("form-select", CssClass))"
             value="@Value"
             onchange="@((ChangeEventArgs e) => SelectionChanged(e))">
         @foreach (var it in Values)
@@ -56,32 +62,34 @@
 
 @code {
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = false;
 
     /// <summary>
-    /// Notified when the selected item is changed.
+    /// Gets or sets the callback invoked when the user selects an item.
     /// </summary>
     [Parameter]
     public EventCallback<TItem> OnSelected { get; set; }
 
     /// <summary>
-    /// Is the drop down control disabled.
+    /// Gets or sets whether user interaction with the input is disabled.
     /// </summary>
     [Parameter]
     public bool Disabled { get; set; }
 
+    /// <summary>
+    /// Updates the selected item, notifies selection callbacks, and saves the value when persistence is enabled.
+    /// </summary>
     private void SelectionChanged(ChangeEventArgs e)
     {
         Value = default;
@@ -118,7 +126,7 @@
     }
 
     /// <summary>
-    /// Update default cookie value.
+    /// Restores a saved dropdown value when persistence is enabled.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
@@ -161,11 +169,9 @@
     }
 
     /// <summary>
-    /// Possible static values.
+    /// Gets or sets the static values available in the dropdown.
     /// </summary>
-    /// <remarks>
-    /// If values are added they are not asked from the Gurux.DLMS.AMI.
-    /// </remarks>
+    /// <remarks> If values are added they are not asked from the Gurux.DLMS.AMI. </remarks>
     [Parameter]
     public IEnumerable<TItem>? Values
     {

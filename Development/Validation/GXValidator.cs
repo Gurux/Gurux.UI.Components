@@ -1,4 +1,4 @@
-﻿//
+//
 // --------------------------------------------------------------------------
 //  Gurux Ltd
 //
@@ -37,23 +37,26 @@ using System.Linq.Expressions;
 namespace Gurux.UI.Components.Validation
 {
     /// <summary>
-    /// Calidator is used to validate user data.
+    /// Validates an edit context using application callbacks and manages field validation messages.
     /// </summary>
     public class GXValidator : ComponentBase
     {
         private ValidationMessageStore? _messageStore;
 
+        /// <summary>
+        /// Gets or sets the cascading edit context whose validation messages are managed by this component.
+        /// </summary>
         [CascadingParameter]
         private EditContext? CurrentEditContext { get; set; }
 
         /// <summary>
-        /// Validate.
+        /// Gets or sets the asynchronous callback used to validate the current edit context.
         /// </summary>
         [Parameter]
-        public Action<GXValidator>? OnValidate { get; set; }
+        public EventCallback<GXValidator> OnValidate { get; set; }
 
         /// <summary>
-        /// Validator is initialized.
+        /// Verifies the cascading edit context and subscribes to validation requests.
         /// </summary>
         protected override void OnInitialized()
         {
@@ -73,7 +76,7 @@ namespace Gurux.UI.Components.Validation
         }
 
         /// <summary>
-        /// Add validation error.
+        /// Adds a validation message for the specified model field.
         /// </summary>
         /// <param name="accessor">Field identifier.</param>
         /// <param name="message">Error message.</param>
@@ -83,7 +86,7 @@ namespace Gurux.UI.Components.Validation
         }
 
         /// <summary>
-        /// Add validation error.
+        /// Adds a validation message for the specified model field.
         /// </summary>
         /// <param name="identier">Field identifier.</param>
         /// <param name="message">Error message.</param>
@@ -96,16 +99,14 @@ namespace Gurux.UI.Components.Validation
         }
 
         /// <summary>
-        /// Validate content. 
+        /// Runs application validation and reports whether the current edit context has any validation messages.
         /// </summary>
-        /// <returns>
-        /// True, if content is valid.
-        /// </returns>
-        public bool Validate()
+        /// <returns>True, if content is valid.</returns>
+        public async Task<bool> ValidateAsync()
         {
             if (CurrentEditContext != null && _messageStore != null)
             {
-                OnValidate?.Invoke(this);
+                await OnValidate.InvokeAsync(this);
                 CurrentEditContext.NotifyValidationStateChanged();
                 return !CurrentEditContext.GetValidationMessages().Any();
             }
@@ -113,9 +114,9 @@ namespace Gurux.UI.Components.Validation
         }
 
         /// <summary>
-        /// Display errors.
+        /// Adds the supplied field validation messages and notifies the edit context that validation changed.
         /// </summary>
-        /// <param name="errors">List of added errros.</param>
+        /// <param name="errors">The field names and validation messages to display.</param>
         public void DisplayErrors(Dictionary<string, List<string>> errors)
         {
             if (CurrentEditContext != null && _messageStore != null)
@@ -129,7 +130,7 @@ namespace Gurux.UI.Components.Validation
         }
 
         /// <summary>
-        /// Clear form errors.
+        /// Clears field validation messages and notifies the edit context that validation changed.
         /// </summary>
         public void ClearErrors()
         {

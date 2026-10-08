@@ -34,16 +34,16 @@ namespace Gurux.UI.Components
 {
 
     /// <summary>
-    /// Image changed arguments.
+    /// Carries the identifier and updated content of an image resource.
     /// </summary>
     public class GXImageChangedArgs
     {
         /// <summary>
-        /// Image id.
+        /// Gets or sets the identifier of the image resource that changed.
         /// </summary>
         public string Id { get; set; } = default!;
         /// <summary>
-        /// Image value.
+        /// Gets or sets the updated image content, or an empty value when the resource must be reloaded.
         /// </summary>
         public string? Value { get; set; }
     }

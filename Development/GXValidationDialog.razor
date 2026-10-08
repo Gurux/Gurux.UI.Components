@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Combines a dialog with an edit form, validation, and optional contextual help.
+</summary>
+*@
+
 @using Gurux.UI.Components.Help
 <Dialog Id="@Id" Save="@Save" Resizable="@Resizable" Title="@Title" OkButtonTitle="@OkButtonTitle" CancelButtonTitle="@CancelButtonTitle" OnOk="OnOk" OnCancel="OnCancel"
         HeaderContent="@(string.IsNullOrWhiteSpace(HelpTopic) ? null : RenderHelp)">
@@ -43,25 +49,67 @@
 </Dialog>
 
 @code {
+    /// <summary>
+    /// Gets or sets whether contextual help is rendered inside the validation dialog.
+    /// </summary>
     private RenderFragment RenderHelp => @<div>
         <HelpContext Topic="@(HelpTopic!)" />
         <Help />
     </div>;
 
+    /// <summary>
+    /// Gets or sets the model used to create an edit context when none is supplied.
+    /// </summary>
     [Parameter] public object? Model { get; set; }
+    /// <summary>
+    /// Gets or sets the edit context used to track form changes and validation.
+    /// </summary>
     [Parameter] public EditContext? EditContext { get; set; }
+    /// <summary>
+    /// Gets or sets the title displayed by the component.
+    /// </summary>
     [Parameter] public string? Title { get; set; }
+    /// <summary>
+    /// Gets or sets whether the dialog can be resized by dragging its bottom-right corner.
+    /// </summary>
     [Parameter] public bool Resizable { get; set; }
+    /// <summary>
+    /// Gets or sets the identifier passed to the dialog for its element and persisted layout.
+    /// </summary>
     [Parameter] public string? Id { get; set; }
+    /// <summary>
+    /// Gets or sets whether the contained dialog persists its position and size.
+    /// </summary>
     [Parameter] public bool Save { get; set; } = true;
+    /// <summary>
+    /// Gets or sets the help topic associated with the dialog content.
+    /// </summary>
     [Parameter] public string? HelpTopic { get; set; }
+    /// <summary>
+    /// Gets or sets the accept button label; an empty label hides the button.
+    /// </summary>
     [Parameter] public string OkButtonTitle { get; set; } = "Save";
+    /// <summary>
+    /// Gets or sets the cancel button label; an empty label hides the button.
+    /// </summary>
     [Parameter] public string CancelButtonTitle { get; set; } = "Cancel";
+    /// <summary>
+    /// Gets or sets the callback invoked when the dialog is accepted.
+    /// </summary>
     [Parameter] public EventCallback OnOk { get; set; }
+    /// <summary>
+    /// Gets or sets the callback invoked when the user requests cancellation.
+    /// </summary>
     [Parameter] public EventCallback OnCancel { get; set; }
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
     private EditContext _context = default!;
     private readonly object _emptyModel = new();
+    /// <summary>
+    /// Uses the supplied edit context or creates one when the bound model changes.
+    /// </summary>
     protected override void OnParametersSet()
     {
         object model = Model ?? _emptyModel;

@@ -1,4 +1,4 @@
-﻿//
+//
 // --------------------------------------------------------------------------
 //  Gurux Ltd
 //
@@ -35,48 +35,48 @@ using Gurux.UI.Components.Enums;
 namespace Gurux.UI.Components.Table
 {
     /// <summary>
-    /// Sort mode.
+    /// Exposes table sorting, editing, selection, and column visibility to child components.
     /// </summary>
     public interface IGXTable
     {
         /// <summary>
-        /// Table Id.
+        /// Gets the identifier of the table.
         /// </summary>
         string? Id { get; }
 
         /// <summary>
-        /// Sorted column.
+        /// Gets or sets the property name used to sort items.
         /// </summary>
         string? OrderBy { get; set; }
         /// <summary>
-        /// Sort mode.
+        /// Gets or sets the direction used to sort the table.
         /// </summary>
         SortMode SortMode { get; set; }
 
         /// <summary>
-        /// Notification that sort has been updated.
+        /// Refreshes the table after its sort column or direction changes.
         /// </summary>
-        void NotificationShortChange();
+        Task NotificationShortChange();
 
         /// <summary>
-        /// User has selected the row.
+        /// Sets the active table row and invokes the row change callback.
         /// </summary>
         /// <param name="selected">Selected row.</param>
-        void SelectRow(object selected);
+        Task SelectRow(object selected);
 
         /// <summary>
-        /// User has selected the cell.
+        /// Invokes the callback for the selected table cell.
         /// </summary>
         /// <param name="selected">Selected cell.</param>
-        void SelectCell(object selected);
+        Task SelectCell(object selected);
 
         /// <summary>
-        /// Is edit allowed.
+        /// Gets whether table cells can render editable content.
         /// </summary>
         bool CanEdit { get; }
 
         /// <summary>
-        /// Is column hidden.
+        /// Determines whether the named table column is excluded from the configured visible columns.
         /// </summary>
         /// <param name="name">Column name.</param>
         /// <returns>True, if column is hidden.</returns>

@@ -30,52 +30,103 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Defines panel content, styling, and dimensions that can be restored from local storage.
+</summary>
+*@
+
 
 @inject IGXLocalStorage LocalStorage
 
 @code {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the identifier used to restore and save this panel item's dimensions.
+    /// </summary>
     [Parameter] public string? Id { get; set; }
+    /// <summary>
+    /// Gets the restored or most recently saved panel width as a CSS pixel value.
+    /// </summary>
     internal string? SavedWidth { get; private set; }
+    /// <summary>
+    /// Gets the restored or most recently saved panel height as a CSS pixel value.
+    /// </summary>
     internal string? SavedHeight { get; private set; }
+    /// <summary>
+    /// Restores valid saved panel dimensions from browser local storage when an id is supplied.
+    /// </summary>
     internal async Task LoadSizeAsync()
     {
-        if (string.IsNullOrWhiteSpace(Id)) return;
+        if (string.IsNullOrWhiteSpace(Id))
+        {
+            return;
+        }
         var json = await LocalStorage.GetValueAsync($"PanelItem:{Id}:Size");
-        if (string.IsNullOrWhiteSpace(json)) return;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return;
+        }
         try
         {
             var size = System.Text.Json.JsonSerializer.Deserialize<double[]>(json);
             if (size is { Length: 2 } && size.All(value => double.IsFinite(value) && value >= 0))
+            {
                 SetSize(size[0], size[1]);
+            }
         }
         catch (System.Text.Json.JsonException) { }
     }
+    /// <summary>
+    /// Formats the panel dimensions as culture-independent CSS pixel values.
+    /// </summary>
     private void SetSize(double width, double height)
     {
         SavedWidth = width.ToString(System.Globalization.CultureInfo.InvariantCulture) + "px";
         SavedHeight = height.ToString(System.Globalization.CultureInfo.InvariantCulture) + "px";
     }
+    /// <summary>
+    /// Updates and persists finite, nonnegative panel dimensions when an id is supplied.
+    /// </summary>
     internal async Task SaveSizeAsync(double width, double height)
     {
-        if (string.IsNullOrWhiteSpace(Id) || !double.IsFinite(width) || !double.IsFinite(height) || width < 0 || height < 0) return;
+        if (string.IsNullOrWhiteSpace(Id) || !double.IsFinite(width) || !double.IsFinite(height) || width < 0 || height < 0)
+        {
+            return;
+        }
         SetSize(width, height);
         await LocalStorage.SetValueAsync($"PanelItem:{Id}:Size", System.Text.Json.JsonSerializer.Serialize(new[] { width, height }));
     }
 
+    /// <summary>
+    /// Gets or sets the containing component supplied through a cascading parameter.
+    /// </summary>
     [CascadingParameter]
     private Panel? Parent { get; set; }
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
-    [Parameter]
-    public string? CssClass { get; set; }
-
-    [Parameter]
-    public string? Style { get; set; } = "overflow:auto;padding:1rem;";
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    internal string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
 
     /// <summary>
-    /// Width.
+    /// Gets captured styles combined with the panel's default scrolling and padding.
+    /// </summary>
+    internal string? Style => GXComponentAttributes.GetStyle(AdditionalAttributes, "overflow:auto;padding:1rem;");
+
+    /// <summary>
+    /// Gets or sets the initial CSS width used when no saved width is available.
     /// </summary>
     [Parameter]
     public string? Width
@@ -85,7 +136,7 @@
     }
 
     /// <summary>
-    /// Height.
+    /// Gets or sets the initial CSS height used when no saved height is available.
     /// </summary>
     [Parameter]
     public string? Height
@@ -94,6 +145,9 @@
         set;
     }
 
+    /// <summary>
+    /// Verifies that a containing panel exists and registers this panel item with it.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         if (Parent == null)

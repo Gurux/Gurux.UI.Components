@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays typed rows with paging, sorting, selection, filtering, and optional row reordering.
+</summary>
+*@
+
 @using Gurux.UI.Components.ContextMenu
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Web.Virtualization
@@ -71,7 +77,7 @@
         </MenuControl>
         <br />
     }
-    <table class="@GetCssClass()">
+    <table id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GetCssClass()" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
         <thead>
             @if (Filter && FilterContent != null)
             {
@@ -235,29 +241,40 @@
 
 @code {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>
+    /// Gets or sets the service provider used to resolve optional component services.
+    /// </summary>
     [Inject]
     public IServiceProvider Services { get; set; } = default!;
 
+    /// <summary>
+    /// Gets the optional service used to report component errors as notifications.
+    /// </summary>
     public IGXNotificationService? NotificationService { get; private set; }
 
+    /// <summary>
+    /// Resolves the optional notification service used to report table errors.
+    /// </summary>
     protected override void OnInitialized()
     {
         NotificationService = Services.GetService<IGXNotificationService>();
     }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    public string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    public string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
+    private string? _generatedId;
+
+    /// <summary>
+    /// Returns the table-specific id used to persist the page size selector's value.
+    /// </summary>
     private string? GetPageSizeId()
     {
         if (Id != null)
@@ -268,218 +285,198 @@
     }
 
     int[] RowsPerPage = new int[] { 10, 20, 50, 100 };
-    public delegate Task SearchDelegate();
 
     /// <summary>
-    /// The user has checked or unchecked new items.
+    /// Determines whether a row checkbox is disabled and whether the row should be checked.
     /// </summary>
-    /// <param name="items">List of checked items.</param>
-    public delegate Task CheckedChangedEventHandler(IEnumerable<TItem> items);
-
-    /// <summary>
-    /// User has modify the sorting.
-    /// </summary>
-    /// <param name="sort">Sort mode.</param>
-    /// <param name="column">Sort column.</param>
-    public delegate void SortChangedEventHandler(SortMode sort, string column);
-
-    /// <summary>
-    /// Notification client to ask is checkbox enabled.
-    /// </summary>
-    /// <param name="item">Item</param>
-    /// <param name="disabled">True, if checkbox is disabled.</param>
-    /// <param name="check"></param>
+    /// <param name="item">The row item whose checkbox state is being evaluated.</param>
+    /// <param name="disabled">Whether the checkbox should be disabled.</param>
+    /// <param name="check">Whether the row should be added to the checked-item collection.</param>
     public delegate void CheckboxDisabledEventHandler(TItem item, out bool disabled, out bool check);
 
     /// <summary>
-    /// User has moved the item order.
-    /// </summary>
-    /// <param name="item">Moved item.</param>
-    /// <param name="index">New index.</param>
-    public delegate void ItemMovedEventHandler(TItem item, int index);
-
-    /// <summary>
-    /// User has added a item.
-    /// </summary>
-    /// <param name="item">Added item.</param>
-    public delegate void ItemAddedEventHandler(TItem item);
-
-    /// <summary>
-    /// User has removed the item.
-    /// </summary>
-    /// <param name="item">Removed item.</param>
-    public delegate void ItemRemovedEventHandler(TItem item);
-
-    /// <summary>
-    /// Are removed items shown for the admin.
+    /// Gets or sets whether the control for including removed items is displayed.
     /// </summary>
     [Parameter]
     public bool ShowRemoved { get; set; } = true;
 
     /// <summary>
-    /// User can rearrange rows.
+    /// Gets or sets whether rows can be reordered by dragging.
     /// </summary>
     [Parameter]
     public bool RearrangeRows { get; set; }
 
     /// <summary>
-    /// Data from the all users is shown for the admin.
+    /// Gets or sets whether the control for including all users' data is displayed.
     /// </summary>
     [Parameter]
     public bool ShowAllUsers { get; set; } = true;
 
     /// <summary>
-    /// Data from the all users is shown for the admin.
+    /// Gets or sets whether requests include data belonging to all users.
     /// </summary>
     protected bool ShowAllUserData { get; set; } = false;
 
     /// <summary>
-    /// All table rows are shown and pagination is not used.
+    /// Gets or sets whether all items are displayed without pagination.
     /// </summary>
     [Parameter]
     public bool ShowAllData { get; set; }
 
     /// <summary>
-    /// Get removed items.
+    /// Gets or sets whether the provider should return removed items.
     /// </summary>
     public bool Removed { get; set; }
 
     /// <summary>
-    /// Is total shown.
+    /// Gets or sets whether the total item count is displayed.
     /// </summary>
     [Parameter]
     public bool Total { get; set; } = true;
 
     /// <summary>
-    /// Is filter shown.
+    /// Gets or sets whether the table's filter controls are shown.
     /// </summary>
     [Parameter]
     public bool Filter { get; set; } = true;
 
     /// <summary>
-    /// Is menu shown.
+    /// Gets or sets whether the table menu is displayed.
     /// </summary>
     [Parameter]
     public bool Menu { get; set; } = true;
 
     /// <summary>
-    /// User has modify the sorting.
+    /// Gets or sets the callback invoked when the sort mode or sorted column changes.
     /// </summary>
     [Parameter]
-    public SortChangedEventHandler? SortChanged { get; set; }
+    public EventCallback<(SortMode Sort, string Column)> SortChanged { get; set; }
 
     /// <summary>
-    /// User has select the new row.
+    /// Gets or sets the callback invoked when the active table row changes.
     /// </summary>
     [Parameter]
     public EventCallback<TItem> OnRowChanged { get; set; }
 
     /// <summary>
-    /// User has select the new cell.
+    /// Gets or sets the callback invoked when a table cell is selected.
     /// </summary>
     [Parameter]
     public EventCallback<TItem> OnCellChanged { get; set; }
 
     /// <summary>
-    /// Notification client to ask is checkbox enabled.
+    /// Gets or sets the callback used to determine a row checkbox's disabled and checked states.
     /// </summary>
     [Parameter]
     public CheckboxDisabledEventHandler? OnCheckboxDisabled { get; set; }
 
     /// <summary>
-    /// Notification client for item location change.
+    /// Gets or sets the callback invoked with a dragged item and its destination index.
     /// </summary>
     [Parameter]
-    public ItemMovedEventHandler? OnItemMoved { get; set; }
+    public EventCallback<(TItem Item, int Index)> OnItemMoved { get; set; }
 
     /// <summary>
-    /// Notification client for the new item.
+    /// Gets or sets the callback used to add an item.
     /// </summary>
     [Parameter]
-    public ItemAddedEventHandler? OnItemAdded { get; set; }
+    public EventCallback<TItem> OnItemAdded { get; set; }
 
     /// <summary>
-    /// Notification client to remove the item.
+    /// Gets or sets the callback used to remove an item.
     /// </summary>
     [Parameter]
-    public ItemRemovedEventHandler? OnItemRemoved { get; set; }
+    public EventCallback<TItem> OnItemRemoved { get; set; }
 
     /// <summary>
-    /// User has modify the sorting.
+    /// Gets or sets the callback invoked with the current search filter.
     /// </summary>
     [Parameter]
-    public SearchDelegate? OnSearch { get; set; }
+    public EventCallback OnSearch { get; set; }
 
     /// <summary>
-    /// User has select a new item(s).
+    /// Gets or sets the callback invoked with the checked items after row selection changes.
     /// </summary>
     [Parameter]
-    public CheckedChangedEventHandler? OnChecked { get; set; }
+    public EventCallback<IEnumerable<TItem>> OnChecked { get; set; }
 
 
     /// <summary>
-    /// Show removed checkbox message.
+    /// Gets or sets the label displayed beside the removed-items control.
     /// </summary>
     [Parameter]
     public string ShowRemovedMessage { get; set; } = Properties.Resources.ShowRemoved;
 
     /// <summary>
-    /// Are there any checked items.
+    /// Gets whether at least one table row is checked.
     /// </summary>
     [Parameter]
     public bool AnyChecked { get; set; }
 
     /// <summary>
-    /// Notified when AnyChecked is changed.
+    /// Gets or sets the callback invoked when the table's checked-row state changes.
     /// </summary>
     [Parameter]
     public EventCallback<bool> AnyCheckedChanged { get; set; }
 
 
     /// <summary>
-    /// Search.
+    /// Resets pagination and invokes the search callback with the current filter.
     /// </summary>
-    private void Search()
+    private async Task Search()
     {
         CurrentPage = 0;
-        if (OnSearch != null)
+        if (OnSearch.HasDelegate)
         {
-            OnSearch();
+            await OnSearch.InvokeAsync();
         }
     }
 
     private TItem? DropItem;
 
+    /// <summary>
+    /// Records the table item being dragged for a subsequent row reorder operation.
+    /// </summary>
     private void HandleDragStart(TItem item)
     {
         Logger.LogError("Drag start: {0}", item);
         DropItem = item;
     }
 
+    /// <summary>
+    /// Logs that a drag operation entered a table row.
+    /// </summary>
     private void HandleDragEnter()
     {
         Logger.LogError("Drag enter.");
     }
 
+    /// <summary>
+    /// Logs that a drag operation left a table row.
+    /// </summary>
     private void HandleDragLeave()
     {
         Logger.LogError("Drag leave.");
     }
 
-    private void HandleDrop(TItem item)
+    /// <summary>
+    /// Invokes the row movement callback with the dragged item and destination row index.
+    /// </summary>
+    private async Task HandleDrop(TItem item)
     {
         Logger.LogError("Drag drop: {0}", item);
-        if (DropItem != null && OnItemMoved != null && Items != null)
+        if (DropItem != null && OnItemMoved.HasDelegate && Items != null)
         {
             List<TItem> tmp = new(Items);
             int pos = tmp.IndexOf(item);
-            OnItemMoved.Invoke(DropItem, pos);
+            var dropped = DropItem;
             DropItem = default;
+            await OnItemMoved.InvokeAsync((dropped, pos));
         }
     }
 
     /// <summary>
-    /// How many page links there are before and after the selected page.
+    /// Gets or sets the number of page links displayed before and after the current page.
     /// </summary>
     [Parameter]
     public int Spread { get; set; } = 2;
@@ -487,13 +484,13 @@
     private List<int> Pages = new List<int>();
 
     /// <summary>
-    /// Focused item.
+    /// Gets or sets the currently focused table item.
     /// </summary>
     [Parameter]
     public TItem? Active { get; set; }
 
     /// <summary>
-    /// User has select the item.
+    /// Gets or sets the callback invoked when the active item changes.
     /// </summary>
     [Parameter]
     public EventCallback<TItem> ActiveChanged { get; set; }
@@ -505,7 +502,7 @@
     private SortedList<object, TItem> _selectedItems = new SortedList<object, TItem>();
 
     /// <summary>
-    /// Selected rows.
+    /// Returns the displayed row indices of checked items and the active item without duplicates.
     /// </summary>
     public int[] GetSelectedRows()
     {
@@ -531,7 +528,7 @@
     }
 
     /// <summary>
-    /// Selected items.
+    /// Gets the selected table items.
     /// </summary>
     public IEnumerable<TItem> SelectedItems
     {
@@ -542,7 +539,7 @@
     }
 
     /// <summary>
-    /// Returns selected items or active item if there are no selected items.
+    /// Returns the selected items, or the active item when no items are selected.
     /// </summary>
     public IEnumerable<TItem> SingleOrDefault()
     {
@@ -558,22 +555,31 @@
     }
 
     /// <summary>
-    /// Current page.
+    /// Gets or sets the zero-based index of the current page.
     /// </summary>
     [Parameter]
     public int CurrentPage { get; set; }
+    /// <summary>
+    /// Gets or sets the callback invoked when the current page changes.
+    /// </summary>
     [Parameter]
     public EventCallback<int> CurrentPageChanged { get; set; }
 
     /// <summary>
-    /// Page size.
+    /// Gets or sets the number of items requested for each page.
     /// </summary>
     [Parameter]
     public int PageSize { get; set; } = 10;
 
+    /// <summary>
+    /// Gets or sets the callback invoked when the page size changes.
+    /// </summary>
     [Parameter]
     public EventCallback<int> PageSizeChanged { get; set; }
 
+    /// <summary>
+    /// Adjusts the requested page to the available item range and notifies the page callback.
+    /// </summary>
     private async Task UpdateCurrentPage(int value)
     {
         if (value == CurrentPage)
@@ -602,6 +608,9 @@
         await CurrentPageChanged.InvokeAsync(CurrentPage);
     }
 
+    /// <summary>
+    /// Corrects a nonpositive page size and reconciles the current page with the item range.
+    /// </summary>
     protected override async Task OnParametersSetAsync()
     {
         if (PageSize <= 0)
@@ -612,21 +621,27 @@
         await UpdateCurrentPage(CurrentPage);
     }
 
+    /// <summary>
+    /// Applies a positive page size, invokes its callback, and selects the first page.
+    /// </summary>
     private async Task SetPageSize(int value)
     {
-        if (value <= 0) return;
+        if (value <= 0)
+        {
+            return;
+        }
         PageSize = value;
         await PageSizeChanged.InvokeAsync(value);
         await SelectPage(0);
     }
 
     /// <summary>
-    /// The total row count.
+    /// Gets the total number of items reported by the provider.
     /// </summary>
     public int TotalCount { get; private set; }
 
     /// <summary>
-    /// The total page count.
+    /// Gets the number of pages calculated from the total count and page size.
     /// </summary>
     public int TotalPages
     {
@@ -641,7 +656,7 @@
     }
 
     /// <summary>
-    /// Change pagination page.
+    /// Selects the requested zero-based page and refreshes the displayed items.
     /// </summary>
     /// <param name="index">Page index</param>
     private async Task SelectPage(int index)
@@ -651,25 +666,28 @@
     }
 
     /// <summary>
-    /// Available columns.
+    /// Gets or sets the names of columns to display; unspecified columns remain hidden when a list is provided.
     /// </summary>
     [Parameter]
     public string[]? Columns { get; set; }
 
     /// <summary>
-    /// Is edit allowed.
+    /// Gets or sets whether table cells can render editable content.
     /// </summary>
     [Parameter]
     public bool CanEdit { get; set; } = true;
 
     /// <summary>
-    /// Selection mode.
+    /// Gets or sets whether row selection is disabled, single, or multiple.
     /// </summary>
     [Parameter]
     public SelectionMode SelectionMode { get; set; } = SelectionMode.Single;
 
     private CancellationTokenSource? _cts;
 
+    /// <summary>
+    /// Returns table items ordered by the configured property and sort direction.
+    /// </summary>
     private IEnumerable<TItem> GetItems()
     {
         if (Items == null)
@@ -710,61 +728,67 @@
         return Items;
     }
 
+    /// <summary>
+    /// Gets the row items currently loaded by the table.
+    /// </summary>
     public IEnumerable<TItem>? Items { get; private set; }
 
     /// <summary>
-    /// Gets or sets the function providing items to the list.
+    /// Gets or sets the asynchronous provider used to retrieve items and their total count.
     /// </summary>
     [Parameter]
     public GXItemsProviderDelegate<TItem>? ItemsProvider { get; set; }
 
-    [Parameter]
-    public string? Style { get; set; }
 
-    [Parameter]
-    public string? CssClass { get; set; } = "table table-striped table-responsive";
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "table table-striped table-responsive");
 
+    /// <summary>
+    /// Adds the row-reordering CSS class when dragging is enabled.
+    /// </summary>
     private string? GetCssClass()
     {
         if (RearrangeRows)
         {
-            return CssClass + " table-rearrange-rows";
+            return GXComponentAttributes.CombineClasses(CssClass, "table-rearrange-rows");
         }
         return CssClass;
     }
 
     /// <summary>
-    /// Filter content.
+    /// Gets or sets custom content displayed in the table's filter area.
     /// </summary>
     [Parameter]
     public RenderFragment? FilterContent { get; set; }
 
     /// <summary>
-    /// Menu content.
+    /// Gets or sets custom content displayed in the table's menu area.
     /// </summary>
     [Parameter]
     public RenderFragment? MenuContent { get; set; }
 
     /// <summary>
-    /// Header content.
+    /// Gets or sets the content rendered inside the table header.
     /// </summary>
     [Parameter]
     public RenderFragment<TItem>? HeaderContent { get; set; }
 
     /// <summary>
-    /// Gets or sets the item template for the list.
+    /// Gets or sets the table's child content, including column and row definitions.
     /// </summary>
     [Parameter]
     public RenderFragment<TItem>? ChildContent { get; set; }
 
     /// <summary>
-    /// Gets or sets the item template for the list.
+    /// Gets or sets the template used to render an item.
     /// </summary>
     [Parameter]
     public RenderFragment<TItem>? ItemContent { get; set; }
 
     /// <summary>
-    /// Remove items.
+    /// Removes matching items from the table and updates the rendered selection state.
     /// </summary>
     /// <param name="items">Removed items.</param>
     public void RemoveItems(IEnumerable<TItem> items)
@@ -809,7 +833,7 @@
     }
 
     /// <summary>
-    /// Read values async.
+    /// Retrieves items from the provider and optionally requests rendering after a successful load.
     /// </summary>
     /// <param name="renderOnSuccess">Is UI render after success operation.</param>
     public async Task RefreshDataAsync(bool renderOnSuccess)
@@ -907,25 +931,34 @@
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets or sets the property name used to sort items.
+    /// </summary>
     [Parameter]
     public string? OrderBy { get; set; }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets or sets the direction used to sort the table.
+    /// </summary>
     [Parameter]
     public SortMode SortMode { get; set; } = SortMode.None;
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Refreshes the table after its sort column or direction changes.
+    /// </summary>
 
-    public void NotificationShortChange()
+    public async Task NotificationShortChange()
     {
-        if (SortChanged != null && !string.IsNullOrEmpty(OrderBy))
+        if (SortChanged.HasDelegate && !string.IsNullOrEmpty(OrderBy))
         {
-            SortChanged(SortMode, OrderBy);
+            await SortChanged.InvokeAsync((SortMode, OrderBy));
         }
-        InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Returns the row CSS class according to whether its identifier matches the active item.
+    /// </summary>
     protected string GetSelectedClass(TItem? active)
     {
         object? current = null, value = null;
@@ -940,8 +973,10 @@
         return value != null && value.Equals(current) ? "table-info" : "table-striped";
     }
 
-    /// <inheritdoc/>
-    public void SelectRow(object? selected)
+    /// <summary>
+    /// Sets the active table row and invokes the row change callback.
+    /// </summary>
+    public async Task SelectRow(object? selected)
     {
         if (selected is not TItem item)
         {
@@ -950,36 +985,39 @@
         Active = item;
         if (ActiveChanged.HasDelegate)
         {
-            ActiveChanged.InvokeAsync(Active);
+            await ActiveChanged.InvokeAsync(item);
         }
         if (OnRowChanged.HasDelegate)
         {
-            OnRowChanged.InvokeAsync(Active);
+            await OnRowChanged.InvokeAsync(item);
         }
         StateHasChanged();
     }
 
-    /// <inheritdoc/>
-    public void SelectCell(object selected)
+    /// <summary>
+    /// Invokes the callback for the selected table cell.
+    /// </summary>
+    public async Task SelectCell(object selected)
     {
-        Active = (TItem)selected;
+        var item = (TItem)selected;
+        Active = item;
         if (ActiveChanged.HasDelegate)
         {
-            ActiveChanged.InvokeAsync(Active);
+            await ActiveChanged.InvokeAsync(item);
         }
         if (OnRowChanged.HasDelegate)
         {
-            OnRowChanged.InvokeAsync((TItem)selected);
+            await OnRowChanged.InvokeAsync(item);
         }
         if (OnCellChanged.HasDelegate)
         {
-            OnCellChanged.InvokeAsync((TItem)selected);
+            await OnCellChanged.InvokeAsync(item);
         }
-        InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     }
 
     /// <summary>
-    /// Are all rows selected.
+    /// Determines whether every displayed table item is checked.
     /// </summary>
     /// <returns>True, if all the rows are selected.</returns>
     protected string? IsAllSelected()
@@ -991,6 +1029,9 @@
         return null;
     }
 
+    /// <summary>
+    /// Evaluates a row's checkbox state and applies any checked state requested by the callback.
+    /// </summary>
     private string? IsCheckboxDisabled(TItem target)
     {
         bool disabled = false;
@@ -1001,7 +1042,7 @@
         }
         if (check)
         {
-            ToggleRow(target, check);
+            SetRowSelection(target, check);
         }
         if (!disabled)
         {
@@ -1011,7 +1052,7 @@
     }
 
     /// <summary>
-    /// Is row selected.
+    /// Determines whether the item is checked or is the active row.
     /// </summary>
     /// <param name="selected">Selected item.</param>
     /// <returns>True, if the row is selected.</returns>
@@ -1034,6 +1075,9 @@
     }
 
 
+    /// <summary>
+    /// Compares two table items by their nonnull Id property values.
+    /// </summary>
     private static bool Compare(TItem? item1, TItem? item2)
     {
         if (item1 == null || item2 == null)
@@ -1047,7 +1091,7 @@
     }
 
     /// <summary>
-    /// Select or de-select all rows.
+    /// Checks or unchecks all displayed rows and notifies selection callbacks.
     /// </summary>
     /// <param name="select">Selected item</param>
     protected void ToggleAllRow(bool select)
@@ -1073,11 +1117,11 @@
     }
 
     /// <summary>
-    /// Select or de-select the row.
+    /// Adds or removes one item from the table's checked-item collection.
     /// </summary>
     /// <param name="selected">Selected item</param>
     /// <param name="select">Is item selected or deselected.</param>
-    protected void ToggleRow(TItem? selected, bool select)
+    private void SetRowSelection(TItem? selected, bool select)
     {
         if (selected != null)
         {
@@ -1094,13 +1138,22 @@
                 }
             }
             AnyChecked = _selectedItems.Any();
-            AnyCheckedChanged.InvokeAsync(AnyChecked);
-            OnChecked?.Invoke(_selectedItems.Values);
+
+
         }
     }
 
     /// <summary>
-    /// Is column hidden.
+    /// Updates a row's checked state and invokes the checked-items and checked-state callbacks.
+    /// </summary>
+    protected async Task ToggleRow(TItem? selected, bool select)
+    {
+        SetRowSelection(selected, select);
+        await AnyCheckedChanged.InvokeAsync(AnyChecked);
+        await OnChecked.InvokeAsync(_selectedItems.Values);
+    }
+    /// <summary>
+    /// Determines whether the named table column is excluded from the configured visible columns.
     /// </summary>
     /// <param name="name">Name of the column.</param>
     /// <returns>True, if table column is hidden.</returns>
@@ -1113,15 +1166,17 @@
         return !Columns.Contains(name);
     }
 
-    ///<summary>
-    ///Read table data.
-    ///</summary>
+    /// <summary>
+    /// Loads the initial table data from the items provider.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         await RefreshDataAsync(false);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Cancels any pending request to the items provider.
+    /// </summary>
     public void Dispose()
     {
         _cts?.Cancel();

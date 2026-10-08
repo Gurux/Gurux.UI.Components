@@ -34,16 +34,26 @@ using System.Timers;
 
 namespace Gurux.UI.Component.Toaster
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Stores transient toast messages, applies filters, and removes expired messages on a timer.
+    /// </summary>
     public class GXToasterService : IGXToasterService, IDisposable
     {
         private readonly List<GXToast> _toastList = new List<GXToast>();
         private readonly List<string> _filter = [];
         private System.Timers.Timer _timer = new System.Timers.Timer();
+        /// <summary>
+        /// Occurs when a toast is added or removed.
+        /// </summary>
         public event EventHandler? ToasterChanged;
+        /// <summary>
+        /// Occurs when the expiration timer removes one or more toast messages.
+        /// </summary>
         public event EventHandler? ToasterTimerElapsed;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Gets whether any toast messages are currently stored.
+        /// </summary>
         public bool Any
         {
             get
@@ -52,7 +62,9 @@ namespace Gurux.UI.Component.Toaster
             }
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Gets or sets the toast count at which adding a message removes the oldest stored message.
+        /// </summary>
         public int MaxCount
         {
             get;
@@ -60,7 +72,7 @@ namespace Gurux.UI.Component.Toaster
         }
 
         /// <summary>
-        /// Constructor.
+        /// Creates a toaster service with a stored-message limit of twenty and a one-second expiration timer.
         /// </summary>
         public GXToasterService()
         {
@@ -71,13 +83,18 @@ namespace Gurux.UI.Component.Toaster
             _timer.Start();
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Removes expired messages and returns the stored toast list.
+        /// </summary>
         public List<GXToast> GetToasts()
         {
             RemoveElapsed();
             return _toastList;
         }
 
+        /// <summary>
+        /// Removes expired toast messages and notifies listeners when expiration changes the displayed list.
+        /// </summary>
         private void TimerElapsed(object? sender, ElapsedEventArgs e)
         {
             if (RemoveElapsed())
@@ -86,7 +103,9 @@ namespace Gurux.UI.Component.Toaster
             }
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Adds a toast unless its title is filtered out, removes the oldest message at the count limit, and notifies listeners.
+        /// </summary>
         public void Add(GXToast toast)
         {
             if (_filter.Contains(toast.Title ?? string.Empty))
@@ -100,24 +119,29 @@ namespace Gurux.UI.Component.Toaster
             }
             _toastList.Add(toast);
             if (!RemoveElapsed())
+            {
                 ToasterChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Removes the specified toast and notifies subscribers that the toast list changed.
+        /// </summary>
         public void Remove(GXToast toast)
         {
             if (_toastList.Contains(toast))
             {
                 _toastList.Remove(toast);
                 if (!RemoveElapsed())
+                {
                     ToasterChanged?.Invoke(this, EventArgs.Empty);
+                }
             }
         }
 
         /// <summary>
-        /// Remove elapsed toasters.
+        /// Removes toast messages whose closing time has passed and reports whether any were removed.
         /// </summary>
-        /// <returns></returns>
         private bool RemoveElapsed()
         {
             var removed = _toastList.Where(item => item.IsElapsed).ToList();
@@ -131,7 +155,7 @@ namespace Gurux.UI.Component.Toaster
         }
 
         /// <summary>
-        /// Close timer.
+        /// Detaches the expiration handler and stops the timer.
         /// </summary>
         public void Dispose()
         {
@@ -142,6 +166,9 @@ namespace Gurux.UI.Component.Toaster
             }
         }
 
+        /// <summary>
+        /// Replaces the title filter used to reject newly added toast messages.
+        /// </summary>
         public void Filter(IEnumerable<string> filters)
         {
             _filter.Clear();

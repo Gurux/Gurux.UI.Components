@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders a responsive table header and coordinates sorting through the parent table.
+</summary>
+*@
+
 @using Gurux.UI.Components.Enums
 @using System.Linq.Expressions
 @inherits ComponentBase
@@ -38,7 +44,7 @@
 
 @if (!_hidden)
 {
-    <th id="@GetId()" style="@CssStyle" class="@GetCssClass()" @attributes="@AdditionalAttributes"
+    <th id="@GetId()" style="@CssStyle" class="@GetCssClass()" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)"
         onclick="@(() => SortTable())">
         @ChildContent
         <span class="@(GetSortIcon())"></span>
@@ -47,7 +53,9 @@
 
 @code
 {
-    /// Gets the id of the column as kebab-case.
+    /// <summary>
+    /// Builds the header id from the parent table id and the explicit column id or name with a lowercase initial.
+    /// </summary>
     private string? GetId()
     {
         string? value = null;
@@ -74,64 +82,67 @@
     }
 
     /// <summary>
-    /// Parent table.
+    /// Gets or sets the containing component supplied through a cascading parameter.
     /// </summary>
     [CascadingParameter]
     private IGXTable? Parent { get; set; }
 
     /// <summary>
-    /// Gets or sets the item template for the list.
+    /// Gets or sets the content rendered inside the component.
     /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Default Sort mode.
+    /// Gets or sets the direction used to sort the table.
     /// </summary>
     [Parameter]
     public SortMode SortMode { get; set; } = SortMode.None;
 
     /// <summary>
-    /// Id used with serialization.
+    /// Gets or sets the column identifier used for serialization and the rendered header id.
     /// </summary>
     [Parameter]
     public string? Id { get; set; }
 
     /// <summary>
-    /// Name is used with filter and sorting.
+    /// Gets or sets the property path used to filter and sort the column.
     /// </summary>
     [Parameter]
     public string? Name { get; set; }
 
+    /// <summary>
+    /// Gets or sets the item associated with the column header.
+    /// </summary>
     [Parameter]
     public TItem? Target { get; set; }
 
     /// <summary>
-    /// Sorted column.
+    /// Gets or sets the expression identifying the item property used to sort this column.
     /// </summary>
     [Parameter]
     public Expression<Func<TItem, object>>? Sort { get; set; }
 
     /// <summary>
-    /// CSS style.
+    /// Gets the inline CSS declarations obtained from the captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssStyle { get; set; }
+    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
 
     /// <summary>
-    /// CSS class.
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssClass { get; set; } = "sort-th";
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "sort-th");
 
+    /// <summary>
+    /// Combines the header's captured CSS classes with its responsive and print visibility classes.
+    /// </summary>
     private string? GetCssClass()
     {
         return Fh.GetCssClass(Visibility, CssClass);
     }
 
     /// <summary>
-    /// Responsive determines the order
-    /// in which the contents are hidden if they do not fit the screen.
+    /// Gets or sets the responsive breakpoints and print settings at which the cell is displayed.
     /// </summary>
     [Parameter]
     public Visibility Visibility { get; set; } = Visibility.All;
@@ -141,11 +152,14 @@
     /// </summary>
     bool _hidden;
 
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Initialize context menu.
+    /// Verifies that a parent table exists and initializes the column identifier, sorting, and visibility.
     /// </summary>
     protected override void OnInitialized()
     {
@@ -163,9 +177,9 @@
     }
 
     /// <summary>
-    /// Sort table with the column.
+    /// Updates the parent table's sort column and toggles the sort direction.
     /// </summary>
-    public virtual void SortTable()
+    public virtual async Task SortTable()
     {
         if (Parent != null)
         {
@@ -184,10 +198,13 @@
             {
                 Parent.SortMode = (SortMode)(((int)++Parent.SortMode) % 3);
             }
-            Parent.NotificationShortChange();
+            await Parent.NotificationShortChange();
         }
     }
 
+    /// <summary>
+    /// Extracts a dotted property path from the column's member access expression.
+    /// </summary>
     public static string GetPath(Expression<Func<TItem, object>> expr)
     {
         Expression? body = expr.Body;
@@ -225,6 +242,9 @@
         return string.Join(".", parts);
     }
 
+    /// <summary>
+    /// Returns the ascending or descending sort icon classes when this is the active sort column.
+    /// </summary>
     public string GetSortIcon()
     {
         if (Parent != null && Parent.OrderBy == Name)

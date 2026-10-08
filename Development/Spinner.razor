@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays loading state and recent progress messages with support for cancelling active operations.
+</summary>
+*@
+
 
 @implements IDisposable
 @inject IGXProgress Progress
@@ -65,43 +71,57 @@
 }
 @ChildContent
 @code {
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Is spinner visible.
+    /// Gets or sets whether the component is displayed.
     /// </summary>
     [Parameter] public bool Visible { get; set; }
 
     /// <summary>
-    /// Loading text.
+    /// Gets or sets the text displayed by the component.
     /// </summary>
     [Parameter] public string? Text { get; set; } = "Loading...";
 
     /// <summary>
-    /// List of executed or currently executing tasks.
-    /// Only the latest <see cref="MaxVisibleTasks"/> tasks are shown.
+    /// Gets the nonempty messages of the currently active progress operations.
     /// </summary>
     [Parameter] public IEnumerable<string>? Tasks { get; set; }
 
     /// <summary>
-    /// Maximum number of latest tasks shown in the UI.
+    /// Gets or sets the maximum number of recent task messages shown by the spinner.
     /// </summary>
     [Parameter] public int MaxVisibleTasks { get; set; } = 5;
 
     /// <summary>
-    /// Loading aria label.
+    /// Gets or sets the accessible label for the loading indicator.
     /// </summary>
     [Parameter] public string AriaLabel { get; set; } = "Loading";
 
+    /// <summary>
+    /// Gets or sets the callback invoked when the user requests cancellation.
+    /// </summary>
     [Parameter] public EventCallback OnCancel { get; set; }
     private bool _cancelling;
     private readonly List<string> _visibleTasks = new();
     private bool _disposed;
 
+    /// <summary>
+    /// Subscribes to changes in the shared progress service.
+    /// </summary>
     protected override void OnInitialized() => Progress.Changed += OnProgressChanged;
+    /// <summary>
+    /// Refreshes the displayed task messages from supplied and shared progress tasks.
+    /// </summary>
     protected override void OnParametersSet() => UpdateVisibleTasks();
 
+    /// <summary>
+    /// Combines supplied and active progress messages and keeps the most recent messages allowed by the display limit.
+    /// </summary>
     private void UpdateVisibleTasks()
     {
         _visibleTasks.Clear();
@@ -111,25 +131,43 @@
             .TakeLast(Math.Max(0, MaxVisibleTasks)));
     }
 
+    /// <summary>
+    /// Refreshes visible task messages and schedules rendering after progress state changes.
+    /// </summary>
     private void OnProgressChanged()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _ = InvokeAsync(() =>
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
             UpdateVisibleTasks();
             StateHasChanged();
         });
     }
 
+    /// <summary>
+    /// Requests cancellation of active progress operations and invokes the optional cancellation callback once at a time.
+    /// </summary>
     private async Task CancelAllAsync()
     {
-        if (_cancelling) return;
+        if (_cancelling)
+        {
+            return;
+        }
         _cancelling = true;
         try { await Task.WhenAll(Progress.CancelAllAsync(), OnCancel.InvokeAsync()); }
         finally { _cancelling = false; }
     }
 
+    /// <summary>
+    /// Detaches the progress change handler and prevents subsequent UI updates.
+    /// </summary>
     public void Dispose()
     {
         _disposed = true;

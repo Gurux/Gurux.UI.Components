@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Edits a boolean-compatible value using a switch with callbacks and optional persistence.
+</summary>
+*@
+
 @using Microsoft.Extensions.Logging
 @using System.Globalization
 
@@ -60,56 +66,58 @@
 
 @code {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Switch pre-text.
+    /// Gets or sets the text displayed before the switch.
     /// </summary>
     [Parameter]
     public string? PreText { get; set; }
 
     /// <summary>
-    /// Switch text.
+    /// Gets or sets the text displayed by the component.
     /// </summary>
     [Parameter]
     public string? Text { get; set; }
 
 
     /// <summary>
-    /// Is switch disabled
+    /// Gets or sets whether user interaction with the input is disabled.
     /// </summary>
     [Parameter]
     public bool Disabled { get; set; }
 
     /// <summary>
-    /// Is switch checked
+    /// Gets or sets the boolean-compatible value represented by the switch.
     /// </summary>
     [Parameter]
     public TItem Value { get; set; } = default!;
 
     /// <summary>
-    /// Constructor.
+    /// Creates the switch and rejects unsupported boolean bound types.
     /// </summary>
     public Switch()
     {
@@ -121,6 +129,9 @@
     }
 
 
+    /// <summary>
+    /// Converts the bound value to a boolean and returns the checked attribute when it is true.
+    /// </summary>
     private string? IsChecked()
     {
         if (BindConverter.TryConvertTo<bool>(Value, CultureInfo.InvariantCulture, out var result))
@@ -130,11 +141,17 @@
         throw new Exception("Invalid boolean value.");
     }
 
+    /// <summary>
+    /// Returns the disabled HTML attribute when switch editing is disabled.
+    /// </summary>
     private string? IsDisabled()
     {
         return Disabled ? "disabled" : null;
     }
 
+    /// <summary>
+    /// Applies a changed checked state, invokes value callbacks, and persists the value when enabled.
+    /// </summary>
     private async Task UpdateCheck(bool value)
     {
         var tmp = (TItem)(object)value;
@@ -145,9 +162,9 @@
             {
                 await ValueChanged.InvokeAsync(tmp);
             }
-            if (OnChange != null)
+            if (OnChange.HasDelegate)
             {
-                OnChange(tmp);
+                await OnChange.InvokeAsync(tmp);
             }
             try
             {
@@ -164,19 +181,19 @@
     }
 
     /// <summary>
-    /// Receive notification when user changes the value.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<TItem> ValueChanged { get; set; }
 
     /// <summary>
-    /// Receive notification when user changes the value.
+    /// Gets or sets the callback invoked when the user changes the value.
     /// </summary>
     [Parameter]
-    public Action<TItem>? OnChange { get; set; }
+    public EventCallback<TItem> OnChange { get; set; }
 
     /// <summary>
-    /// Update default cookie value.
+    /// Restores a saved switch value when persistence is enabled.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {

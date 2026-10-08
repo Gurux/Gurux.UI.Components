@@ -35,83 +35,81 @@ using System.Globalization;
 
 namespace Gurux.UI.Components
 {
+    /// <summary>
+    /// Carries the previous and replacement text for a localization change.
+    /// </summary>
     public class GXTextChangedEventArgs
     {
         /// <summary>
-        /// Text value before the change.
+        /// Gets or sets the resource text before the localization change.
         /// </summary>
         public string? PreviousText { get; set; }
 
         /// <summary>
-        /// Text value after the change.
+        /// Gets or sets the replacement localized text.
         /// </summary>
         public string? CurrentText { get; set; }
     }
 
     /// <summary>
-    /// Resource storage is used to retrieve data from local storage or the server.
+    /// Provides localized text, images, themes, enumeration labels, and user presentation preferences.
     /// </summary>
     public interface IGXResourceStorage
     {
         /// <summary>
-        /// Get user language from the local storage or server.
+        /// Retrieves the user's preferred language from the configured resource storage.
         /// </summary>
-        /// <returns></returns>
         Task<string?> GetUserLanguageAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Sets user language value asynchronously.
+        /// Stores the user's preferred language.
         /// </summary>
         /// <param name="value">The user language string to set.</param>
+        /// <param name="cancellationToken">The token used to cancel the language update.</param>
         /// <returns>A task that represents the asynchronous operation.</returns>
         Task SetUserLanguageAsync(string? value, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Notified when user language has updated.
+        /// Occurs when the user's selected language changes.
         /// </summary>
         public event EventHandler<string?> OnLanguageChanged;
 
         /// <summary>
-        /// Update localization settings.
+        /// Refreshes the localization settings used to retrieve translated resources.
         /// </summary>
-        /// <returns></returns>
         Task UpdateLocalizationAsync();
 
         /// <summary>
-        /// Get theme settings from the local storage or server.
+        /// Retrieves the user's current theme settings.
         /// </summary>
-        /// <returns></returns>
         Task<GXThemeInfo?> GetCurrentThemeAsync();
 
         /// <summary>
-        /// Get installed imagepacks from the local storage or server.
+        /// Retrieves the available icon packs and their resource locations.
         /// </summary>
-        /// <returns></returns>
         Task<IEnumerable<string>?> GetCurrentIconPacksAsync();
 
         /// <summary>
-        /// Get image from the local storage or server.
+        /// Retrieves the image resource with the specified name.
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
         Task<string?> GetImageAsync(string name);
 
         /// <summary>
-        /// Get images from the local storage or server.
+        /// Retrieves the image resources with the specified names.
         /// </summary>
         /// <param name="names">Image names.</param>
         /// <returns>List of images.</returns>
         Task<List<string?>?> GetImagesAsync(IEnumerable<string> names);
 
         /// <summary>
-        /// Refresh enum types from the server.
+        /// Reloads enumeration labels of the specified type from the server.
         /// </summary>
         /// <param name="type">Enum type name.</param>
         /// <returns>Return an array of { id, name } items for the enum.</returns>
         Task<IEnumerable<KeyValuePair<int, string>>?> RefreshEnumTypesAsync(string type);
 
         /// <summary>
-        /// Get enum type from the local storage or server.
+        /// Retrieves the display label for an enumeration value of the specified type.
         /// </summary>
         /// <param name="type">Enum type name.</param>
         /// <param name="id">Enum ID.</param>
@@ -119,7 +117,7 @@ namespace Gurux.UI.Components
         Task<string?> GetEnumTypeAsync(string type, int id);
 
         /// <summary>
-        /// Get enum types from the local storage or server.
+        /// Retrieves display labels for the specified enumeration values.
         /// </summary>
         /// <param name="type">Enum type name.</param>
         /// <param name="ids">Enum IDs.</param>
@@ -127,7 +125,7 @@ namespace Gurux.UI.Components
         Task<List<string?>?> GetEnumTypesAsync(string type, IEnumerable<int> ids);
 
         /// <summary>
-        /// Get enum type from the cache.
+        /// Returns the cached display label for an enumeration value.
         /// </summary>
         /// <param name="type">Enum type name.</param>
         /// <param name="id">Enum ID.</param>
@@ -135,7 +133,7 @@ namespace Gurux.UI.Components
         string? GetEnumType(string type, int? id);
 
         /// <summary>
-        /// Get enum type from the cache.
+        /// Returns the cached display label for an enumeration value.
         /// </summary>
         /// <param name="type">Enum type name.</param>
         /// <param name="value">Enumerated value.</param>
@@ -143,7 +141,7 @@ namespace Gurux.UI.Components
         string? GetEnumType(string type, Enum value);
 
         /// <summary>
-        /// Update enum types to the cache.
+        /// Updates the cached identifier-to-label mappings for an enumeration type.
         /// </summary>
         /// <param name="type">Enum type name.</param>
         /// <param name="values">key value pairs.</param>
@@ -151,13 +149,13 @@ namespace Gurux.UI.Components
         void UpdateEnumTypes(string type, IEnumerable<KeyValuePair<int, string>> values);
 
         /// <summary>
-        /// Clear enum type cache.
+        /// Clears the cached labels for the specified enumeration type.
         /// </summary>
         /// <param name="type">Enum type name.</param>
         void ClearEnumTypes(string type);
 
         /// <summary>
-        /// Get localized text from the local storage or server.
+        /// Retrieves a translated resource string using the specified or current culture.
         /// </summary>
         /// <param name="cultureInfo">Used culture.</param>
         /// <param name="name">Localized name.</param>
@@ -165,14 +163,14 @@ namespace Gurux.UI.Components
         Task<string> GetLocalizedTextAsync(CultureInfo cultureInfo, string name);
 
         /// <summary>
-        /// Get localized text from the local storage or server.
+        /// Retrieves a translated resource string using the specified or current culture.
         /// </summary>
         /// <param name="name">Localized name.</param>
         /// <returns>localized text</returns>
         Task<string> GetLocalizedTextAsync(string name);
 
         /// <summary>
-        /// Get localized texts from the local storage or server.
+        /// Retrieves translated resource strings using the specified or current culture.
         /// </summary>
         /// <param name="cultureInfo">Used culture.</param>
         /// <param name="names">Localized names.</param>
@@ -180,58 +178,56 @@ namespace Gurux.UI.Components
         Task<List<string>> GetLocalizedTextsAsync(CultureInfo cultureInfo, IEnumerable<string> names);
 
         /// <summary>
-        /// Get localized texts from the local storage or server.
+        /// Retrieves translated resource strings using the specified or current culture.
         /// </summary>
         /// <param name="names">Localized names.</param>
         /// <returns>List of localized texts.</returns>
         Task<List<string>> GetLocalizedTextsAsync(IEnumerable<string> names);
 
         /// <summary>
-        /// Notified when the theme is updated.
+        /// Occurs when the current theme settings change.
         /// </summary>
         public event EventHandler<GXThemeInfo> OnThemeChanged;
 
         /// <summary>
-        /// Notified when the enum types is changed.
+        /// Occurs when cached enumeration labels change.
         /// </summary>
         public EventCallback OnEnumTypesChanged { get; set; }
 
         /// <summary>
-        /// Notified when the localized text is changed.
+        /// Occurs when a localized text resource is replaced.
         /// </summary>
         public event EventHandler<GXTextChangedEventArgs>? OnTextChanged;
 
         /// <summary>
-        /// Notified when the image is changed.
+        /// Occurs when an image resource changes.
         /// </summary>
         public event EventHandler<GXImageChangedArgs>? OnImageChanged;
 
         /// <summary>
-        /// Converts the specified <see cref="DateTimeOffset"/> value to its string representation.
+        /// Formats a date and time value using the user's configured time display preference.
         /// </summary>
-        /// <remarks>The format of the returned string depends on the default formatting conventions for
-        /// <see cref="DateTimeOffset"/>.</remarks>
-        /// <param name="value">The <see cref="DateTimeOffset"/> value to convert.</param>
-        /// <returns>A string representation of the specified <see cref="DateTimeOffset"/> value.</returns>
-        /// <seealso cref="HasLocalDateTimeAsync"/>
+        /// <remarks>The format of the returned string depends on the default formatting conventions for <see cref="DateTimeOffset" />.</remarks>
+        /// <param name="value">The <see cref="DateTimeOffset" /> value to convert.</param>
+        /// <returns>A string representation of the specified <see cref="DateTimeOffset" /> value.</returns>
+        /// <seealso cref="HasLocalDateTimeAsync" />
         public string? DateTimeOffsetToString(DateTimeOffset? value);
 
         /// <summary>
-        /// Determines whether the current instance uses local or UTC time.
+        /// Retrieves whether date and time values should be displayed in local time instead of UTC.
         /// </summary>
-        /// <returns><see langword="true"/> if the current instance contains a local time; otherwise, UTC time is used.</returns>
-        /// <seealso cref="DateTimeOffsetToString"/>
-        /// <seealso cref="SetLocalDateTimeAsync"/>
+        /// <returns>
+        ///   <see langword="true" /> if the current instance contains a local time; otherwise, UTC time is used.</returns>
+        /// <seealso cref="DateTimeOffsetToString" />
+        /// <seealso cref="SetLocalDateTimeAsync" />
         public Task<bool> HasLocalDateTimeAsync();
 
         /// <summary>
-        /// Sets the local date and time asynchronously.
+        /// Stores whether date and time values should be displayed in local time instead of UTC.
         /// </summary>
-        /// <param name="value">
-        /// A boolean value indicating whether the local ot UTC time is used.
-        /// </param>
-        /// <seealso cref="DateTimeOffsetToString"/>
-        /// <seealso cref="HasLocalDateTimeAsync"/>
+        /// <param name="value">A boolean value indicating whether the local ot UTC time is used.</param>
+        /// <seealso cref="DateTimeOffsetToString" />
+        /// <seealso cref="HasLocalDateTimeAsync" />
         public Task SetLocalDateTimeAsync(bool value);
     }
 }

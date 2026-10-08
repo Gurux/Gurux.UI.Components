@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays selectable, paged search results from static items or an asynchronous provider.
+</summary>
+*@
+
 @using Microsoft.AspNetCore.Components.Web;
 
 @typeparam TItem
@@ -37,8 +43,8 @@
 @if (Items != null)
 {
     <CascadingValue name="search" Value="@this">
-        <div id="@Id" class="search">
-            <input class="form-control" disabled="@(Disabled || _loading)"
+        <div class="search">
+            <input @attributes="AdditionalAttributes" id="@(GXComponentAttributes.GetValue(AdditionalAttributes, "id") ?? Id)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")" disabled="@(Disabled || _loading)"
                    data-toggle="dropdown"
                    type="search"
                    value="@Value"
@@ -95,7 +101,7 @@
 @code {
     private bool _loading = true;
     /// <summary>
-    /// Component ID.
+    /// Gets or sets the identifier of the search component.
     /// </summary>
     [Parameter]
     public string Id
@@ -105,35 +111,42 @@
     } = "";
 
     /// <summary>
-    /// If immediate filtering is used, the query is executed when the user presses any key.
+    /// Gets or sets whether input changes immediately refresh search results.
     /// </summary>
     [Parameter]
     public bool Immediate { get; set; }
 
-    [Parameter]
-    public string? CssClass { get; set; }
-
     /// <summary>
-    /// Search class.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
-    [Parameter]
-    public string? SearchCssClass { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
 
     /// <summary>
-    /// Is the search control disabled.
+    /// Gets or sets whether user interaction with the input is disabled.
     /// </summary>
     [Parameter]
     public bool Disabled { get; set; }
 
     private List<int> Pages = new List<int>();
 
+    /// <summary>
+    /// Stores an optional item value associated with the search component.
+    /// </summary>
     public TItem? _value;
 
+    /// <summary>
+    /// Requests rendering of the component's current state.
+    /// </summary>
     public void Update()
     {
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Gets or sets the currently selected search result.
+    /// </summary>
     [Parameter]
     public TItem? Value
     {
@@ -142,13 +155,13 @@
     }
 
     /// <summary>
-    /// Default value.
+    /// Gets or sets the default selection option.
     /// </summary>
     [Parameter]
     public TItem? DefaultValue { get; set; }
 
     /// <summary>
-    /// Notified when value is updated..
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<TItem?> ValueChanged { get; set; }
@@ -158,14 +171,20 @@
     /// </summary>
     private bool Show = false;
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
     /// <summary>
-    /// Gets or sets the item template for the list.
+    /// Gets or sets the template used to render an item.
     /// </summary>
     [Parameter]
     public RenderFragment<TItem?>? ItemContent { get; set; }
 
+    /// <summary>
+    /// Updates the search filter, resets pagination, and refreshes results when immediate filtering is enabled.
+    /// </summary>
     private async Task UpdateFilter(object? value)
     {
         Filter = Convert.ToString(value);
@@ -186,9 +205,15 @@
     }
 
     private string? Filter;
+    /// <summary>
+    /// Gets or sets the callback invoked when the user selects an item.
+    /// </summary>
     [Parameter]
     public EventCallback<TItem> OnSelected { get; set; }
 
+    /// <summary>
+    /// Applies a search result selection, invokes callbacks, and closes the results list.
+    /// </summary>
     private async Task HandleSelect(TItem? item)
     {
         Value = item;
@@ -205,54 +230,60 @@
     }
 
     /// <summary>
-    /// Page size tells how many rows are shown.
+    /// Gets or sets the number of items requested for each page.
     /// </summary>
     [Parameter]
     public int PageSize { get; set; } = 5;
 
     /// <summary>
-    /// Constructor.
+    /// Creates the search component with a default page size of five items.
     /// </summary>
     public InputSearch()
     {
         PageSize = 5;
     }
 
+    /// <summary>
+    /// Gets or sets the hint displayed when the input has no value.
+    /// </summary>
     [Parameter]
     public string? Placeholder { get; set; }
+    /// <summary>
+    /// Returns the display name of an item shown in search results.
+    /// </summary>
     public delegate string? GetNameEventHandler(TItem target);
     private CancellationTokenSource? _cts;
     /// <summary>
-    /// Data from the all users is shown for the admin.
+    /// Gets or sets the option to display an all-users control.
     /// </summary>
     [Parameter]
     public bool ShowAllUsers { get; set; } = true;
     /// <summary>
-    /// Data from the all users is shown for the admin.
+    /// Gets or sets whether requests include data belonging to all users.
     /// </summary>
     protected bool ShowAllUserData { get; set; } = false;
     /// <summary>
-    /// All table rows are shown and paginatation is not used.
+    /// Gets or sets whether all items are displayed without pagination.
     /// </summary>
     [Parameter]
     public bool ShowAllData { get; set; }
     /// <summary>
-    /// Is total shown.
+    /// Gets or sets the option to display the total item count.
     /// </summary>
     [Parameter]
     public bool Total { get; set; } = true;
     /// <summary>
-    /// How many page links there are before and after the selected page.
+    /// Gets or sets the number of page links displayed before and after the current page.
     /// </summary>
     [Parameter]
     public int Spread { get; set; } = 2;
     /// <summary>
-    /// Current page.
+    /// Gets or sets the zero-based index of the current page.
     /// </summary>
     [Parameter]
     public int CurrentPage { get; set; }
     /// <summary>
-    /// Change pagination page.
+    /// Selects the requested zero-based page and refreshes the displayed items.
     /// </summary>
     /// <param name="index">Page index</param>
     internal async Task SelectPage(int index)
@@ -261,12 +292,12 @@
         await RefreshDataAsync(true);
     }
     /// <summary>
-    /// The total row count.
+    /// Gets the total number of items reported by the provider.
     /// </summary>
     public int TotalCount { get; private set; }
 
     /// <summary>
-    /// The total page count.
+    /// Gets the number of pages calculated from the total count and page size.
     /// </summary>
     public int TotalPages
     {
@@ -276,10 +307,13 @@
         }
     }
     /// <summary>
-    /// Gets or sets the function providing items to the list.
+    /// Gets or sets the asynchronous provider used to retrieve items and their total count.
     /// </summary>
     [Parameter]
     public GXItemsProviderDelegate<TItem>? ItemsProvider { get; set; }
+    /// <summary>
+    /// Returns available search results excluding items in the hidden-item collection.
+    /// </summary>
     public List<TItem> GetItems()
     {
         if (Items == null)
@@ -289,15 +323,15 @@
         return Items.Except(HiddenItems).ToList();
     }
     /// <summary>
-    /// Items in the list.
+    /// Gets or sets the items available for display or selection.
     /// </summary>
     public List<TItem>? Items { get; set; } = new List<TItem>();
     /// <summary>
-    /// Hidden items is used in search.
+    /// Gets or sets the items excluded from search results.
     /// </summary>
     public List<TItem> HiddenItems { get; set; } = new List<TItem>();
     /// <summary>
-    /// Read values async.
+    /// Retrieves items from the provider and optionally requests rendering after a successful load.
     /// </summary>
     /// <param name="renderOnSuccess">Is UI render after success operation.</param>
     public async Task RefreshDataAsync(bool renderOnSuccess = true)
@@ -343,6 +377,9 @@
             await InvokeAsync(StateHasChanged);
         }
     }
+    /// <summary>
+    /// Initializes the base component and loads the initial search results.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
@@ -357,7 +394,7 @@
     }
 
     /// <summary>
-    /// Update default cookie value.
+    /// Clears the initial loading state after the first render and requests a UI update.
     /// </summary>
     protected override void OnAfterRender(bool firstRender)
     {

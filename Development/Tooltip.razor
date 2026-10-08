@@ -30,26 +30,40 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Wraps child content with a tooltip title and captured HTML styling.
+</summary>
+*@
+
 
 @namespace Gurux.UI.Components
 
-<div data-toggle="tooltip" title="@Title" style="@Style">
+<div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" data-toggle="tooltip" title="@Title" class="@GXComponentAttributes.GetClass(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, Style)">
     @ChildContent
 </div>
 @code
 {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Tooltip title.
+    /// Gets or sets the title displayed by the component.
     /// </summary>
     [Parameter]
     public string Title { get; set; } = "";
 
 
     /// <summary>
-    /// Tooltip style.
+    /// Gets or sets default inline CSS declarations combined with captured styles.
     /// </summary>
     [Parameter]
     public string? Style { get; set; }

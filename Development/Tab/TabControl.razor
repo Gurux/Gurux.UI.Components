@@ -31,6 +31,12 @@
 //---------------------------------------------------------------------------
 *@
 @*
+<summary>
+Registers tab pages, resolves the active page, and renders headers for accessible tabs.
+</summary>
+*@
+
+@*
 Usage example in a Razor component:
 
 @using Gurux.UI.Components.Tab
@@ -63,6 +69,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 
 @namespace Gurux.UI.Components.Tab
 @using System.Diagnostics
+@implements IDisposable
 
 @inject NavigationManager NavigationManager
 
@@ -74,7 +81,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
         {
             <li class="nav-item" role="presentation">
                 <button class="@GetActiveClass(it)"
-                        onclick="@( () => ActivatePage(it))">
+                        @onclick="@( () => ActivatePage(it))">
                     @if (TabTextTemplate != null)
                     {
                         @TabTextTemplate(it)
@@ -96,91 +103,205 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 
 @code {
     /// <summary>
-    /// User has selected a new tab.
+    /// Gets or sets the tab page components registered inside the tab control.
     /// </summary>
-    /// <param name="page">Tab page.</param>
-    public delegate void SelectionChangedEventHandler(TabPage page);
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>
+    /// Gets or sets the zero-based index of the initially selected tab; defaults to the first tab.
+    /// </summary>
     [Parameter]
     public int InitialTab { get; set; } = 0;
 
+    /// <summary>
+    /// Gets or sets the path of the tab that should be selected when resolving the active page.
+    /// </summary>
     [Parameter]
     public string? Active { get; set; }
 
     /// <summary>
-    /// User has selected a new tab.
+    /// Gets or sets the callback invoked for user-driven tab selection changes.
     /// </summary>
     [Parameter]
-    public SelectionChangedEventHandler? SelectionChanged { get; set; }
+    public EventCallback<TabPage> SelectionChanged { get; set; }
 
+    /// <summary>
+    /// Gets or sets the template used to render each tab header.
+    /// </summary>
     [Parameter]
     public RenderFragment<TabPage>? TabTextTemplate { get; set; }
 
-    public TabPage? ActivePage { get; set; }
+    private TabPage? activePage;
+    private bool disposed;
+    private bool userSelected;
+    private TabPage? selectedPage;
+    private string? previousActive;
+    private (TabPage Page, string Text, string? Icon, string? Path, string? Padge, int Count, TraceLevel Type)[] previousHeaders = [];
+    /// <summary>
+    /// Gets or sets the active registered tab, rejecting inaccessible pages.
+    /// </summary>
+    public TabPage? ActivePage
+    {
+        get => activePage;
+        set
+        {
+            if (value != null && (!value.IsAccessible || !Pages.Contains(value)) || ReferenceEquals(activePage, value))
+            {
+                return;
+            }
+            activePage = value;
+            foreach (var page in Pages)
+            {
+                page.RequestRender();
+            }
+        }
+    }
 
+    /// <summary>
+    /// Returns registered tab pages that are visible and authorized for the current user.
+    /// </summary>
     IEnumerable<TabPage> GetPages()
     {
-        return Pages.Where(w => w.Visible == true);
+        return Pages.Where(w => w.IsAccessible);
     }
 
     private readonly List<TabPage> Pages = new List<TabPage>();
+    /// <summary>
+    /// Unregisters a tab, updates page indices, and resolves the remaining active tab.
+    /// </summary>
+    internal void RemovePage(TabPage page)
+    {
+        if (!Pages.Remove(page))
+        {
+            return;
+        }
+        if (selectedPage == page)
+        {
+            selectedPage = null;
+        }
+        for (int index = 0; index < Pages.Count; ++index)
+        {
+            Pages[index].Index = index;
+        }
+        if (ActivePage == page)
+        {
+            ActivePage = null;
+        }
+        PageChanged(null);
+    }
 
+    /// <summary>
+    /// Registers a tab page, assigns its index, and resolves the active page.
+    /// </summary>
     internal void AddPage(TabPage tabPage)
     {
         tabPage.Index = Pages.Count;
         Pages.Add(tabPage);
-        if (!string.IsNullOrEmpty(tabPage.Path) && tabPage.Path == Active)
-        {
-            ActivePage = tabPage;
-        }
-        else
-        {
-            if (InitialTab == 0 && Pages.Count == 1)
-            {
-                ActivePage = tabPage;
-            }
-            if (InitialTab != 0 && Pages.Count - 1 == InitialTab)
-            {
-                ActivePage = Pages[InitialTab];
-            }
-
-        }
-        InvokeAsync(StateHasChanged);
+        PageChanged(tabPage);
     }
 
+    /// <summary>
+    /// Reconciles the requested active path and resolves the selected page.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        if (Active != previousActive)
+        {
+            previousActive = Active;
+            userSelected = false;
+        }
+        PageChanged(null);
+    }
+
+    /// <summary>
+    /// Resolves the active tab from user selection, requested path, and initial index, then refreshes changed headers.
+    /// </summary>
+    internal void PageChanged(TabPage? changed)
+    {
+        if (disposed)
+        {
+            return;
+        }
+        var before = ActivePage;
+        var desired = Pages.FirstOrDefault(page => page.IsAccessible && !string.IsNullOrEmpty(page.Path) && page.Path == Active);
+        if (userSelected && selectedPage?.IsAccessible == true && Pages.Contains(selectedPage))
+        {
+            ActivePage = selectedPage;
+        }
+        else if (!userSelected && desired != null)
+        {
+            ActivePage = desired;
+        }
+        else if (changed?.IsAccessible == true && (changed.Active || !userSelected && changed.Index == InitialTab))
+        {
+            ActivePage = changed;
+        }
+        else if (ActivePage?.IsAccessible != true)
+        {
+            ActivePage = Pages.ElementAtOrDefault(InitialTab)is { IsAccessible: true } initial ? initial : Pages.FirstOrDefault(page => page.IsAccessible);
+        }
+        var headers = GetPages().Select(page => (page, page.Text, page.Icon, page.Path, page.Padge, page.PadgeCount, page.PadgeType)).ToArray();
+        if (!ReferenceEquals(before, ActivePage) || !previousHeaders.SequenceEqual(headers))
+        {
+            previousHeaders = headers;
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>
+    /// Returns the tab header classes indicating whether the page is active.
+    /// </summary>
     string GetActiveClass(TabPage page)
     {
         return page == ActivePage ? "nav-link active" : "nav-link";
     }
 
-    void ActivatePage(TabPage page)
+    /// <summary>
+    /// Selects an accessible tab and invokes the selection callback.
+    /// </summary>
+    async Task ActivatePage(TabPage page)
     {
+        if (!page.IsAccessible)
+        {
+            return;
+        }
+        userSelected = true;
+        selectedPage = page;
         ActivePage = page;
         if (!string.IsNullOrEmpty(page.Path))
         {
             NavigationManager.NavigateTo(page.Path);
         }
-        SelectionChanged?.Invoke(page);
-        InvokeAsync(StateHasChanged);
+        await SelectionChanged.InvokeAsync(page);
+        await InvokeAsync(StateHasChanged);
     }
 
-    public void ActivatePage(int index)
+    /// <summary>
+    /// Selects an accessible tab and invokes the selection callback.
+    /// </summary>
+    public async Task ActivatePage(int index)
     {
-        if (Pages.Count > index)
+        if (index >= 0 && Pages.Count > index && Pages[index].IsAccessible)
         {
+            userSelected = true;
+            selectedPage = Pages[index];
             ActivePage = Pages[index];
-            SelectionChanged?.Invoke(ActivePage);
+            await SelectionChanged.InvokeAsync(ActivePage);
+            Update();
         }
     }
 
     /// <summary>
-    /// Update tab pages.
+    /// Requests rendering of the component's current state.
     /// </summary>
     public void Update()
     {
         InvokeAsync(StateHasChanged);
     }
+    /// <summary>
+    /// Marks the tab control as disposed to stop subsequent page updates.
+    /// </summary>
+    public void Dispose() => disposed = true;
 }

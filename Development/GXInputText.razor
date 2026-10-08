@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Edits a string value and optionally restores and saves it in browser local storage.
+</summary>
+*@
+
 @using System.Diagnostics.CodeAnalysis
 @using System.Globalization
 @using Microsoft.Extensions.Logging
@@ -41,36 +47,34 @@
            type="text"
            value="@Value"
            placeholder="@Placeholder"
-           class="@CssClass"
-           attributes="@AdditionalAttributes"
+           @attributes="AdditionalAttributes" class="@CssClass"
            onchange="@(async (ChangeEventArgs e) => await UpdateString(e.Value))" />
 </CascadingValue>
 
 @code
 {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = false;
 
     /// <summary>
-    /// Is string value required.
+    /// Gets or sets whether the input is marked as requiring a value.
     /// </summary>
     [Parameter]
     public bool Required
@@ -79,13 +83,16 @@
         set;
     }
 
+    /// <summary>
+    /// Returns the required HTML attribute when a string value is required.
+    /// </summary>
     private string? IsRequired()
     {
         return Required ? " required" : null;
     }
 
     /// <summary>
-    /// Value.
+    /// Gets or sets the string edited by the input.
     /// </summary>
     [Parameter]
     public string? Value
@@ -95,7 +102,7 @@
     }
 
     /// <summary>
-    /// Notified when the selected value is changed.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<string?> ValueChanged
@@ -104,15 +111,20 @@
         set;
     }
 
-    [Parameter]
-    public string? CssClass { get; set; } = "form-control";
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
 
     /// <summary>
-    /// Placeholder text.
+    /// Gets or sets the hint displayed when the input has no value.
     /// </summary>
     [Parameter]
     public string? Placeholder { get; set; }
 
+    /// <summary>
+    /// Applies the edited input value, notifies the bound value callback, and saves it when persistence is enabled.
+    /// </summary>
     private async Task UpdateString(object? value)
     {
         string? tmp = Convert.ToString(value);
@@ -140,7 +152,7 @@
 
 
     /// <summary>
-    /// Update default cookie value.
+    /// Restores a saved string value after the first render when persistence is enabled.
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

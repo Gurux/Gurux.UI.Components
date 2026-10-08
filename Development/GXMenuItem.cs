@@ -36,27 +36,27 @@ using Microsoft.AspNetCore.Components;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// Top menu item.
+    /// Describes a top menu command, its icon, and the edit state in which it is enabled.
     /// </summary>
     public class GXMenuItem
     {
         /// <summary>
-        /// Menu text.
+        /// Gets or sets the label displayed for the top menu command.
         /// </summary>
         public string Text { get; set; } = "";
 
         /// <summary>
-        /// Menu icon.
+        /// Gets or sets the icon displayed for the top menu command.
         /// </summary>
         public string? Icon { get; set; }
 
         /// <summary>
-        /// User clients the menu item.
+        /// Stores the callback invoked when the menu command is clicked.
         /// </summary>
         public EventCallback OnClick;
 
         /// <summary>
-        /// Is button enabled when user has modifed the content of the page.
+        /// Gets or sets the form edit state required for the menu command to be enabled.
         /// </summary>
         public EnableStyle? Enabled
         {
@@ -65,7 +65,7 @@ namespace Gurux.UI.Components
         } = EnableStyle.Always;
 
         /// <summary>
-        /// Constructor.
+        /// Creates an empty menu command that is enabled regardless of form edit state.
         /// </summary>
         public GXMenuItem()
         {
@@ -73,12 +73,12 @@ namespace Gurux.UI.Components
 
 
         /// <summary>
-        /// Constructor.
+        /// Creates a menu command with its label, icon, click callback, and required edit state.
         /// </summary>
         /// <param name="text">Menu text.</param>
         /// <param name="icon">Menu icon.</param>
         /// <param name="onClick">Menu action.</param>
-        /// <param name="enabled">Is menu ebabled.</param>
+        /// <param name="enabled">The form edit state in which the command is enabled.</param>
         public GXMenuItem(string text, string? icon, EventCallback onClick, EnableStyle enabled = EnableStyle.Always)
         {
             Text = text;

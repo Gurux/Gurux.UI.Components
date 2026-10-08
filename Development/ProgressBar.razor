@@ -30,19 +30,34 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays a progress value within a configured range and optional descriptive text.
+</summary>
+*@
+
 
 @if (Maximum != 0)
 {
-    <div class="progress">
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "progress")" style="@CssStyle">
         <div class="progress-bar" role="progressbar" aria-valuenow="@Current"
              aria-valuemin="@Minimum" aria-valuemax="@Maximum"
-             style="@(CurrentPercentToString() + CssStyle)">
+             style="@CurrentPercentToString()">
             <span class="sr-only">@Description</span>
         </div>
     </div>
 }
 
 @code {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the text describing the current progress operation.
+    /// </summary>
     [Parameter]
     public string? Description
     {
@@ -51,7 +66,7 @@
     }
 
     /// <summary>
-    /// Minimum value.
+    /// Gets or sets the lower bound of the progress range.
     /// </summary>
     [Parameter]
     public int Minimum
@@ -61,7 +76,7 @@
     }
 
     /// <summary>
-    /// Maximum value.
+    /// Gets or sets the upper bound of the progress range.
     /// </summary>
     [Parameter]
     public int Maximum
@@ -71,7 +86,7 @@
     }
 
     /// <summary>
-    /// Current value.
+    /// Gets or sets the current progress value.
     /// </summary>
     [Parameter]
     public int Current
@@ -80,12 +95,18 @@
         set;
     }
 
+    /// <summary>
+    /// Calculates the current progress percentage from the configured range, returning zero for a zero current or maximum value.
+    /// </summary>
     private int CurrentPercent()
     {
         return Current == 0 || Maximum == 0 ? 0 :
         (100 * Current / (Maximum - Minimum));
     }
 
+    /// <summary>
+    /// Formats the current progress percentage as a CSS width declaration.
+    /// </summary>
     private string CurrentPercentToString()
     {
         return string.Format("width:{0}%",
@@ -93,7 +114,7 @@
     }
 
     /// <summary>
-    /// Update the progress bar.
+    /// Sets the progress range and resets the current value to the supplied minimum.
     /// </summary>
     public void Reset(int minimum, int maximum)
     {
@@ -103,7 +124,7 @@
     }
 
     /// <summary>
-    /// Step the progress bar.
+    /// Advances progress up to the maximum, optionally updates its description, and rerenders when the percentage changes.
     /// </summary>
     /// <param name="value">Steps.</param>
     /// <param name="description">Description.</param>
@@ -127,36 +148,21 @@
     }
 
     /// <summary>
-    /// CSS style.
+    /// Gets the inline CSS declarations obtained from the captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssStyle
-    {
-        get;
-        set;
-    }
+    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
 
+    /// <summary>
+    /// Combines the progress bar's base class with its custom class attribute.
+    /// </summary>
     private string GetClass()
     {
         return "progress-bar" + Class;
     }
 
     /// <summary>
-    /// Class.
+    /// Gets the custom CSS class attribute applied to the progress bar.
     /// </summary>
-    /// <remarks>
-    /// The contextual classes that can be used with progress bars are:
-    /// <ul>
-    /// <li>progress-bar-success</li>
-    /// <li>progress-bar-info</li>
-    /// <li>progress-bar-warning</li>
-    /// <li>progress-bar-danger</li>
-    /// <li>progress-bar-striped</li>
-    /// </ul>
-    [Parameter]
-    public string? Class
-    {
-        get;
-        set;
-    }
+    /// <remarks> The contextual classes that can be used with progress bars are: <ul><li>progress-bar-success</li><li>progress-bar-info</li><li>progress-bar-warning</li><li>progress-bar-danger</li><li>progress-bar-striped</li></ul></remarks>
+    private string? Class => GXComponentAttributes.GetValue(AdditionalAttributes, "class");
 }

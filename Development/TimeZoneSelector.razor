@@ -30,11 +30,17 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Provides a searchable selection of system time zones and binds the chosen zone identifier.
+</summary>
+*@
+
 @using System
 @using System.Linq
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 
-<DropdownSearch class="form-control"
+<DropdownSearch @attributes="AdditionalAttributes" class="@CssClass"
                 Id="@Id"
                 Immediate="true"
                 LastValue="@LastValue"
@@ -51,28 +57,27 @@
 
 @code {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to load and store the value in a cookie.
+    /// Gets or sets whether the most recently used value is restored from and saved to browser local storage.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool LastValue { get; set; } = true;
 
     /// <summary>
-    /// Selected time zone ID.
+    /// Gets or sets the selected time zone and synchronizes its identifier with the bound value.
     /// </summary>
     private TimeZoneInfo? selected
     {
@@ -91,7 +96,7 @@
     }
 
     /// <summary>
-    /// Selected time zone ID.
+    /// Gets or sets the selected time zone identifier.
     /// </summary>
     [Parameter]
     public string? Value
@@ -101,36 +106,36 @@
     }
 
     /// <summary>
-    /// Selected time zone ID changed event.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<string?> ValueChanged { get; set; }
 
     /// <summary>
-    /// CSS class
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssClass { get; set; }
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
 
     /// <summary>
-    /// Placeholder text.
+    /// Gets or sets the placeholder text option.
     /// </summary>
     [Parameter]
     public string? Placeholder { get; set; } = "Select time zone";
 
     /// <summary>
-    /// Is UTC time zone shown first in the list.
+    /// Gets or sets whether the UTC time zone is placed before other zones.
     /// </summary>
     [Parameter]
     public bool ShowUtcFirst { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the available system time zones in display order.
+    /// </summary>
     private IEnumerable<TimeZoneInfo> TimeZones { get; set; } = Array.Empty<TimeZoneInfo>();
 
     /// <summary>
-    /// Filter is done when SearchSelectedByName is called.
+    /// Returns time zones matching the request's case-insensitive display-name filter and their count.
     /// </summary>
-    /// <param name="request"></param>
-    /// <returns></returns>
     private ValueTask<ItemsProviderResult<TimeZoneInfo?>> GetItems(GXItemsProviderRequest request)
     {
         var list = TimeZones;
@@ -141,6 +146,9 @@
         return new(new ItemsProviderResult<TimeZoneInfo?>(list, list.Count()));
     }
 
+    /// <summary>
+    /// Builds the system time zone list, optionally placing UTC first and removing duplicate identifiers.
+    /// </summary>
     protected override void OnInitialized()
     {
         var all = TimeZoneInfo.GetSystemTimeZones().ToList();
@@ -159,6 +167,9 @@
             .ToList();
     }
 
+    /// <summary>
+    /// Updates the selected time zone id and invokes the bound value callback.
+    /// </summary>
     private async Task OnChange(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();

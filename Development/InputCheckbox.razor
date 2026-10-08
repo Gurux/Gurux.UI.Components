@@ -30,33 +30,51 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Binds a checkbox to a supported boolean value through the Blazor form input system.
+</summary>
+*@
+
 
 @using System.Diagnostics.CodeAnalysis
 
 @typeparam TValue
 @inherits InputBase<TValue>
 
-<input type="checkbox" checked="@(CurrentValue is true)"
-       class="@CssClass"
-       @attributes="AdditionalAttributes"
+<input @attributes="AdditionalAttributes" type="checkbox" checked="@(CurrentValue is true)"
+       class="@(GXComponentAttributes.CombineClasses("form-check-input", CssClass))"
        @onchange="@((ChangeEventArgs args) => { CurrentValue = FromBoolean(Convert.ToBoolean(args.Value)); })" />
 @code {
+    /// <summary>
+    /// Creates the checkbox and verifies that its bound type is bool or nullable bool.
+    /// </summary>
     public InputCheckbox()
     {
         if ((Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue)) != typeof(bool))
+        {
             throw new InvalidOperationException("InputCheckbox supports only bool and bool?.");
+        }
     }
 
+    /// <summary>
+    /// Converts a checkbox state to the component's supported bound type.
+    /// </summary>
     private static TValue FromBoolean(bool value) => (TValue)(object)value;
 
+    /// <summary>
+    /// Rejects string parsing because checkbox values are supplied as boolean change events.
+    /// </summary>
     protected override bool TryParseValueFromString(string? value,
         [MaybeNullWhen(false)] out TValue result,
         [NotNullWhen(false)] out string? validationErrorMessage)
     {
         result = default!;
         validationErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(value) && Nullable.GetUnderlyingType(typeof(TValue)) is not null)
+        if (string.IsNullOrWhiteSpace(value) && Nullable.GetUnderlyingType(typeof(TValue))is not null)
+        {
             return true;
+        }
         if (value is null || bool.TryParse(value, out _))
         {
             result = FromBoolean(value is not null && bool.Parse(value));

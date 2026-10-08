@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders a responsive table cell with editable content or guarded link navigation.
+</summary>
+*@
+
 @namespace Gurux.UI.Components.Table
 @using Gurux.UI.Components.Enums
 
@@ -39,7 +45,7 @@
 
 @if (!_hidden)
 {
-    <td style="@CssStyle" class="@GetCssClass()" @attributes="@AdditionalAttributes">
+    <td style="@CssStyle" class="@GetCssClass()" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)">
         @if (Parent != null && Parent.CanEdit)
         {
             <a href="@Link" onclick="@(() => OnSelect())">
@@ -56,18 +62,21 @@
 @code
 {
     /// <summary>
-    /// Id.
+    /// Gets or sets the identifier associated with the table cell.
     /// </summary>
     [Parameter]
     public string? Id { get; set; }
 
     /// <summary>
-    /// Parent table.
+    /// Gets or sets the containing component supplied through a cascading parameter.
     /// </summary>
     [CascadingParameter]
     private IGXTable? Parent { get; set; }
 
 
+    /// <summary>
+    /// Gets whether the parent table permits editing of this cell.
+    /// </summary>
     private bool CanEdit
     {
         get
@@ -81,43 +90,49 @@
     }
 
     /// <summary>
-    /// href link.
+    /// Gets or sets the destination URL opened when the cell is selected.
     /// </summary>
     [Parameter]
     public string? Link { get; set; }
 
+    /// <summary>
+    /// Gets or sets the value passed to the parent table's cell selection callback.
+    /// </summary>
     [Parameter]
     public object? Target { get; set; }
 
     /// <summary>
-    /// Gets or sets the item template for the list.
+    /// Gets or sets the content rendered inside the component.
     /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// CSS style.
+    /// Gets the inline CSS declarations obtained from the captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssStyle { get; set; }
+    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
 
     /// <summary>
-    /// CSS class.
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssClass { get; set; }
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes);
 
     /// <summary>
-    /// Responsive determines the order
-    /// in which the contents are hidden if they do not fit the screen.
+    /// Gets or sets the responsive breakpoints and print settings at which the cell is displayed.
     /// </summary>
     [Parameter]
     public Visibility Visibility { get; set; } = Visibility.All;
 
 
+    /// <summary>
+    /// Gets or sets the service provider used to resolve optional component services.
+    /// </summary>
     [Inject]
     public IServiceProvider Services { get; set; } = default!;
 
+    /// <summary>
+    /// Gets the optional service used to approve cell link navigation.
+    /// </summary>
     public IGXNavigationGuardService? NavigationGuardService { get; private set; }
 
     /// <summary>
@@ -125,40 +140,43 @@
     /// </summary>
     bool _hidden;
 
+    /// <summary>
+    /// Combines the cell's captured CSS classes with its responsive and print visibility classes.
+    /// </summary>
     private string? GetCssClass()
     {
         return Fh.GetCssClass(Visibility, CssClass);
     }
 
     /// <summary>
-    /// Additional attributes.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// New target is selected.
+    /// Selects the table cell or follows its link after the navigation guard permits navigation.
     /// </summary>
-    private void OnSelect()
+    private async Task OnSelect()
     {
         if (Target != null)
         {
-            Parent?.SelectCell(Target);
+            if (Parent != null)
+            {
+                await Parent.SelectCell(Target);
+            }
         }
         if (!string.IsNullOrEmpty(Link))
         {
-            NavigationGuardService?.CanNavigateAsync(NavigationManager.Uri).ContinueWith(t =>
+            if (NavigationGuardService != null && await NavigationGuardService.CanNavigateAsync(NavigationManager.Uri))
             {
-                if (t.Result == true)
-                {
-                    NavigationManager.NavigateTo(Link);
-                }
-            });
+                NavigationManager.NavigateTo(Link);
+            }
         }
     }
 
     /// <summary>
-    /// Initialize context menu.
+    /// Verifies that the cell belongs to a table and initializes its parent-dependent state.
     /// </summary>
     protected override void OnInitialized()
     {

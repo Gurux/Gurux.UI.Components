@@ -40,45 +40,50 @@ using System.Globalization;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// This component is used to time span.
+    /// Edits a numeric duration using a time input and the configured duration unit.
     /// </summary>
     public class GXInputTimeSpan<TValue> : InputBase<TValue>
     {
         /// <summary>
-        /// Return the id from the AdditionalAttributes.
+        /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
         /// </summary>
-        private string? Id =>
-           AdditionalAttributes?.TryGetValue("id", out var value) == true
-               ? value?.ToString()
-               : null;
+        private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+        private string? _generatedId;
 
         /// <summary>
-        /// Whether to load and store the value in a cookie.
+        /// Gets or sets whether the most recently used value is restored from and saved to browser local storage.
         /// </summary>
-        /// <seealso cref="Id"/>see
+        /// <seealso cref="Id" />
         [Parameter]
         public bool LastValue { get; set; } = true;
 
+        /// <summary>
+        /// Gets or sets the injected browser local storage service used for value persistence.
+        /// </summary>
         [Inject]
         IGXLocalStorage? localStorage { get; set; }
 
+        /// <summary>
+        /// Gets or sets the injected logger used to report component activity and errors.
+        /// </summary>
         [Inject]
         ILogger<GXInputNumber<TValue>>? Logger { get; set; }
 
         /// <summary>
-        /// Value is get as a milliseconds.
+        /// Gets or sets whether the numeric duration represents seconds, minutes, or hours.
         /// </summary>
         [Parameter]
         public TimeSpanUnit TimeSpanUnit { get; set; } = TimeSpanUnit.Second;
 
         /// <summary>
-        /// Element.
+        /// Gets or sets the time input element reference, available after rendering.
         /// </summary>
         [DisallowNull]
         public ElementReference? Element { get; protected set; }
 
         /// <summary>
-        /// Constructor.
+        /// Creates the duration input and rejects unsupported bound value types.
         /// </summary>
         public GXInputTimeSpan()
         {
@@ -89,7 +94,7 @@ namespace Gurux.UI.Components
             }
         }
         /// <summary>
-        /// Update default cookie value.
+        /// Restores a saved numeric duration when persistence is enabled.
         /// </summary>
         protected override async Task OnInitializedAsync()
         {
@@ -115,6 +120,9 @@ namespace Gurux.UI.Components
             await base.OnInitializedAsync();
         }
 
+        /// <summary>
+        /// Gets the HTML time input increment in seconds corresponding to the configured duration unit.
+        /// </summary>
         private int Step
         {
             get
@@ -138,29 +146,31 @@ namespace Gurux.UI.Components
             }
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Builds the component's HTML elements, attributes, and event handlers.
+        /// </summary>
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
             builder.OpenElement(0, "input");
-            builder.AddMultipleAttributes(1, AdditionalAttributes);
-            builder.AddAttribute(2, "type", "time");
+            builder.AddAttribute(1, "id", Id);
+            builder.AddMultipleAttributes(2, AdditionalAttributes);
+            builder.AddAttribute(3, "type", "time");
             if (!string.IsNullOrEmpty(NameAttributeValue))
             {
-                builder.AddAttribute(3, "name", NameAttributeValue);
+                builder.AddAttribute(4, "name", NameAttributeValue);
             }
-            if (!string.IsNullOrEmpty(CssClass))
-            {
-                builder.AddAttribute(4, "class", CssClass);
-            }
-            builder.AddAttribute(5, "value", BindConverter.FormatValue(CurrentValueAsString));
-            builder.AddAttribute(6, "onchange", EventCallback.Factory.CreateBinder<string?>(this, __value => CurrentValueAsString = __value, CurrentValueAsString));
-            builder.AddAttribute(7, "step", Step.ToString());
+            builder.AddAttribute(5, "class", GXComponentAttributes.CombineClasses("form-control", CssClass));
+            builder.AddAttribute(6, "value", BindConverter.FormatValue(CurrentValueAsString));
+            builder.AddAttribute(7, "onchange", EventCallback.Factory.CreateBinder<string?>(this, __value => CurrentValueAsString = __value, CurrentValueAsString));
+            builder.AddAttribute(8, "step", Step.ToString());
             builder.SetUpdatesAttributeName("value");
-            builder.AddElementReferenceCapture(8, __inputReference => Element = __inputReference);
+            builder.AddElementReferenceCapture(9, __inputReference => Element = __inputReference);
             builder.CloseElement();
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Formats the numeric duration as a time value using the configured seconds, minutes, or hours unit.
+        /// </summary>
         protected override string? FormatValueAsString(TValue? value)
         {
             if (value == null)
@@ -211,7 +221,9 @@ namespace Gurux.UI.Components
             return base.FormatValueAsString(value);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Parses time text as total seconds for integer values or converts it to the bound time type, then persists changes when enabled.
+        /// </summary>
         protected override bool TryParseValueFromString(string? value,
             [MaybeNullWhen(false)] out TValue result,
             [NotNullWhen(false)] out string? validationErrorMessage)

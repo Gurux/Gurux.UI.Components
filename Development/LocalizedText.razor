@@ -30,35 +30,63 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays a translated resource string and refreshes it when the resource changes.
+</summary>
+*@
+
 @using Microsoft.Extensions.Logging
 
-<span class="@CssClass">
+<span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
     @GetValue()
     @ChildContent
 </span>
 
+@implements IDisposable
+
 @code {
     /// <summary>
-    /// Child content that the badge is attached to (for example an icon or text).
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _disposed;
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
     /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>
+    /// Gets or sets the resource key to translate and display.
+    /// </summary>
     [Parameter]
     public string? Value { get; set; }
 
-    /// Update text when changed.
+    /// <summary>
+    /// Gets or sets whether the localization change should be propagated through the update callback.
+    /// </summary>
     [Parameter]
     public bool Update { get; set; }
 
+    /// <summary>
+    /// Gets or sets the injected logger used to report component activity and errors.
+    /// </summary>
     [Inject]
     ILogger<Image> Logger { get; set; } = default!;
 
-    /// Update text when changed.
+    /// <summary>
+    /// Gets or sets the callback invoked when the localization refresh flag changes.
+    /// </summary>
     [Parameter]
     public EventCallback<bool> UpdateChanged { get; set; }
 
     private string? _localizedValue;
+    /// <summary>
+    /// Returns the translated text when available, falling back to the supplied resource key.
+    /// </summary>
     private string? GetValue()
     {
         if (_localizedValue != null)
@@ -69,14 +97,24 @@
     }
 
     /// <summary>
-    /// Used resource storage.
+    /// Gets or sets the service provider used to resolve optional component services.
     /// </summary>
-    [CascadingParameter]
-    public IGXResourceStorage? ResourceStorage { get; set; }
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
 
-    [Parameter]
-    public string? CssClass { get; set; }
+    /// <summary>
+    /// Gets the optional service used to retrieve localized resources.
+    /// </summary>
+    public IGXResourceStorage? ResourceStorage => Services.GetService<IGXResourceStorage>();
 
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
+
+    /// <summary>
+    /// Loads the translation for the supplied resource key, falling back to that key when no service is available.
+    /// </summary>
     protected override async Task OnParametersSetAsync()
     {
         if (ResourceStorage != null && !string.IsNullOrEmpty(Value))
@@ -90,25 +128,42 @@
         }
     }
 
+    /// <summary>
+    /// Subscribes to localized text change notifications when a resource service is available.
+    /// </summary>
     protected override void OnInitialized()
     {
         if (ResourceStorage != null)
         {
             ResourceStorage.OnTextChanged += Updated;
         }
-        base.OnInitializedAsync();
+        base.OnInitialized();
     }
 
     /// <summary>
-    /// Update new text when changed.
+    /// Refreshes the displayed localization when the changed text matches this component's resource.
     /// </summary>
     private void Updated(object? sender, GXTextChangedEventArgs arg)
     {
-        if (_localizedValue == arg.PreviousText)
+        _ = InvokeAsync(() =>
         {
-            // Logger.LogInformation($"Updated localized text with Id: {_localizedValue}: {arg.CurrentText}");
-            _localizedValue = arg.CurrentText;
-            StateHasChanged();
+            if (!_disposed && _localizedValue == arg.PreviousText)
+            {
+                _localizedValue = arg.CurrentText;
+                StateHasChanged();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Stops handling localized text changes and marks the component as disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        _disposed = true;
+        if (ResourceStorage != null)
+        {
+            ResourceStorage.OnTextChanged -= Updated;
         }
     }
 }

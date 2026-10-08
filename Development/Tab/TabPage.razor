@@ -30,90 +30,137 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
-@namespace Gurux.UI.Components.Tab
-@using System.Diagnostics
+@*
+<summary>
+Defines a tab page whose header and content can be restricted by an authorization policy.
+</summary>
+*@
 
-<div style="position: relative; width: 100%; ">
-    @if (Parent?.ActivePage == this)
-    {
-        @ChildContent
-    }
-</div>
+@namespace Gurux.UI.Components.Tab
+@implements IDisposable
+@using System.Diagnostics
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IServiceProvider Services
+
+@if (IsAccessible)
+{
+    <div style="position: relative; width: 100%; ">
+        @if (Parent?.ActivePage == this)
+        {
+            @ChildContent
+        }
+    </div>
+}
 
 @code {
+    /// <summary>
+    /// Gets or sets the containing component supplied through a cascading parameter.
+    /// </summary>
     [CascadingParameter]
     private TabControl? Parent { get; set; }
 
+    /// <summary>
+    /// Gets or sets the cascading authentication state used to evaluate the tab's policy.
+    /// </summary>
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    /// <summary>
+    /// Gets or sets the named authorization policy required to display the content.
+    /// </summary>
+    [Parameter]
+    public string? Policy { get; set; }
+
+    private AuthenticationStateProvider? authenticationProvider;
+    private IGXAuthorizationRefreshSource? authorizationRefreshSource;
+    private Task<AuthenticationState>? authenticationTask;
+    private Task<AuthenticationState>? evaluatedAuthentication;
+    private string? evaluatedPolicy;
+    private bool evaluated;
+    private bool authorized;
+    private bool disposed;
+    private long authorizationVersion;
+    /// <summary>
+    /// Gets whether the tab is visible and the current user satisfies its authorization policy.
+    /// </summary>
+    internal bool IsAccessible => !disposed && Visible && (string.IsNullOrWhiteSpace(Policy) || authorized);
+
+    /// <summary>
+    /// Gets or sets the content displayed when this tab is active and accessible.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Is tab page visible.
+    /// Gets or sets whether the component is displayed.
     /// </summary>
     [Parameter]
     public bool Visible { get; set; } = true;
 
-    ///<summary>
-    ///Tab page path.
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the URL associated with the tab.
+    /// </summary>
     [Parameter]
     public string? Path { get; set; }
 
-    ///<summary>
-    ///Tab page header text.
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the text displayed by the component.
+    /// </summary>
     [Parameter]
     public string Text { get; set; } = "";
 
-    ///<summary>
-    ///Icon class
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the icon identifier displayed alongside the text.
+    /// </summary>
     [Parameter]
     public string? Icon { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether this tab requests initial activation in its parent control.
+    /// </summary>
     [Parameter]
     public bool Active { get; set; }
 
-    ///<summary>
-    ///Padge text.
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the text displayed in the tab's badge.
+    /// </summary>
     [Parameter]
     public string? Padge { get; set; }
 
-    ///<summary>
-    ///The number of padge stamps.
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the numeric count displayed in the tab's badge.
+    /// </summary>
     [Parameter]
     public int PadgeCount { get; set; }
 
     /// <summary>
-    /// Notified when number of padge stamps is updated.
+    /// Gets or sets the callback invoked when the badge count changes.
     /// </summary>
     [Parameter]
     public EventCallback<int> PadgeCountChanged { get; set; }
 
-    ///<summary>
-    ///Padge type.
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the diagnostic level used to style the tab's badge.
+    /// </summary>
     [Parameter]
     public TraceLevel PadgeType { get; set; } = TraceLevel.Error;
 
     /// <summary>
-    /// Page index number.
+    /// Gets or sets the tab's position in the containing tab control.
     /// </summary>
-    /// <remarks>
-    /// This is for internal use.
-    /// </remarks>
+    /// <remarks> This is for internal use. </remarks>
     internal int Index { get; set; }
 
     /// <summary>
-    /// Page identifier.
+    /// Gets or sets the tab page identifier used by the containing tab control.
     /// </summary>
-    /// <remarks>
-    /// This is for internal use.
-    /// </remarks>
+    /// <remarks> This is for internal use. </remarks>
     internal string? Id { get; set; }
 
+    /// <summary>
+    /// Registers the tab with its parent and subscribes to authorization and authentication changes.
+    /// </summary>
     protected override void OnInitialized()
     {
         if (Parent == null)
@@ -121,11 +168,153 @@
             throw new ArgumentNullException(nameof(Parent), "TabPage must exist within a TabControl");
         }
         base.OnInitialized();
-        Parent.AddPage(this);
-        if (Active)
+        authorizationRefreshSource = Services.GetService<IGXAuthorizationRefreshSource>();
+        if (authorizationRefreshSource != null)
         {
-            Parent.ActivePage = this;
+            authorizationRefreshSource.Changed += AuthorizationChanged;
+        }
+        authenticationProvider = Services.GetService<AuthenticationStateProvider>();
+        if (authenticationProvider != null)
+        {
+            authenticationProvider.AuthenticationStateChanged += AuthenticationChanged;
+        }
+        Parent.AddPage(this);
+    }
+
+    /// <summary>
+    /// Evaluates the current authorization policy and notifies the parent when the tab's state changes.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        await EvaluateAuthorizationAsync(false);
+        if (!disposed)
+        {
+            Parent?.PageChanged(this);
         }
     }
 
+    /// <summary>
+    /// Reevaluates tab authorization after the current authentication state changes.
+    /// </summary>
+    private void AuthenticationChanged(Task<AuthenticationState> state)
+    {
+        authenticationTask = state;
+        Interlocked.Increment(ref authorizationVersion);
+        _ = InvokeAsync(async () =>
+        {
+            if (disposed)
+            {
+                return;
+            }
+            await EvaluateAuthorizationAsync(true);
+            if (!disposed)
+            {
+                StateHasChanged();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Forces reevaluation of the tab after application policy definitions change.
+    /// </summary>
+    public Task RefreshAuthorizationAsync()
+    {
+        authorizationRefreshSource?.Invalidate();
+        return InvokeAsync(() => EvaluateAuthorizationAsync(true));
+    }
+
+    /// <summary>
+    /// Invalidates the cached policy decision and schedules authorization reevaluation.
+    /// </summary>
+    private void AuthorizationChanged()
+    {
+        Interlocked.Increment(ref authorizationVersion);
+        _ = InvokeAsync(async () =>
+        {
+            if (disposed)
+            {
+                return;
+            }
+            await EvaluateAuthorizationAsync(true);
+            if (!disposed)
+            {
+                StateHasChanged();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Evaluates the tab policy for the current user and ignores results from superseded evaluations.
+    /// </summary>
+    private async Task EvaluateAuthorizationAsync(bool force)
+    {
+        if (disposed)
+        {
+            return;
+        }
+        var state = authenticationProvider != null ? authenticationTask : AuthenticationState;
+        if (state == null && authenticationProvider != null && !string.IsNullOrWhiteSpace(Policy))
+        {
+            try { state = authenticationTask = authenticationProvider.GetAuthenticationStateAsync(); }
+            catch (Exception) { state = null; }
+        }
+        if (!force && evaluated && Policy == evaluatedPolicy && ReferenceEquals(state, evaluatedAuthentication))
+        {
+            return;
+        }
+        evaluated = true;
+        evaluatedPolicy = Policy;
+        evaluatedAuthentication = state;
+        var version = Interlocked.Increment(ref authorizationVersion);
+        var policy = Policy;
+        authorized = false;
+        Parent?.PageChanged(this);
+        bool allowed = string.IsNullOrWhiteSpace(policy);
+        try
+        {
+            if (!allowed && state != null)
+            {
+                var user = (await state).User;
+                var service = Services.GetService<IAuthorizationService>();
+                allowed = service != null && (await service.AuthorizeAsync(user, null, policy!)).Succeeded;
+            }
+        }
+        catch (Exception) { allowed = false; }
+        if (disposed || version != authorizationVersion)
+        {
+            return;
+        }
+        authorized = allowed;
+        Parent?.PageChanged(this);
+        RequestRender();
+    }
+
+    /// <summary>
+    /// Schedules rendering when the tab has not been disposed.
+    /// </summary>
+    internal void RequestRender()
+    {
+        if (!disposed)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>
+    /// Invalidates pending authorization decisions, detaches change handlers, and unregisters the tab.
+    /// </summary>
+    public void Dispose()
+    {
+        disposed = true;
+        Interlocked.Increment(ref authorizationVersion);
+        if (authorizationRefreshSource != null)
+        {
+            authorizationRefreshSource.Changed -= AuthorizationChanged;
+        }
+        if (authenticationProvider != null)
+        {
+            authenticationProvider.AuthenticationStateChanged -= AuthenticationChanged;
+        }
+        Parent?.RemovePage(this);
+    }
 }

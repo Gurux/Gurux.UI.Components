@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays a help link for the active topic unless the current URL is configured as hidden.
+</summary>
+*@
+
 @using Gurux.UI.Components.Enums
 
 @inject NavigationManager NavigationManager
@@ -60,22 +66,34 @@
 }
 
 @code {
+    /// <summary>
+    /// Subscribes to help topic and navigation changes that affect the help link.
+    /// </summary>
     protected override void OnInitialized()
     {
         HelpService.Changed += OnHelpChanged;
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
+    /// <summary>
+    /// Schedules rendering when the active help topic changes.
+    /// </summary>
     private void OnHelpChanged()
     {
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Schedules a render so help visibility reflects the new navigation URL.
+    /// </summary>
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Detaches help topic and navigation change handlers.
+    /// </summary>
     public void Dispose()
     {
         HelpService.Changed -= OnHelpChanged;

@@ -39,7 +39,7 @@ using System.Globalization;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// This component is used to shown numbers.
+    /// Renders a numeric form input with type-aware parsing, bounds, and optional value persistence.
     /// </summary>
     public class GXInputNumber<TValue> : InputBase<TValue>
     {
@@ -47,22 +47,21 @@ namespace Gurux.UI.Components
         private TValue? _max;
 
         /// <summary>
-        /// Return the id from the AdditionalAttributes.
+        /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
         /// </summary>
-        private string? Id =>
-           AdditionalAttributes?.TryGetValue("id", out var value) == true
-               ? value?.ToString()
-               : null;
+        private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+        private string? _generatedId;
 
         /// <summary>
-        /// Whether to load and store the value in a cookie.
+        /// Gets or sets whether the most recently used value is restored from and saved to browser local storage.
         /// </summary>
-        /// <seealso cref="Id"/>see
+        /// <seealso cref="Id" />
         [Parameter]
         public bool LastValue { get; set; } = true;
 
         /// <summary>
-        /// Minimum value.
+        /// Gets or sets the minimum value accepted by the numeric input.
         /// </summary>
         [Parameter]
         public TValue? Min
@@ -78,7 +77,7 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Maximum value.
+        /// Gets or sets the maximum value accepted by the numeric input.
         /// </summary>
         [Parameter]
         public TValue? Max
@@ -94,31 +93,37 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Step.
+        /// Gets or sets the numeric increment; zero renders the HTML step value any.
         /// </summary>
         [Parameter]
         public int Step { get; set; } = 1;
 
+        /// <summary>
+        /// Gets or sets the injected browser local storage service used for value persistence.
+        /// </summary>
         [Inject]
         IGXLocalStorage? localStorage { get; set; }
 
+        /// <summary>
+        /// Gets or sets the injected logger used to report component activity and errors.
+        /// </summary>
         [Inject]
         ILogger<GXInputNumber<TValue>>? Logger { get; set; }
 
         /// <summary>
-        /// Parsing error message.
+        /// Gets or sets the validation message format used when the input cannot be parsed.
         /// </summary>
         [Parameter]
         public string ParsingErrorMessage { get; set; } = "The {0} field must be a number.";
 
         /// <summary>
-        /// Element.
+        /// Gets or sets the numeric input element reference, available after rendering.
         /// </summary>
         [DisallowNull]
         public ElementReference? Element { get; protected set; }
 
         /// <summary>
-        /// Update default cookie value and min and max values.
+        /// Initializes supported numeric bounds and restores the saved value when persistence is enabled.
         /// </summary>
         protected override async Task OnInitializedAsync()
         {
@@ -189,37 +194,39 @@ namespace Gurux.UI.Components
             await base.OnInitializedAsync();
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Builds the component's HTML elements, attributes, and event handlers.
+        /// </summary>
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
             builder.OpenElement(0, "input");
-            builder.AddAttribute(1, "step", Step == 0 ? "any" : Step);
-            builder.AddMultipleAttributes(2, AdditionalAttributes);
-            builder.AddAttribute(3, "type", "number");
+            builder.AddAttribute(1, "id", Id);
+            builder.AddAttribute(2, "step", Step == 0 ? "any" : Step);
+            builder.AddMultipleAttributes(3, AdditionalAttributes);
+            builder.AddAttribute(4, "type", "number");
             if (!string.IsNullOrEmpty(NameAttributeValue))
             {
-                builder.AddAttribute(4, "name", NameAttributeValue);
+                builder.AddAttribute(5, "name", NameAttributeValue);
             }
-            if (!string.IsNullOrEmpty(CssClass))
-            {
-                builder.AddAttribute(5, "class", CssClass);
-            }
-            builder.AddAttribute(6, "value", CurrentValueAsString);
-            builder.AddAttribute(7, "onchange", EventCallback.Factory.CreateBinder<string?>(this, __value => CurrentValueAsString = __value, CurrentValueAsString));
+            builder.AddAttribute(6, "class", GXComponentAttributes.CombineClasses("form-control", CssClass));
+            builder.AddAttribute(7, "value", CurrentValueAsString);
+            builder.AddAttribute(8, "onchange", EventCallback.Factory.CreateBinder<string?>(this, __value => CurrentValueAsString = __value, CurrentValueAsString));
             builder.SetUpdatesAttributeName("value");
-            builder.AddElementReferenceCapture(8, __inputReference => Element = __inputReference);
             if (Min != null)
             {
-                builder.AddAttribute(5, "min", Min);
+                builder.AddAttribute(9, "min", Min);
             }
             if (Max != null)
             {
-                builder.AddAttribute(5, "max", Max);
+                builder.AddAttribute(10, "max", Max);
             }
+            builder.AddElementReferenceCapture(11, __inputReference => Element = __inputReference);
             builder.CloseElement();
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Converts the input text to the bound type and supplies a validation message when conversion fails.
+        /// </summary>
         protected override bool TryParseValueFromString(string? value, [MaybeNullWhen(false)] out TValue result, [NotNullWhen(false)] out string? validationErrorMessage)
         {
             if (BindConverter.TryConvertTo<TValue>(value, CultureInfo.InvariantCulture, out result))
@@ -250,7 +257,7 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Formats the value as a string. Derived classes can override this to determine the formatting used for <c>CurrentValueAsString</c>.
+        /// Formats the supported numeric value using invariant culture for the HTML number input.
         /// </summary>
         /// <param name="value">The value to format.</param>
         /// <returns>A string representation of the value.</returns>

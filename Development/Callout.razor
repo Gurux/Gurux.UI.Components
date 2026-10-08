@@ -30,6 +30,12 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Displays a severity-styled callout with optional content and a close button.
+</summary>
+*@
+
 @using Gurux.UI.Components.Enums
 @using Microsoft.Extensions.Logging
 @using System.Diagnostics
@@ -37,10 +43,10 @@
 @inject IGXLocalStorage localStorage
 @inject ILogger<Callout> Logger
 
-<div style="position: relative; display: inline-block;">
+<div id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, "position: relative; display: inline-block;")">
     @if (Visible && !string.IsNullOrEmpty(Text))
     {
-        <div id="@Id" attributes="@AdditionalAttributes" class="@GetDivClass()" role="@GetRole()">
+        <div  class="@GetDivClass()" role="@GetRole()">
             @Text
             @if (Closable)
             {
@@ -52,34 +58,38 @@
 
 @code {
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
-    [Parameter]
-    public string? CssClass { get; set; } = "form-control";
+    private string? _generatedId;
 
     /// <summary>
-    /// Mode of the callout tile.
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
+
+    /// <summary>
+    /// Gets or sets the severity used to choose the callout's appearance.
     /// </summary>
     [Parameter]
     public TraceLevel Mode { get; set; }
 
     /// <summary>
-    /// Search ID is used to save cookie value.
+    /// Gets or sets the markup shown on the close button; an empty value uses the default cross symbol.
     /// </summary>
     [Parameter]
     public string? CloseText
@@ -89,28 +99,34 @@
     }
 
     /// <summary>
-    /// Is callout visible.
+    /// Gets or sets whether the component is displayed.
     /// </summary>
     [Parameter]
     public bool Visible { get; set; } = true;
 
     /// <summary>
-    /// Is callout closable.
+    /// Gets or sets whether a close button is displayed.
     /// </summary>
     [Parameter]
     public bool Closable { get; set; } = true;
 
-    ///<summary>
-    /// Callout text.
-    ///</summary>
+    /// <summary>
+    /// Gets or sets the text displayed by the component.
+    /// </summary>
     [Parameter]
     public string? Text { get; set; }
 
+    /// <summary>
+    /// Toggles the callout's visible state.
+    /// </summary>
     private void ToggleCallout()
     {
         Visible = !Visible;
     }
 
+    /// <summary>
+    /// Returns the contextual alert classes for the configured severity.
+    /// </summary>
     string GetDivClass()
     {
         string str;
@@ -132,6 +148,9 @@
         return str;
     }
 
+    /// <summary>
+    /// Returns the accessibility role associated with the alert severity.
+    /// </summary>
     string GetRole()
     {
         string str;
@@ -152,6 +171,9 @@
         return str;
     }
 
+    /// <summary>
+    /// Combines callout heading classes with the captured class attribute.
+    /// </summary>
     string GetClass()
     {
         string str = "callout; ";
@@ -176,6 +198,9 @@
         return str;
     }
 
+    /// <summary>
+    /// Returns the close button markup, using a cross symbol when no custom text is supplied.
+    /// </summary>
     private MarkupString GetCloseText()
     {
         if (string.IsNullOrEmpty(CloseText))

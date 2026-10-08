@@ -33,12 +33,12 @@
 namespace Gurux.UI.Component.Toaster
 {
     /// <summary>
-    /// This interface is used to handle toaster services.
+    /// Manages transient toast messages and notifies consumers when their display state changes.
     /// </summary>
     public interface IGXToasterService
     {
         /// <summary>
-        /// Maximum toast count.
+        /// Gets or sets the stored-message limit used when adding toast messages.
         /// </summary>
         int MaxCount
         {
@@ -47,41 +47,37 @@ namespace Gurux.UI.Component.Toaster
         }
 
         /// <summary>
-        /// Add new toast.
+        /// Adds a toast message to the service.
         /// </summary>
-        /// <param name="toast"></param>
         void Add(GXToast toast);
 
         /// <summary>
-        /// Are the any toasts.
+        /// Gets whether any toast messages are currently stored.
         /// </summary>
         bool Any { get; }
 
         /// <summary>
-        /// Get toasts.
+        /// Removes expired messages and returns the stored toast list.
         /// </summary>
-        /// <returns></returns>
         List<GXToast> GetToasts();
 
         /// <summary>
-        /// Remove toasts.
+        /// Removes the specified toast message.
         /// </summary>
         /// <param name="toast">Toast to remove.</param>
         void Remove(GXToast toast);
 
         /// <summary>
-        /// Filters are used to check if toast is shown to the user. 
-        /// If filters are empty, any toast is shown.
+        /// Replaces the title filter used to reject newly added toast messages.
         /// </summary>
-        /// <param name="filters"></param>
         void Filter(IEnumerable<string> filters);
 
         /// <summary>
-        /// Notification that toaster has changed.
+        /// Occurs when stored toast messages change.
         /// </summary>
         event EventHandler? ToasterChanged;
         /// <summary>
-        /// Notification that toaster time has elapsed and it's removed.
+        /// Occurs when the expiration timer changes the toast list.
         /// </summary>
         event EventHandler? ToasterTimerElapsed;
 

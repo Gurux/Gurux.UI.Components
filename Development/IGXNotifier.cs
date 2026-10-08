@@ -29,138 +29,37 @@
 // This code is licensed under the GNU General Public License v2.
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
-using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.AspNetCore.Components.Routing;
 
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// This interface is used to listen and notification events.
+    /// Registers and removes handlers for named application notifications.
     /// </summary>
     public interface IGXNotifier
-    {     
+    {
         /// <summary>
-        /// Last Url.
-        /// </summary>
-        string? LastUrl { get; }
-
-        /// <summary>
-        /// Change page.
-        /// </summary>
-        /// <param name="page"></param>
-        void ChangePage(string page);
-
-        /// <summary>
-        /// Add new menu item.
-        /// </summary>
-        /// <param name="menu"></param>
-        void AddMenuItem(GXMenuItem menu);
-
-        /// <summary>
-        /// Clear menu item.
-        /// </summary>
-        void Clear();
-
-        /// <summary>
-        /// Starts progress. Dispose the returned scope to call ProgressEnd with the same message.
-        /// </summary>
-        System.IDisposable ProgressStart(string? message);
-
-        /// <summary>
-        /// Progress ended.
-        /// </summary>
-        void ProgressEnd(string? message);
-
-        /// <summary>
-        /// Clear status.
-        /// </summary>
-        void ClearStatus();
-
-        /// <summary>
-        /// Show information.
-        /// </summary>
-        void ShowInformation(string info, bool closable = false);
-
-        /// <summary>
-        /// Process error.
-        /// </summary>
-        void ProcessError(Exception ex);
-
-        /// <summary>
-        /// Process script logs.
-        /// </summary>
-        public void ProcessErrors(IEnumerable<object> errors);
-
-        /// <summary>
-        /// Title.
-        /// </summary>
-        string? Title
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// Update buttons.
-        /// </summary>
-        public void UpdateButtons();
-
-        /// <summary>
-        /// Listen event notifications.
+        /// Registers a handler for the named notification and associates it with the supplied listener.
         /// </summary>
         /// <param name="listener">Listener.</param>
         /// <param name="methodName">Method name.</param>
         /// <param name="handler">Handler.</param>
-        /// <returns></returns>
         void On(object listener, string methodName, Action handler);
 
         /// <summary>
-        /// Listen component notifications.
+        /// Registers a handler for the named notification and associates it with the supplied listener.
         /// </summary>
         /// <typeparam name="T1">Notification parameter type.</typeparam>
         /// <param name="listener">Listener.</param>
         /// <param name="methodName">Method name.</param>
         /// <param name="handler">Handler.</param>
-        /// <remarks>
-        /// Event listening is stopped by calling RemoveListener.
-        /// </remarks>
-        /// <seealso cref="RemoveListener"/>
+        /// <remarks> Event listening is stopped by calling RemoveListener. </remarks>
+        /// <seealso cref="RemoveListener" />
         void On<T1>(object listener, string methodName, Action<T1> handler);
 
         /// <summary>
-        /// Buttons are updated.
+        /// Removes every notification handler registered by the supplied listener.
         /// </summary>
-        event Action OnUpdateButtons;
-
-        /// <summary>
-        /// Page is changing.
-        /// </summary>
-        event Action<LocationChangingContext>? OnPageChanging;
-
-        /// <summary>
-        /// Page has changed.
-        /// </summary>
-        event Action? OnPageChanged;
-
-        /// <summary>
-        /// Stop listen notifications.
-        /// </summary>
-        /// <param name="listener"></param>
         void RemoveListener(object listener);
-
-        /// <summary>
-        /// EditContext is used to show when user edit the page content.
-        /// </summary>
-        EditContext? EditContext
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// The user has modified the page.
-        /// </summary>
-        event EventHandler<FieldChangedEventArgs>? OnDirty;
     }
 }
 

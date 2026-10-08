@@ -33,12 +33,12 @@
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// Local storage is used to save data to local storage.
+    /// Provides asynchronous access to individual and grouped browser local storage entries.
     /// </summary>
     public interface IGXLocalStorage
     {
         /// <summary>
-        /// Set value to local storage.
+        /// Writes a value to browser local storage, removing the entry when the value is null.
         /// </summary>
         /// <param name="key">Key.</param>
         /// <param name="value">Value</param>
@@ -47,7 +47,7 @@ namespace Gurux.UI.Components
             string? value);
 
         /// <summary>
-        /// Set value to local storage.
+        /// Writes a value to browser local storage, removing the entry when the value is null.
         /// </summary>
         /// <param name="group">Key group.</param>
         /// <param name="key">Key.</param>
@@ -58,7 +58,7 @@ namespace Gurux.UI.Components
             string? value);
 
         /// <summary>
-        /// Get value from local storage.
+        /// Reads a value from browser local storage, returning null when no value is available.
         /// </summary>
         /// <param name="key">Key</param>
         /// <returns>Value from local storage.</returns>
@@ -66,7 +66,7 @@ namespace Gurux.UI.Components
             string key);
 
         /// <summary>
-        /// Get value from local storage.
+        /// Reads a value from browser local storage, returning null when no value is available.
         /// </summary>
         /// <param name="group">Key group.</param>
         /// <param name="key">Key</param>
@@ -76,35 +76,34 @@ namespace Gurux.UI.Components
             string key);
 
         /// <summary>
-        /// Remove value from local storage.
+        /// Removes the browser local storage entry identified by the key and optional group.
         /// </summary>
         /// <param name="key">Key</param>
         Task RemoveAsync(string key);
 
         /// <summary>
-        /// Remove value from local storage.
+        /// Removes the browser local storage entry identified by the key and optional group.
         /// </summary>
         /// <param name="group">Key group.</param>
         /// <param name="key">Key</param>
         Task RemoveAsync(string group, string key);
 
         /// <summary>
-        /// Clear values from local storage.
+        /// Clears all browser local storage entries or only entries belonging to the specified group.
         /// </summary>
         /// <param name="group">Key group.</param>
         Task ClearAsync(string group);
 
         /// <summary>
-        /// Clear values from local storage.
+        /// Clears all browser local storage entries or only entries belonging to the specified group.
         /// </summary>
         Task ClearAsync();
 
         /// <summary>
-        /// Asynchronously retrieves the values associated with the specified group.
+        /// Retrieves browser local storage keys beginning with the specified group prefix.
         /// </summary>
-        /// <param name="group">The name of the group whose values are to be retrieved.</param>
-        /// <returns>A task representing the asynchronous operation. The task result contains a collection of values for the
-        /// specified group, or null if no values are found.</returns>
+        /// <param name="group">The key prefix identifying the local storage group.</param>
+        /// <returns>The full keys in the group, or null when grouped browser storage is unavailable.</returns>
         Task<IEnumerable<string>?> GetGroupValuesAsync(string group);
     }
 }

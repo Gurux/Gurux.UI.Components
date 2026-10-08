@@ -30,14 +30,21 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Reads selected or dropped files and publishes their bytes with progress and error reporting.
+</summary>
+*@
+
 @using System.Text;
 @using System.Globalization;
 @using Microsoft.JSInterop
 @typeparam TType
 
 @implements IAsyncDisposable
+@inject IServiceProvider Services
 
-<fieldset disabled="@Disabled" style="@Style">
+<fieldset @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" disabled="@Disabled" class="@GXComponentAttributes.GetClass(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, Style)">
     <div @ref="_dropZoneElement"
          class="drop-zone" style="width:100%;height:100%">
         <p><GXInputFile @ref="_inputFile" Filter="@Filter" OnChange="@LoadFile" /></p>
@@ -46,40 +53,59 @@
 </fieldset>
 @code {
 
-    [Inject]
-    public IServiceProvider Services { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets the optional service used to report component errors as notifications.
+    /// </summary>
     public IGXNotificationService? NotificationService { get; private set; }
 
+    /// <summary>
+    /// Gets the optional service used to track and cancel asynchronous operations.
+    /// </summary>
     public IGXProgress? Progress { get; private set; }
 
 
+    /// <summary>
+    /// Resolves the optional notification and progress services used during file loading.
+    /// </summary>
     protected override void OnInitialized()
     {
         NotificationService = Services.GetService<IGXNotificationService>();
         Progress = Services.GetService<IGXProgress>();
     }
 
+    /// <summary>
+    /// Gets or sets the JavaScript runtime used to interact with browser APIs.
+    /// </summary>
     [Inject]
     public IJSRuntime? JSRuntime { get; set; }
 
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Accepted file types.
+    /// Gets or sets the accepted file types passed to the file input.
     /// </summary>
     [Parameter]
     public string? Filter { get; set; }
 
     /// <summary>
-    /// Is file selector disabled.
+    /// Gets or sets whether user interaction with the input is disabled.
     /// </summary>
     [Parameter]
     public bool Disabled { get; set; }
 
     /// <summary>
-    /// Content of the file.
+    /// Gets or sets the selected file content as ASCII text or a byte array.
     /// </summary>
     [Parameter]
     public TType? Value
@@ -89,7 +115,7 @@
     }
 
     /// <summary>
-    /// Style settings.
+    /// Gets or sets inline CSS declarations for the file selector.
     /// </summary>
     [Parameter]
     public string? Style
@@ -99,28 +125,28 @@
     }
 
     /// <summary>
-    /// Notified when value is updated.
+    /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
     public EventCallback<TType?> ValueChanged { get; set; }
 
     /// <summary>
-    /// The file will start uploading.
+    /// Gets or sets the callback invoked before reading a selected file.
     /// </summary>
     [Parameter]
     public EventCallback<string> OnLoading { get; set; }
 
     /// <summary>
-    /// Maximum allowed file size in bytes. Defaults is 500 KB.
+    /// Gets or sets the maximum file size accepted for reading, in bytes.
     /// </summary>
     [Parameter]
     public int MaxFileSize { get; set; } = 512000;
 
     /// <summary>
-    /// The file has been uploaded.
+    /// Gets or sets the callback invoked after a selected file has been read successfully.
     /// </summary>
     [Parameter]
-    public Action<TType?, string>? OnLoaded { get; set; }
+    public EventCallback<(TType? Value, string FileName)> OnLoaded { get; set; }
 
     private ElementReference _dropZoneElement;
     private GXInputFile? _inputFile;
@@ -128,7 +154,7 @@
     private IJSObjectReference? _module;
 
     /// <summary>
-    /// Load content of the file.
+    /// Reads the selected file within the size limit and publishes its content and loading callbacks.
     /// </summary>
     private async Task LoadFile(InputFileChangeEventArgs e)
     {
@@ -153,7 +179,7 @@
                 {
                     Value = value;
                     await ValueChanged.InvokeAsync(Value);
-                    OnLoaded?.Invoke(Value, e.File.Name);
+                    await OnLoaded.InvokeAsync((Value, e.File.Name));
                 }
                 else
                 {
@@ -165,7 +191,7 @@
                 var tmp = ms.ToArray();
                 Value = (TType)(object)tmp;
                 await ValueChanged.InvokeAsync(Value);
-                OnLoaded?.Invoke(Value, e.File.Name);
+                await OnLoaded.InvokeAsync((Value, e.File.Name));
             }
         }
         catch (Exception ex)
@@ -174,6 +200,9 @@
         }
     }
 
+    /// <summary>
+    /// Initializes the browser drag-and-drop handler after the file input is first rendered.
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && JSRuntime != null)
@@ -196,6 +225,9 @@
         }
     }
 
+    /// <summary>
+    /// Disconnects the drag-and-drop handler and releases its JavaScript instance.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (_dropZoneInstance != null)

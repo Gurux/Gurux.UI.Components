@@ -1,0 +1,187 @@
+
+@*
+<summary>
+Renders supplied breadcrumbs or generates a localized trail from the current URL.
+</summary>
+*@
+@using System.Text
+
+@inject NavigationManager Nav
+
+<nav aria-label="breadcrumb" class="mb-3" @attributes="AdditionalAttributes">
+    <ol class="breadcrumb mb-0">
+        @foreach (var item in ItemsToRender)
+        {
+            if (item.Active)
+            {
+                <li class="breadcrumb-item active" aria-current="page">
+                    @if (item.Localized)
+                    {
+                        <LocalizedText Update="@Update" Value="@item.Text" />
+                    }
+                    else
+                    {
+                        @item.Text
+                    }
+                </li>
+            }
+            else
+            {
+                <li class="breadcrumb-item">
+                    <a href="@item.Href">
+                        @if (item.Localized)
+                        {
+                            <LocalizedText @bind-Update="@Update" Value="@item.Text" />
+                        }
+                        else
+                        {
+                            @item.Text
+                        }
+                    </a>
+                </li>
+            }
+        }
+    </ol>
+</nav>
+
+@code {
+
+
+
+    private bool Update = false;
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the items available for display or selection.
+    /// </summary>
+    [Parameter] public IEnumerable<BreadcrumbItem>? Items { get; set; }
+
+    /// <summary>
+    /// Gets or sets custom labels for URL segments when generating breadcrumbs.
+    /// </summary>
+    [Parameter] public Dictionary<string, string>? SegmentLabelMap { get; set; }
+
+    /// <summary>
+    /// Gets explicit breadcrumb items when provided, or generates them from the current URL.
+    /// </summary>
+    private IReadOnlyList<BreadcrumbItem> ItemsToRender => Items is not null && Items.Any()
+        ? Items.ToList()
+        : BuildFromUri();
+
+    /// <summary>
+    /// Builds breadcrumbs from the current URL, excluding query and fragment and leaving Guid segments unlocalized.
+    /// </summary>
+    private List<BreadcrumbItem> BuildFromUri()
+    {
+        var list = new List<BreadcrumbItem>();
+
+        // Base (Home)
+        list.Add(new BreadcrumbItem("Home", Nav.BaseUri, false, true));
+
+        // Extract relative path without query/fragment
+        var baseUri = Nav.BaseUri.TrimEnd('/');
+        var current = Nav.Uri;
+        var relative = current.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase)
+            ? current[baseUri.Length..]
+            : current;
+
+        var cut = relative.IndexOfAny(new[] { '?', '#' });
+        if (cut >= 0)
+        {
+            relative = relative[..cut];
+        }
+
+        var segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var acc = "";
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+            acc += "/" + seg;
+            var isLast = i == segments.Length - 1;
+            var href = isLast ? null : (Nav.BaseUri.TrimEnd('/') + acc);
+            //Guids are not localized even if they look like a normal segment
+            bool isGuid = Guid.TryParse(seg, out _);
+            string label;
+            if (isGuid)
+            {
+                label = seg;
+            }
+            else
+            {
+                label = LabelFor(seg);
+            }
+
+            list.Add(new BreadcrumbItem(label, href, isLast, !isGuid));
+        }
+
+        Update = true;
+        return list;
+    }
+
+    /// <summary>
+    /// Inserts spaces between camel-case words while preserving uppercase acronyms.
+    /// </summary>
+    public static string SplitCamelCasePreserveAcronyms(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
+
+        var result = new StringBuilder();
+        result.Append(text[0]);
+
+        for (int i = 1; i < text.Length; i++)
+        {
+            char current = text[i];
+            char previous = text[i - 1];
+            char? next = i + 1 < text.Length ? text[i + 1] : null;
+
+            if (char.IsUpper(current))
+            {
+                bool previousIsLower = char.IsLower(previous);
+                bool nextIsLower = next.HasValue && char.IsLower(next.Value);
+
+                // Add a space if:
+                // 1. lower -> UPPER   => DeviceGroup -> Device Group
+                // 2. acronym ends before a normal word => XMLGroup -> XML Group
+                if (previousIsLower || (char.IsUpper(previous) && nextIsLower))
+                {
+                    result.Append(' ');
+                }
+            }
+
+            result.Append(current);
+        }
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Resolves a custom URL segment label or decodes and formats the segment as readable text.
+    /// </summary>
+    private string LabelFor(string segment)
+    {
+        if (SegmentLabelMap is not null && SegmentLabelMap.TryGetValue(segment, out var label))
+        {
+            return label;
+        }
+
+        var decoded = Uri.UnescapeDataString(segment);
+        decoded = decoded.Replace("-", " ").Replace("_", " ");
+        decoded = SplitCamelCasePreserveAcronyms(decoded);
+        return decoded.Length == 0 ? decoded : char.ToUpper(decoded[0]) + (decoded.Length > 1 ? decoded[1..] : "");
+    }
+    /// <summary>
+    /// Describes a breadcrumb label, destination, active state, and whether its text should be localized.
+    /// </summary>
+    /// <param name="Text">The breadcrumb label.</param>
+    /// <param name="Href">The destination URL, or null for the active item.</param>
+    /// <param name="Active">Whether this is the current breadcrumb item.</param>
+    /// <param name="Localized">Whether the label is a localization resource key.</param>
+    public record BreadcrumbItem(string Text, string? Href, bool Active, bool Localized);
+}

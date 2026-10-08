@@ -1,3 +1,9 @@
+
+@*
+<summary>
+Copies a value to the clipboard and displays a temporary success indicator.
+</summary>
+*@
 <!--
 // --------------------------------------------------------------------------
 //  Gurux Ltd
@@ -90,24 +96,27 @@
 </button>
 
 @code {
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// The text to be copied to the clipboard.
+    /// Gets or sets the value whose string representation is copied to the clipboard.
     /// </summary>
     [Parameter, EditorRequired]
     public TItem? Value { get; set; }
 
 
     /// <summary>
-    /// The duration in milliseconds for which the success state is shown.
+    /// Gets or sets how long the clipboard success indicator remains visible, in milliseconds.
     /// </summary>
     [Parameter]
     public int SuccessDurationMs { get; set; } = 3000;
 
     /// <summary>
-    /// Whether the button should be aligned to the right.
+    /// Gets or sets whether the copy button is aligned to the right.
     /// </summary>
     [Parameter]
     public bool AlignRight { get; set; }
@@ -115,8 +124,14 @@
     private bool _copied;
     private CancellationTokenSource? _cts;
 
+    /// <summary>
+    /// Gets the copy button tooltip for the current clipboard state.
+    /// </summary>
     private string ButtonTitle => _copied ? "Copied" : "Copy";
 
+    /// <summary>
+    /// Copies the current value to the browser clipboard and temporarily displays a success indicator.
+    /// </summary>
     private async Task CopyToClipboard()
     {
         if (Value != null)
@@ -145,6 +160,9 @@
         }
     }
 
+    /// <summary>
+    /// Cancels the pending clipboard success delay and releases its cancellation token source.
+    /// </summary>
     public void Dispose()
     {
         _cts?.Cancel();

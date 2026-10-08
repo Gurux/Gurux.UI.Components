@@ -30,33 +30,40 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders an email form input with optional restoration and persistence of its value.
+</summary>
+*@
+
 @using Microsoft.Extensions.Logging
 
 @inject IGXLocalStorage localStorage
 @inject ILogger<InputEmail> Logger
 
 @inherits Microsoft.AspNetCore.Components.Forms.InputText
-<input type="email" value="@CurrentValue"
-       class="@CssClass"
-       @attributes="AdditionalAttributes"
+<input id="@Id" @attributes="AdditionalAttributes" type="email" value="@CurrentValue"
+       class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))"
        onchange="@((ChangeEventArgs __e) => UpdateValue(__e.Value))" />
 
 @code {
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
 
     /// <summary>
-    /// Whether to store the value in a local storage.
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
     /// </summary>
-    /// <seealso cref="Id"/>see
+    /// <seealso cref="Id" />
     [Parameter]
     public bool Save { get; set; } = false;
 
+    /// <summary>
+    /// Publishes the current value and saves it when persistence is enabled.
+    /// </summary>
     private async Task UpdateValue(object? value)
     {
         string? str = Convert.ToString(value);
@@ -82,7 +89,7 @@
     }
 
     /// <summary>
-    /// Update default cookie value.
+    /// Restores a saved email value when persistence is enabled.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {

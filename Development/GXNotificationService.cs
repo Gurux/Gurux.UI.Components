@@ -34,7 +34,9 @@ using Gurux.UI.Components.Enums;
 
 namespace Gurux.UI.Components;
 
-/// <summary>Stores notifications for the lifetime of this service instance.</summary>
+/// <summary>
+/// Stores notifications and exposes filtered snapshots for the lifetime of the service instance.
+/// </summary>
 public sealed class GXNotificationService : IGXNotificationService
 {
     private readonly object _sync = new();
@@ -44,6 +46,9 @@ public sealed class GXNotificationService : IGXNotificationService
     private NotificationLevel _levelFilter = NotificationLevel.Information | NotificationLevel.Success |
         NotificationLevel.Warning | NotificationLevel.Error;
 
+    /// <summary>
+    /// Gets or sets the optional notification fields displayed by consumers.
+    /// </summary>
     public NotificationFields VisibleFields
     {
         get { lock (_sync) return _visibleFields; }
@@ -51,13 +56,19 @@ public sealed class GXNotificationService : IGXNotificationService
         {
             lock (_sync)
             {
-                if (_visibleFields == value) return;
+                if (_visibleFields == value)
+                {
+                    return;
+                }
                 _visibleFields = value;
             }
             Changed?.Invoke();
         }
     }
 
+    /// <summary>
+    /// Gets or sets the notification severity flags included in the displayed list.
+    /// </summary>
     public NotificationLevel LevelFilter
     {
         get { lock (_sync) return _levelFilter; }
@@ -65,13 +76,19 @@ public sealed class GXNotificationService : IGXNotificationService
         {
             lock (_sync)
             {
-                if (_levelFilter == value) return;
+                if (_levelFilter == value)
+                {
+                    return;
+                }
                 _levelFilter = value;
             }
             Changed?.Invoke();
         }
     }
 
+    /// <summary>
+    /// Gets or sets the maximum number of displayed notifications; nonpositive values show all matching notifications.
+    /// </summary>
     public int MaxVisibleNotifications
     {
         get { lock (_sync) return _maxVisibleNotifications; }
@@ -79,19 +96,27 @@ public sealed class GXNotificationService : IGXNotificationService
         {
             lock (_sync)
             {
-                if (_maxVisibleNotifications == value) return;
+                if (_maxVisibleNotifications == value)
+                {
+                    return;
+                }
                 _maxVisibleNotifications = value;
             }
             Changed?.Invoke();
         }
     }
 
-    /// <summary>Returns a snapshot of all stored notifications, regardless of the display limit.</summary>
+    /// <summary>
+    /// Gets a snapshot of all stored notifications regardless of severity filters or display limits.
+    /// </summary>
     public IReadOnlyList<GXNotificationItem> Notifications
     {
         get { lock (_sync) return _notifications.Values.ToArray(); }
     }
 
+    /// <summary>
+    /// Gets matching notifications ordered newest first and limited by the configured display count.
+    /// </summary>
     public IReadOnlyList<GXNotificationItem> VisibleNotifications
     {
         get
@@ -102,24 +127,38 @@ public sealed class GXNotificationService : IGXNotificationService
                     .Where(item => (item.Level & _levelFilter) != NotificationLevel.None)
                     .OrderByDescending(item => item.CreatedAt);
                 if (_maxVisibleNotifications > 0)
+                {
                     notifications = notifications.Take(_maxVisibleNotifications);
+                }
                 return notifications.ToArray();
             }
         }
     }
 
+    /// <summary>
+    /// Occurs when stored notifications or notification display settings change.
+    /// </summary>
     public event Action? Changed;
 
+    /// <summary>
+    /// Removes all stored notifications and notifies listeners when the list was nonempty.
+    /// </summary>
     public void Clear()
     {
         lock (_sync)
         {
-            if (_notifications.Count == 0) return;
+            if (_notifications.Count == 0)
+            {
+                return;
+            }
             _notifications.Clear();
         }
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Stores the notification by its id, replaces any existing entry with that id, and notifies listeners.
+    /// </summary>
     public Guid Add(GXNotificationItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -128,15 +167,24 @@ public sealed class GXNotificationService : IGXNotificationService
         return item.Id;
     }
 
+    /// <summary>
+    /// Removes the notification with the specified id and notifies listeners when an entry was removed.
+    /// </summary>
     public void Remove(Guid id)
     {
         lock (_sync)
         {
-            if (!_notifications.Remove(id)) return;
+            if (!_notifications.Remove(id))
+            {
+                return;
+            }
         }
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Removes every notification with the specified grouping key.
+    /// </summary>
     public void RemoveByKey(string key)
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -152,6 +200,9 @@ public sealed class GXNotificationService : IGXNotificationService
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Creates an error notification using the exception message and details.
+    /// </summary>
     public Guid ReportError(Exception exception, string? key = null, NotificationScope scope = NotificationScope.Page)
     {
         ArgumentNullException.ThrowIfNull(exception);

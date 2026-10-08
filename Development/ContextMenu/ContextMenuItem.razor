@@ -30,14 +30,26 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Defines an authorized context menu command with a label, icon, link, and click callback.
+</summary>
+*@
+
 @code {
+    /// <summary>
+    /// Gets or sets the containing component supplied through a cascading parameter.
+    /// </summary>
     [CascadingParameter]
     private ContextMenuController? Parent { get; set; }
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Context menu item ID.
+    /// Gets or sets the identifier of the context menu command.
     /// </summary>
     [Parameter]
     public string? Id
@@ -47,37 +59,37 @@
     }
 
     /// <summary>
-    /// Menu image.
+    /// Gets or sets the icon or image identifier displayed for the context menu command.
     /// </summary>
     [Parameter]
     public string? Image { get; set; }
 
     /// <summary>
-    /// Context menu item text.
+    /// Gets or sets the text displayed by the component.
     /// </summary>
     [Parameter]
     public string Text { get; set; } = "";
 
     /// <summary>
-    /// Context menu item Url.
+    /// Gets or sets the destination URL associated with the context menu command.
     /// </summary>
     [Parameter]
     public string Url { get; set; } = "";
 
     /// <summary>
-    /// Invoked on click event.
+    /// Gets or sets the callback invoked when the menu command is clicked.
     /// </summary>
     [Parameter]
     public EventCallback OnClick { get; set; }
 
     /// <summary>
-    /// Context menu item policy.
+    /// Gets or sets the named authorization policy required to display the content.
     /// </summary>
     [Parameter]
     public string? Policy { get; set; }
 
     /// <summary>
-    /// Invoke the click event.
+    /// Invokes the menu command's click callback.
     /// </summary>
     public void Click()
     {
@@ -86,7 +98,7 @@
     }
 
     /// <summary>
-    /// Initialize context menu.
+    /// Registers the context menu item with its containing controller.
     /// </summary>
     protected override void OnInitialized()
     {

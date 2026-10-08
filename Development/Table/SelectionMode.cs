@@ -33,20 +33,20 @@
 namespace Gurux.UI.Components.Table
 {
     /// <summary>
-    /// Selection modes.
+    /// Defines whether table selection is disabled, single, or multiple.
     /// </summary>
     public enum SelectionMode
     {
         /// <summary>
-        /// Items can't be selected.
+        /// Disables row selection.
         /// </summary>
         None,
         /// <summary>
-        /// Single item can be selected.
+        /// Allows one selected row at a time.
         /// </summary>
         Single,
         /// <summary>
-        /// Multiple items can be selected.
+        /// Allows multiple rows to be selected.
         /// </summary>
         Multiple
     }

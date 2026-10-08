@@ -30,15 +30,21 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders registered menu commands with configurable right and bottom alignment.
+</summary>
+*@
+
 @using System.Diagnostics
 @using Microsoft.Extensions.Logging
 @inject ILogger<MenuControl> Logger
 
 <CascadingValue Value="this">
-    <div class="btn-group" role="group" style="@GetStyle()">
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "btn-group")" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())">
         @foreach (MenuItem it in Items)
         {
-            <button type="button" class="@it.CssClass" disabled="@it.ReadOnly" style="@GetButtonStyle()" onclick=@it.OnClick>
+            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" class="@it.CssClass" disabled="@it.ReadOnly" style="@GetButtonStyle(it)" onclick=@it.OnClick>
                 @if (!string.IsNullOrEmpty(it.Image))
                 {
                     <Image Value="@it.Image"></Image>
@@ -56,39 +62,43 @@
 </CascadingValue>
 
 @code {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Is button shown on the right corner.
+    /// Gets or sets whether the menu is aligned to the right.
     /// </summary>
     [Parameter]
     public bool RightCorner { get; set; }
 
     /// <summary>
-    /// Is button shown on the bottom.
+    /// Gets or sets whether the menu is positioned at the bottom.
     /// </summary>
     [Parameter]
     public bool Bottom { get; set; }
 
     /// <summary>
-    /// CSS style.
+    /// Gets the inline CSS declarations obtained from the captured attributes.
     /// </summary>
-    [Parameter]
-    public string? CssStyle { get; set; }
+    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
 
-    private string @GetButtonStyle()
-    {
-        if (!string.IsNullOrEmpty(CssStyle))
-        {
-            return CssStyle;
-        }
-        if (RightCorner)
-        {
-            return "background-color: dodgerblue;";
-        }
-        return "";
-    }
+    /// <summary>
+    /// Combines a menu item's captured styles with the component's button styling.
+    /// </summary>
+    private string? GetButtonStyle(MenuItem item)
+        => GXComponentAttributes.GetStyle(item.AdditionalAttributes, RightCorner ? "background-color: dodgerblue;" : null);
+    /// <summary>
+    /// Returns positioning styles for the menu's right and bottom alignment options.
+    /// </summary>
     private string? GetStyle()
     {
         if (RightCorner)
@@ -107,7 +117,7 @@
     }
 
     /// <summary>
-    /// Menu items.
+    /// Gets or sets menu items registered before the component is initialized.
     /// </summary>
     [Parameter]
     public List<MenuItem>? MenuItems { get; set; }
@@ -115,7 +125,7 @@
     List<MenuItem> Items = new List<MenuItem>();
 
     /// <summary>
-    /// Add new menu item.
+    /// Registers a child menu item with the containing menu.
     /// </summary>
     /// <param name="item">Menu item</param>
     internal void AddMenuItem(MenuItem item)
@@ -124,6 +134,9 @@
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Registers any menu items supplied before initialization and requests rendering.
+    /// </summary>
     protected override void OnInitialized()
     {
         if (MenuItems != null && MenuItems.Count != 0)

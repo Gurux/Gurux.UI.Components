@@ -35,42 +35,42 @@ using Gurux.UI.Components.Enums;
 namespace Gurux.UI.Component.Toaster
 {
     /// <summary>
-    /// Toast.
+    /// Represents a transient message with a title, color, creation time, and optional expiration.
     /// </summary>
     public record GXToast
     {
         /// <summary>
-        /// Toast ID.
+        /// Stores the identifier associated with the toast.
         /// </summary>
         public Guid Id;
 
         /// <summary>
-        /// Toast title.
+        /// Gets or sets the title displayed by the component.
         /// </summary>
         public string? Title { get; init; }
 
         /// <summary>
-        /// Toast message.
+        /// Gets or sets the body of the toast message.
         /// </summary>
         public string? Message { get; init; }
 
         /// <summary>
-        /// Toast color.
+        /// Gets or sets the Bootstrap contextual color of the toast.
         /// </summary>
         public Color Color { get; init; } = Color.Primary;
 
         /// <summary>
-        /// Creation time.
+        /// Stores the local time at which the toast was created.
         /// </summary>
         public readonly DateTimeOffset CreationTime = DateTimeOffset.Now;
 
         /// <summary>
-        /// Closing time.
+        /// Gets or sets the time after which the toast is considered expired.
         /// </summary>
         public DateTimeOffset? ClosingTime { get; init; }
 
         /// <summary>
-        /// Is time elapsed and toaster should remove.
+        /// Gets whether the toast has a closing time that has passed.
         /// </summary>
         public bool IsElapsed
         {
@@ -81,7 +81,7 @@ namespace Gurux.UI.Component.Toaster
         }
 
         /// <summary>
-        /// Get posted time text.
+        /// Gets a human-readable description of the time elapsed since the toast was created.
         /// </summary>
         public string PostedTimeText
         {
@@ -95,7 +95,7 @@ namespace Gurux.UI.Component.Toaster
         }
 
         /// <summary>
-        /// Constructor.
+        /// Creates an empty toast with default styling and no expiration time.
         /// </summary>
         public GXToast()
         {
@@ -103,7 +103,7 @@ namespace Gurux.UI.Component.Toaster
         }
 
         /// <summary>
-        /// Constructor.
+        /// Creates a toast with its title, message, contextual color, and lifetime in seconds.
         /// </summary>
         /// <param name="title">Title.</param>
         /// <param name="message">Message.</param>

@@ -36,13 +36,16 @@ using Microsoft.JSInterop;
 using System.Text;
 
 /// <summary>
-/// Local storage is used to save user local settings.
+/// Reads, writes, and removes browser local storage entries, optionally grouped by a key prefix.
 /// </summary>
 public class GXLocalStorage : IGXLocalStorage
 {
     private readonly IJSRuntime? _jsRuntime;
     private readonly ILogger<GXLocalStorage>? _logger;
 
+    /// <summary>
+    /// Creates a local storage service using the available browser runtime and logger.
+    /// </summary>
     public GXLocalStorage(IJSRuntime? jsRuntime,
         ILogger<GXLocalStorage>? logger)
     {
@@ -54,33 +57,43 @@ public class GXLocalStorage : IGXLocalStorage
         }
     }
 
+    /// <summary>
+    /// Writes a value to browser local storage, removing the entry when the value is null.
+    /// </summary>
     public Task SetValueAsync(string key, string? value) => SetValueAsync("", key, value);
 
+    /// <summary>
+    /// Writes a value to browser local storage, removing the entry when the value is null.
+    /// </summary>
     public async Task SetValueAsync(string group, string key, string? value)
     {
         _logger?.LogDebug("Set local storage value, key: {Key}, value: {Value}", key, value);
         //_jsRuntime is null on the server side.
         if (_jsRuntime != null)
         {
-            string tmp;
             if (!string.IsNullOrEmpty(group))
             {
                 key = group + ":" + key;
             }
-            if (value != null)
+            if (value == null)
             {
-                tmp = "localStorage.setItem(\"" + key + "\", \"" + Convert.ToBase64String(ASCIIEncoding.Unicode.GetBytes(value)) + "\")";
+                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
             }
             else
             {
-                tmp = "localStorage.setItem(\"" + key + "\", \"" + value + "\")";
+                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", key, Convert.ToBase64String(Encoding.Unicode.GetBytes(value)));
             }
-            await _jsRuntime.InvokeVoidAsync("eval", tmp);
         }
     }
 
+    /// <summary>
+    /// Reads a value from browser local storage, returning null when no value is available.
+    /// </summary>
     public Task<string?> GetValueAsync(string key) => GetValueAsync("", key);
 
+    /// <summary>
+    /// Reads a value from browser local storage, returning null when no value is available.
+    /// </summary>
     public async Task<string?> GetValueAsync(string group, string key)
     {
         try
@@ -92,8 +105,7 @@ public class GXLocalStorage : IGXLocalStorage
                 {
                     key = group + ":" + key;
                 }
-                string tmp = "localStorage.getItem(\"" + key + "\")";
-                value = await _jsRuntime.InvokeAsync<string>("eval", tmp);
+                value = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
                 if (string.IsNullOrEmpty(value) || value == "null")
                 {
                     value = null;
@@ -124,47 +136,64 @@ public class GXLocalStorage : IGXLocalStorage
         return null;
     }
 
+    /// <summary>
+    /// Removes the browser local storage entry identified by the key and optional group.
+    /// </summary>
     public Task RemoveAsync(string key) => RemoveAsync("", key);
 
+    /// <summary>
+    /// Removes the browser local storage entry identified by the key and optional group.
+    /// </summary>
     public async Task RemoveAsync(string group, string key)
     {
         if (_jsRuntime != null)
         {
-            string tmp = "localStorage.removeItem(\"" + key + "\")";
-            await _jsRuntime.InvokeVoidAsync("eval", tmp);
+            if (!string.IsNullOrEmpty(group))
+            {
+                key = group + ":" + key;
+            }
+            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
         }
     }
 
+    /// <summary>
+    /// Clears all browser local storage entries or only entries belonging to the specified group.
+    /// </summary>
     public Task ClearAsync() => ClearAsync("");
 
+    /// <summary>
+    /// Clears all browser local storage entries or only entries belonging to the specified group.
+    /// </summary>
     public async Task ClearAsync(string? group)
     {
         if (_jsRuntime != null)
         {
             if (string.IsNullOrEmpty(group))
             {
-                await _jsRuntime.InvokeVoidAsync("eval", "localStorage.clear()");
+                await _jsRuntime.InvokeVoidAsync("localStorage.clear");
             }
             else
             {
-                string tmp = "Object.keys(localStorage).filter(k => k.startsWith(\"" + group + ":\"))";
+                string tmp = "Object.keys(localStorage).filter(k => k.startsWith(" + System.Text.Json.JsonSerializer.Serialize(group + ":") + "))";
                 string[]? values = await _jsRuntime.InvokeAsync<string[]>("eval", tmp);
                 foreach (var it in values)
                 {
-                    tmp = "localStorage.removeItem(\"" + it + "\")";
-                    await _jsRuntime.InvokeVoidAsync("eval", tmp);
+                    await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", it);
                 }
             }
         }
     }
 
+    /// <summary>
+    /// Retrieves browser local storage keys beginning with the specified group prefix.
+    /// </summary>
     public async Task<IEnumerable<string>?> GetGroupValuesAsync(string group)
     {
         if (_jsRuntime != null)
         {
             if (!string.IsNullOrEmpty(group))
             {
-                string tmp = "Object.keys(localStorage).filter(k => k.startsWith(\"" + group + ":\"))";
+                string tmp = "Object.keys(localStorage).filter(k => k.startsWith(" + System.Text.Json.JsonSerializer.Serialize(group + ":") + "))";
                 string[]? values = await _jsRuntime.InvokeAsync<string[]>("eval", tmp);
                 return values;
             }

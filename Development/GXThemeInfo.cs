@@ -34,30 +34,30 @@ namespace Gurux.UI.Components
 {
 
     /// <summary>
-    /// Theme style.
+    /// Describes a configurable theme style, its value, and its value type.
     /// </summary>
     public class GXThemeStyle
     {
         /// <summary>
-        /// Style name.
+        /// Gets or sets the name identifying the theme or its configurable style.
         /// </summary>
         public string Name { get; set; } = default!;
         /// <summary>
-        /// Style description.
+        /// Gets or sets the explanatory text for the configurable theme style.
         /// </summary>
         public string? Description { get; set; }
         /// <summary>
-        /// Style value.
+        /// Gets or sets the configured value of the theme style.
         /// </summary>
         public string? Value { get; set; }
 
         /// <summary>
-        /// Style type.
+        /// Gets or sets the data type of the configurable theme style.
         /// </summary>
         public byte Type { get; set; }
 
         /// <summary>
-        /// Constructor.
+        /// Creates an unconfigured theme style.
         /// </summary>
         public GXThemeStyle()
         {
@@ -65,7 +65,7 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Constructor
+        /// Creates a theme style with its type, name, description, and configured value.
         /// </summary>
         /// <param name="type">Theme type.</param>
         /// <param name="name">Name</param>
@@ -81,20 +81,20 @@ namespace Gurux.UI.Components
     }
 
     /// <summary>
-    /// Theme info
+    /// Describes a theme's name, stylesheet, and configurable styles.
     /// </summary>
     public class GXThemeInfo
     {
         /// <summary>
-        /// Theme name.
+        /// Gets or sets the name identifying the theme or its configurable style.
         /// </summary>
         public string Name { get; set; } = default!;
         /// <summary>
-        /// Theme configuration file name.
+        /// Gets or sets the path to the theme's stylesheet.
         /// </summary>
         public string CssFile { get; set; } = default!;
         /// <summary>
-        /// Custom theme styles.
+        /// Gets or sets the theme's configurable style values.
         /// </summary>
         public List<GXThemeStyle> Styles { get; set; } = new List<GXThemeStyle>();
     }

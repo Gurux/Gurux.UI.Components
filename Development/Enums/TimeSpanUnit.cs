@@ -33,20 +33,20 @@
 namespace Gurux.UI.Components.Enums
 {
     /// <summary>
-    /// Time span base unit.
+    /// Defines the unit used to interpret numeric duration values.
     /// </summary>
     public enum TimeSpanUnit
     {
         /// <summary>
-        /// Value is given as a seconds.
+        /// Interprets the numeric duration as seconds.
         /// </summary>
         Second,
         /// <summary>
-        /// Value is given as a minutes.
+        /// Interprets the numeric duration as minutes.
         /// </summary>
         Minute,
         /// <summary>
-        /// Value is given as a hours.
+        /// Interprets the numeric duration as hours.
         /// </summary>
         Hour
     }

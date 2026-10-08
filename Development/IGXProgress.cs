@@ -32,29 +32,37 @@
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// This interface is used to listen and notification events.
+    /// Tracks active operations, exposes their messages, and supports cancelling them together.
     /// </summary>
     public interface IGXProgress
     {
-        /// <summary>Raised when the active operations change.</summary>
+        /// <summary>
+        /// Occurs when the active progress operations change.
+        /// </summary>
         event Action? Changed;
 
-        /// <summary>True while at least one operation is active, including unnamed operations.</summary>
+        /// <summary>
+        /// Gets whether at least one progress operation is active, including operations without a message.
+        /// </summary>
         bool IsBusy { get; }
 
-        /// <summary>A snapshot of nonempty messages for active operations.</summary>
+        /// <summary>
+        /// Gets the nonempty messages of the currently active progress operations.
+        /// </summary>
         IReadOnlyList<string> Tasks { get; }
 
-        /// <summary>Requests cancellation of all currently active operations.</summary>
+        /// <summary>
+        /// Requests cancellation of all currently active progress operations.
+        /// </summary>
         Task CancelAllAsync();
 
         /// <summary>
-        /// Starts progress. Dispose the returned scope to call ProgressEnd with its unique ID.
+        /// Registers a progress operation and returns a scope whose disposal ends that operation.
         /// </summary>
         GXProgressScope ProgressStart(string? message);
 
         /// <summary>
-        /// Progress ended.
+        /// Ends the progress operation with the specified id and notifies listeners when an operation was removed.
         /// </summary>
         void ProgressEnd(Guid id);
     }

@@ -30,12 +30,18 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 *@
+@*
+<summary>
+Renders a link-styled button with optional localized text, a click callback, and navigation.
+</summary>
+*@
+
 @typeparam TItem
 
-<button class="btn btn-link"
+<button id="@Id" class="btn btn-link"
         style="padding: 0; border: none; background: none;"
         onclick="@(() => Click())">
-    @if (string.IsNullOrEmpty(Id))
+    @if (string.IsNullOrEmpty(GXComponentAttributes.GetValue(AdditionalAttributes, "id")))
     {
         @Text
     }
@@ -47,42 +53,55 @@
 @code
 {
     /// <summary>
-    /// Additional attributes that will be applied to the underlying HTML element. If you specify an attribute with the same name as a component parameter, the component parameter value will take precedence.
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>
-    /// Return the id from the AdditionalAttributes.
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string? Id =>
-       AdditionalAttributes?.TryGetValue("id", out var value) == true
-           ? value?.ToString()
-           : null;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
+    private string? _generatedId;
+
+    /// <summary>
+    /// Gets or sets the text displayed by the component.
+    /// </summary>
     [Parameter]
     public string? Text { get; set; }
 
     /// <summary>
-    /// Used resource storage.
+    /// Gets or sets the service provider used to resolve optional component services.
     /// </summary>
-    [CascadingParameter]
-    public IGXResourceStorage? ResourceStorage { get; set; }
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
 
-    private void Click()
+    /// <summary>
+    /// Gets the optional service used to retrieve localized resources.
+    /// </summary>
+    public IGXResourceStorage? ResourceStorage => Services.GetService<IGXResourceStorage>();
+
+    /// <summary>
+    /// Invokes the click callback and follows the target URI when it is provided.
+    /// </summary>
+    private async Task Click()
     {
-        if (OnClick != null && Target != null)
+        if (OnClick.HasDelegate && Target != null)
         {
-            OnClick(Target);
+            await OnClick.InvokeAsync(Target);
         }
     }
 
     /// <summary>
-    /// User has click the link.
+    /// Gets or sets the callback invoked when the menu command is clicked.
     /// </summary>
     [Parameter]
-    public Action<TItem>? OnClick { get; set; }
+    public EventCallback<TItem> OnClick { get; set; }
 
+    /// <summary>
+    /// Gets or sets the browsing context used when opening the link, such as _blank.
+    /// </summary>
     [Parameter]
     public TItem? Target { get; set; }
 

@@ -1,4 +1,10 @@
-﻿@using System.Text.Json.Serialization
+
+@*
+<summary>
+Arranges child panels around a draggable splitter and persists their resized dimensions.
+</summary>
+*@
+@using System.Text.Json.Serialization
 @using System.Collections.Concurrent
 @using System.Text.Json
 @using Microsoft.Extensions.Logging
@@ -9,15 +15,15 @@
 @inject ILogger<Panel> Logger
 
 <CascadingValue Value="this">
-    <div @ref="_panelElement" class="gx-panel container-fluid" data-fill-viewport="@(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "true" : "false")" style="@($"height:{(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "auto" : Height ?? "90vh")};{Style}")">
-        <div id="leftDiv" style="@GetStyle(0)">
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" @ref="_panelElement" id="@Id" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "gx-panel container-fluid")" data-fill-viewport="@(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "true" : "false")" style="@($"height:{(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "auto" : Height ?? "90vh")};{Style}")">
+        <div @attributes="GetItemAttributes(0)" id="leftDiv" class="@GetItemClass(0)" style="@GetStyle(0)">
             @if (Items?.Count > 0)
             {
                 @Items[0].ChildContent
             }
         </div>
         <div id="verticalDivider">&nbsp;</div>
-        <div id="rightDiv" style="@GetStyle(1)">
+        <div @attributes="GetItemAttributes(1)" id="rightDiv" class="@GetItemClass(1)" style="@GetStyle(1)">
             @if (Items?.Count > 1)
             {
                 @Items[1].ChildContent
@@ -28,10 +34,31 @@
 </CascadingValue>
 
 @code {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
 
+    /// <summary>
+    /// Returns the captured non-CSS attributes for a child panel at the specified index.
+    /// </summary>
+    private IReadOnlyDictionary<string, object>? GetItemAttributes(int index)
+        => Items.Count > index ? GXComponentAttributes.WithoutCss(Items[index].AdditionalAttributes) : null;
+    /// <summary>
+    /// Returns the captured CSS classes for a child panel at the specified index.
+    /// </summary>
+    private string? GetItemClass(int index) => Items.Count > index ? Items[index].CssClass : null;
+    /// <summary>
+    /// Combines a child panel's styles with its saved or configured splitter dimensions.
+    /// </summary>
     private string? GetStyle(int index)
     {
         string? str = null;
@@ -61,7 +88,9 @@
         return str;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the display name associated with the panel.
+    /// </summary>
     public string Name
     {
         get
@@ -70,7 +99,9 @@
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the configuration content associated with the panel.
+    /// </summary>
     [JsonIgnore]
     public Type? ConfigurationUI
     {
@@ -80,7 +111,9 @@
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the icon identifier displayed alongside the text.
+    /// </summary>
     public string? Icon
     {
         get
@@ -90,7 +123,7 @@
     }
 
     /// <summary>
-    /// Panel ID.
+    /// Gets or sets the HTML identifier of the panel container.
     /// </summary>
     [Parameter]
     public string? Id { get; set; }
@@ -100,14 +133,18 @@
     /// </summary>
     private readonly List<PanelItem> Items = new List<PanelItem>();
 
-    [Parameter]
-    public string? CssClass { get; set; }
-
-    [Parameter]
-    public string? Style { get; set; }
+    /// <summary>
+    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
+    /// </summary>
+    internal string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
 
     /// <summary>
-    /// Top position.
+    /// Gets the inline CSS declarations applied to the component.
+    /// </summary>
+    internal string? Style => GXComponentAttributes.GetStyle(AdditionalAttributes, null);
+
+    /// <summary>
+    /// Gets or sets the panel's vertical position.
     /// </summary>
     [Parameter]
     public int Top
@@ -117,7 +154,7 @@
     }
 
     /// <summary>
-    /// Left position.
+    /// Gets or sets the panel's horizontal position.
     /// </summary>
     [Parameter]
     public int Left
@@ -127,7 +164,7 @@
     }
 
     /// <summary>
-    /// Width.
+    /// Gets or sets the configured CSS width of the panel.
     /// </summary>
     [Parameter]
     public string? Width
@@ -137,7 +174,7 @@
     }
 
     /// <summary>
-    /// Height.
+    /// Gets or sets the CSS height; fill uses the available viewport space.
     /// </summary>
     [Parameter]
     public string? Height
@@ -152,24 +189,39 @@
     private bool _initialized;
     private DotNetObjectReference<Panel>? _reference;
 
+    /// <summary>
+    /// Persists the dimensions of the first two panels reported by the browser splitter.
+    /// </summary>
     [JSInvokable]
     public async Task SaveSizes(double leftWidth, double leftHeight, double rightWidth, double rightHeight)
     {
-        if (Items.Count < 2) return;
+        if (Items.Count < 2)
+        {
+            return;
+        }
         await Items[0].SaveSizeAsync(leftWidth, leftHeight);
         await Items[1].SaveSizeAsync(rightWidth, rightHeight);
     }
 
 
+    /// <summary>
+    /// Registers a child panel and requests rendering of the panel layout.
+    /// </summary>
     internal async Task AddItem(PanelItem value)
     {
         Items.Add(value);
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Restores child panel sizes and initializes the browser splitter once two panels have registered.
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_initialized || Items.Count < 2) return;
+        if (_initialized || Items.Count < 2)
+        {
+            return;
+        }
         _initialized = true;
         try
         {
@@ -189,6 +241,9 @@
         }
     }
 
+    /// <summary>
+    /// Disposes the splitter, JavaScript module, and .NET callback reference.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         try
@@ -198,7 +253,10 @@
                 await _splitter.InvokeVoidAsync("dispose");
                 await _splitter.DisposeAsync();
             }
-            if (_module != null) await _module.DisposeAsync();
+            if (_module != null)
+            {
+                await _module.DisposeAsync();
+            }
         }
         catch (JSDisconnectedException) { }
         finally { _reference?.Dispose(); }
