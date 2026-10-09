@@ -67,6 +67,8 @@ Displays shared top menu commands and updates their enabled state from progress 
     public RenderFragment? ChildContent { get; set; }
 
     private bool _disposed;
+    private IDisposable? _navigationRegistration;
+    private CancellationTokenRegistration _navigationCancellation;
 
     /// <summary>
     /// Disables commands during progress operations or when their required form edit state is not satisfied.
@@ -93,10 +95,49 @@ Displays shared top menu commands and updates their enabled state from progress 
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
+    /// <summary>Registers the navigation guard when this component becomes interactive.</summary>
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _navigationRegistration = NavigationManager.RegisterLocationChangingHandler(OnLocationChanging);
+        }
+    }
+
+    private ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        _navigationCancellation.Dispose();
+        _navigationCancellation = default;
+        if (_disposed || context.CancellationToken.IsCancellationRequested)
+        {
+            return ValueTask.CompletedTask;
+        }
+        var sourceLocation = NavigationManager.Uri;
+        var restore = Menu.ClearForNavigation();
+        _navigationCancellation = context.CancellationToken.Register(() =>
+        {
+            if (!_disposed)
+            {
+                _ = InvokeAsync(() =>
+                {
+                    if (!_disposed && NavigationManager.Uri == sourceLocation)
+                    {
+                        restore();
+                    }
+                });
+            }
+        });
+        return ValueTask.CompletedTask;
+    }
+
     /// <summary>
-    /// Clears shared menu commands and their edit context after navigation.
+    /// Releases cancellation handling after successful navigation, leaving destination commands intact.
     /// </summary>
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => Menu.Clear();
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _navigationCancellation.Dispose();
+        _navigationCancellation = default;
+    }
 
     /// <summary>
     /// Schedules a component render when the backing service changes, unless the component is disposed.
@@ -122,6 +163,9 @@ Displays shared top menu commands and updates their enabled state from progress 
     public void Dispose()
     {
         _disposed = true;
+        _navigationRegistration?.Dispose();
+        _navigationCancellation.Dispose();
+        _navigationCancellation = default;
         Menu.Changed -= OnChanged;
         Progress.Changed -= OnChanged;
         NavigationManager.LocationChanged -= OnLocationChanged;

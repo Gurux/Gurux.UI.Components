@@ -58,6 +58,22 @@ namespace Gurux.UI.Components
         void AddMenuItems(params IEnumerable<GXMenuItem> menus);
 
         /// <summary>
+        /// Replaces the commands and returns their ownership registration.
+        /// Disposing an older registration never removes newer commands.
+        /// </summary>
+        /// <param name="menus">Commands for the active page or editor.</param>
+        /// <param name="editContext">The form associated with these commands.</param>
+        /// <returns>A registration to dispose when its page or editor closes.</returns>
+        IDisposable RegisterMenu(IEnumerable<GXMenuItem> menus, EditContext? editContext = null);
+
+        /// <summary>
+        /// Clears commands before navigation and returns an action that restores them
+        /// if navigation is canceled and no other commands have replaced them.
+        /// </summary>
+        /// <returns>An action to restore the previous commands after canceled navigation.</returns>
+        Action ClearForNavigation();
+
+        /// <summary>
         /// Clears menu commands and their associated edit context.
         /// </summary>
         void Clear();
