@@ -46,7 +46,10 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Gets the commands registered with the shared menu service.
         /// </summary>
-        IReadOnlyList<GXMenuItem> Items { get; }
+        IReadOnlyList<GXMenuItem> Items
+        {
+            get;
+        }
 
         /// <summary>
         /// Adds the supplied commands to the shared top menu and notifies listeners.
@@ -62,10 +65,6 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Gets or sets the edit context used to track form changes and validation.
         /// </summary>
-        EditContext? EditContext
-        {
-            get;
-            set;
-        }
+        EditContext? EditContext { get; set; }
     }
 }

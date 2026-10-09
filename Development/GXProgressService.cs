@@ -18,7 +18,13 @@ public sealed class GXProgressService : IGXProgress
     /// </summary>
     public bool IsBusy
     {
-        get { lock (_sync) return _operations.Count != 0; }
+        get
+        {
+            lock (_sync)
+            {
+                return _operations.Count != 0;
+            }
+        }
     }
 
     /// <summary>
@@ -29,8 +35,10 @@ public sealed class GXProgressService : IGXProgress
         get
         {
             lock (_sync)
+            {
                 return _operations.Values.Select(operation => operation.Message)
-                    .Where(message => !string.IsNullOrWhiteSpace(message)).Select(message => message!).ToArray();
+                .Where(message => !string.IsNullOrWhiteSpace(message)).Select(message => message!).ToArray();
+            }
         }
     }
 
@@ -40,7 +48,11 @@ public sealed class GXProgressService : IGXProgress
     public GXProgressScope ProgressStart(string? message)
     {
         var scope = new GXProgressScope(ProgressEnd);
-        lock (_sync) _operations.Add(scope.Id, (scope, message));
+        lock (_sync)
+        {
+            _operations.Add(scope.Id, (scope, message));
+        }
+
         Changed?.Invoke();
         return scope;
     }
@@ -69,7 +81,11 @@ public sealed class GXProgressService : IGXProgress
     public Task CancelAllAsync()
     {
         GXProgressScope[] scopes;
-        lock (_sync) scopes = _operations.Values.Select(operation => operation.Scope).ToArray();
+        lock (_sync)
+        {
+            scopes = _operations.Values.Select(operation => operation.Scope).ToArray();
+        }
+
         return Task.WhenAll(scopes.Select(scope => scope.CancelAsync()));
     }
 }

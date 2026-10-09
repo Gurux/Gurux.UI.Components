@@ -45,7 +45,7 @@ namespace Gurux.UI.Components
     public sealed record GXNotificationItem
     (
         NotificationLevel Level,
-        string Title,
+        string? Title,
         string Description,
         string? Key = null,
         bool Closable = false,
@@ -123,7 +123,10 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Gets a snapshot of all stored notifications regardless of severity filters or display limits.
         /// </summary>
-        IReadOnlyList<GXNotificationItem> Notifications { get; }
+        IReadOnlyList<GXNotificationItem> Notifications
+        {
+            get;
+        }
     }
 }
 

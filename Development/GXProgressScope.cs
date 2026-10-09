@@ -16,12 +16,18 @@ public sealed class GXProgressScope : IDisposable
     /// </summary>
     public Task CancelAsync()
     {
-        if (Volatile.Read(ref _end)is null)
+        if (Volatile.Read(ref _end) is null)
         {
             return Task.CompletedTask;
         }
-        try { return _cancellation.CancelAsync(); }
-        catch (ObjectDisposedException) { return Task.CompletedTask; }
+        try
+        {
+            return _cancellation.CancelAsync();
+        }
+        catch (ObjectDisposedException)
+        {
+            return Task.CompletedTask;
+        }
     }
     /// <summary>
     /// Gets the Guid identifying this progress operation.
@@ -56,8 +62,14 @@ public sealed class GXProgressScope : IDisposable
         {
             return;
         }
-        try { end(); }
-        finally { _cancellation.Dispose(); }
+        try
+        {
+            end();
+        }
+        finally
+        {
+            _cancellation.Dispose();
+        }
     }
 }
 

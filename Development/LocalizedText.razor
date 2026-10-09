@@ -53,6 +53,7 @@ Displays a translated resource string and refreshes it when the resource changes
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     private bool _disposed;
+    private IGXResourceStorage? _subscribedStorage;
     /// <summary>
     /// Gets or sets the content rendered inside the component.
     /// </summary>
@@ -133,9 +134,10 @@ Displays a translated resource string and refreshes it when the resource changes
     /// </summary>
     protected override void OnInitialized()
     {
-        if (ResourceStorage != null)
+        _subscribedStorage = ResourceStorage;
+        if (_subscribedStorage != null)
         {
-            ResourceStorage.OnTextChanged += Updated;
+            _subscribedStorage.OnTextChanged += Updated;
         }
         base.OnInitialized();
     }
@@ -161,9 +163,10 @@ Displays a translated resource string and refreshes it when the resource changes
     public void Dispose()
     {
         _disposed = true;
-        if (ResourceStorage != null)
+        if (_subscribedStorage != null)
         {
-            ResourceStorage.OnTextChanged -= Updated;
+            _subscribedStorage.OnTextChanged -= Updated;
+            _subscribedStorage = null;
         }
     }
 }

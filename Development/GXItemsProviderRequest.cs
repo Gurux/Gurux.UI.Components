@@ -8,17 +8,26 @@
         /// <summary>
         /// Gets the zero-based offset of the first requested item.
         /// </summary>
-        public int StartIndex { get; }
+        public int StartIndex
+        {
+            get;
+        }
 
         /// <summary>
         /// Gets the requested item count; a provider may return fewer items.
         /// </summary>
-        public int Count { get; }
+        public int Count
+        {
+            get;
+        }
 
         /// <summary>
         /// Gets whether the request includes removed items.
         /// </summary>
-        public bool Removed { get; }
+        public bool Removed
+        {
+            get;
+        }
 
         /// <summary>
         /// Gets the text filter supplied to the items provider.
@@ -59,7 +68,10 @@
         /// <summary>
         /// Gets the token used to cancel the item request.
         /// </summary>
-        public CancellationToken CancellationToken { get; }
+        public CancellationToken CancellationToken
+        {
+            get;
+        }
 
         /// <summary>
         /// Creates an item request with paging, filtering, sorting, and cancellation options.

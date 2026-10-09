@@ -127,6 +127,10 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     [Parameter]
     public EventCallback<TabPage> SelectionChanged { get; set; }
 
+    /// <summary>Navigate to a tab's path when clicked; disable for tabs inside an edit form.</summary>
+    [Parameter]
+    public bool NavigateOnSelection { get; set; } = true;
+
     /// <summary>
     /// Gets or sets the template used to render each tab header.
     /// </summary>
@@ -270,7 +274,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
         userSelected = true;
         selectedPage = page;
         ActivePage = page;
-        if (!string.IsNullOrEmpty(page.Path))
+        if (NavigateOnSelection && !string.IsNullOrEmpty(page.Path))
         {
             NavigationManager.NavigateTo(page.Path);
         }

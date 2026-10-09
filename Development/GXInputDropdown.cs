@@ -56,12 +56,14 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Gets or sets the content rendered inside the component.
         /// </summary>
-        [Parameter] public RenderFragment? ChildContent { get; set; }
+        [Parameter]
+        public RenderFragment? ChildContent { get; set; }
 
         /// <summary>
         /// Gets or sets the select element reference, available after rendering.
         /// </summary>
-        [DisallowNull] public ElementReference? Element { get; protected set; }
+        [DisallowNull]
+        public ElementReference? Element { get; protected set; }
 
         /// <summary>
         /// Converts an item to the display text used by a dropdown.
@@ -104,11 +106,7 @@ namespace Gurux.UI.Components
         /// Gets or sets the items available for display or selection.
         /// </summary>
         [Parameter]
-        public IEnumerable<TValue>? Items
-        {
-            get;
-            set;
-        }
+        public IEnumerable<TValue>? Items { get; set; }
 
         /// <summary>
         /// Items in the list.
@@ -126,13 +124,14 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Initializes item loading and restores the saved selection when persistence is enabled.
         /// </summary>
-        protected override async Task OnInitializedAsync()
+        protected override async Task OnAfterRenderAsync(bool firstRender)
         {
+            if (!firstRender) return;
             try
             {
                 if (ItemsProvider != null)
                 {
-                    await RefreshDataAsync(false);
+                    await RefreshDataAsync(true);
                 }
                 //Get the default value from the cookies
                 // if it's not set.
@@ -153,6 +152,7 @@ namespace Gurux.UI.Components
             {
                 Logger?.LogError(ex.Message);
             }
+            StateHasChanged();
         }
 
         /// <summary>

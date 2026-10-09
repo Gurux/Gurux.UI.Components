@@ -384,11 +384,12 @@ namespace Gurux.UI.Components
         /// </summary>
         protected override async Task OnInitializedAsync()
         {
-            if (ItemsProvider != null)
-            {
-                await RefreshDataAsync(false);
-            }
             await base.OnInitializedAsync();
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            await base.OnAfterRenderAsync(firstRender);
         }
     }
 }

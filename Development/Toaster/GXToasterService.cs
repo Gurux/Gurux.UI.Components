@@ -65,11 +65,7 @@ namespace Gurux.UI.Component.Toaster
         /// <summary>
         /// Gets or sets the toast count at which adding a message removes the oldest stored message.
         /// </summary>
-        public int MaxCount
-        {
-            get;
-            set;
-        }
+        public int MaxCount { get; set; }
 
         /// <summary>
         /// Creates a toaster service with a stored-message limit of twenty and a one-second expiration timer.

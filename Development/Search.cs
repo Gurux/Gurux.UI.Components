@@ -47,21 +47,13 @@ namespace Gurux.UI.Components
         /// Gets or sets the current search text.
         /// </summary>
         [Parameter]
-        public string? Value
-        {
-            get;
-            set;
-        }
+        public string? Value { get; set; }
 
         /// <summary>
         /// Gets or sets the callback invoked when the bound value changes.
         /// </summary>
         [Parameter]
-        public EventCallback<string?> ValueChanged
-        {
-            get;
-            set;
-        }
+        public EventCallback<string?> ValueChanged { get; set; }
 
         /// <summary>
         /// Gets or sets whether the most recently used value is restored from and saved to browser local storage.
@@ -91,7 +83,8 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Gets or sets captured HTML attributes forwarded to the underlying element.
         /// </summary>
-        [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+        [Parameter(CaptureUnmatchedValues = true)]
+        public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
         /// <summary>
         /// Gets the captured name attribute used by the search input.

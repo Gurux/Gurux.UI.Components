@@ -77,11 +77,7 @@ Edits a string value and optionally restores and saves it in browser local stora
     /// Gets or sets whether the input is marked as requiring a value.
     /// </summary>
     [Parameter]
-    public bool Required
-    {
-        get;
-        set;
-    }
+    public bool Required { get; set; }
 
     /// <summary>
     /// Returns the required HTML attribute when a string value is required.
@@ -95,21 +91,13 @@ Edits a string value and optionally restores and saves it in browser local stora
     /// Gets or sets the string edited by the input.
     /// </summary>
     [Parameter]
-    public string? Value
-    {
-        get;
-        set;
-    }
+    public string? Value { get; set; }
 
     /// <summary>
     /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
-    public EventCallback<string?> ValueChanged
-    {
-        get;
-        set;
-    }
+    public EventCallback<string?> ValueChanged { get; set; }
 
     /// <summary>
     /// Gets the CSS classes obtained by combining component defaults with captured attributes.

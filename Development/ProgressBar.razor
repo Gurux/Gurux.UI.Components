@@ -59,41 +59,25 @@ Displays a progress value within a configured range and optional descriptive tex
     /// Gets or sets the text describing the current progress operation.
     /// </summary>
     [Parameter]
-    public string? Description
-    {
-        get;
-        set;
-    }
+    public string? Description { get; set; }
 
     /// <summary>
     /// Gets or sets the lower bound of the progress range.
     /// </summary>
     [Parameter]
-    public int Minimum
-    {
-        get;
-        set;
-    }
+    public int Minimum { get; set; }
 
     /// <summary>
     /// Gets or sets the upper bound of the progress range.
     /// </summary>
     [Parameter]
-    public int Maximum
-    {
-        get;
-        set;
-    }
+    public int Maximum { get; set; }
 
     /// <summary>
     /// Gets or sets the current progress value.
     /// </summary>
     [Parameter]
-    public int Current
-    {
-        get;
-        set;
-    }
+    public int Current { get; set; }
 
     /// <summary>
     /// Calculates the current progress percentage from the configured range, returning zero for a zero current or maximum value.

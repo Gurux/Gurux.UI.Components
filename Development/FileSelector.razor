@@ -108,21 +108,13 @@ Reads selected or dropped files and publishes their bytes with progress and erro
     /// Gets or sets the selected file content as ASCII text or a byte array.
     /// </summary>
     [Parameter]
-    public TType? Value
-    {
-        get;
-        set;
-    }
+    public TType? Value { get; set; }
 
     /// <summary>
     /// Gets or sets inline CSS declarations for the file selector.
     /// </summary>
     [Parameter]
-    public string? Style
-    {
-        get;
-        set;
-    }
+    public string? Style { get; set; }
 
     /// <summary>
     /// Gets or sets the callback invoked when the bound value changes.

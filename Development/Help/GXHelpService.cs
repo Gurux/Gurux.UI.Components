@@ -30,8 +30,6 @@
 // Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
 //---------------------------------------------------------------------------
 
-using System.Collections.ObjectModel;
-
 namespace Gurux.UI.Components.Help
 {
     /// <summary>

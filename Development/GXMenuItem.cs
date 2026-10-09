@@ -58,11 +58,7 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Gets or sets the form edit state required for the menu command to be enabled.
         /// </summary>
-        public EnableStyle? Enabled
-        {
-            get;
-            set;
-        } = EnableStyle.Always;
+        public EnableStyle? Enabled { get; set; } = EnableStyle.Always;
 
         /// <summary>
         /// Creates an empty menu command that is enabled regardless of form edit state.

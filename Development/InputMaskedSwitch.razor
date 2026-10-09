@@ -100,11 +100,7 @@ Uses a switch to set or clear selected bits in a bound numeric value.
     /// Gets or sets whether the input is marked as requiring a value.
     /// </summary>
     [Parameter]
-    public bool Required
-    {
-        get;
-        set;
-    }
+    public bool Required { get; set; }
 
     /// <summary>
     /// Gets or sets whether user interaction with the input is disabled.
@@ -124,21 +120,13 @@ Uses a switch to set or clear selected bits in a bound numeric value.
     /// Gets or sets the numeric value containing the bits controlled by the switch mask.
     /// </summary>
     [Parameter]
-    public TItem? Value
-    {
-        get;
-        set;
-    }
+    public TItem? Value { get; set; }
 
     /// <summary>
     /// Gets or sets the bit mask that the checkbox or switch updates within the bound value.
     /// </summary>
     [Parameter]
-    public TItem? Mask
-    {
-        get;
-        set;
-    }
+    public TItem? Mask { get; set; }
 
     /// <summary>
     /// Gets whether all bits selected by the mask are set in the current value.
@@ -242,11 +230,7 @@ Uses a switch to set or clear selected bits in a bound numeric value.
     /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
-    public EventCallback<TItem?> ValueChanged
-    {
-        get;
-        set;
-    }
+    public EventCallback<TItem?> ValueChanged { get; set; }
 
     /// <summary>
     /// Gets the CSS classes obtained by combining component defaults with captured attributes.

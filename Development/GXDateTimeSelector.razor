@@ -100,11 +100,7 @@ Edits a typed date and time value with formatting and optional persistence.
     /// Gets or sets whether the input is marked as requiring a value.
     /// </summary>
     [Parameter]
-    public bool Required
-    {
-        get;
-        set;
-    }
+    public bool Required { get; set; }
 
     /// <summary>
     /// Creates the date and time selector and verifies the supported bound value type.
@@ -122,11 +118,7 @@ Edits a typed date and time value with formatting and optional persistence.
     /// Gets or sets the typed date and time value edited by the selector.
     /// </summary>
     [Parameter]
-    public TItem? Value
-    {
-        get;
-        set;
-    }
+    public TItem? Value { get; set; }
 
     /// <summary>
     /// Clears the selected date and time value and requests rendering.
@@ -140,11 +132,7 @@ Edits a typed date and time value with formatting and optional persistence.
     /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
-    public EventCallback<TItem?> ValueChanged
-    {
-        get;
-        set;
-    }
+    public EventCallback<TItem?> ValueChanged { get; set; }
 
     /// <summary>
     /// Formats the supported date and time value using the configured format and invariant culture.

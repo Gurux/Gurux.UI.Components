@@ -47,12 +47,18 @@ namespace Gurux.UI.Component.Toaster
         /// <summary>
         /// Gets or sets the title displayed by the component.
         /// </summary>
-        public string? Title { get; init; }
+        public string? Title
+        {
+            get; init;
+        }
 
         /// <summary>
         /// Gets or sets the body of the toast message.
         /// </summary>
-        public string? Message { get; init; }
+        public string? Message
+        {
+            get; init;
+        }
 
         /// <summary>
         /// Gets or sets the Bootstrap contextual color of the toast.
@@ -67,7 +73,10 @@ namespace Gurux.UI.Component.Toaster
         /// <summary>
         /// Gets or sets the time after which the toast is considered expired.
         /// </summary>
-        public DateTimeOffset? ClosingTime { get; init; }
+        public DateTimeOffset? ClosingTime
+        {
+            get; init;
+        }
 
         /// <summary>
         /// Gets whether the toast has a closing time that has passed.

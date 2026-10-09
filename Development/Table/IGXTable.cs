@@ -42,7 +42,10 @@ namespace Gurux.UI.Components.Table
         /// <summary>
         /// Gets the identifier of the table.
         /// </summary>
-        string? Id { get; }
+        string? Id
+        {
+            get;
+        }
 
         /// <summary>
         /// Gets or sets the property name used to sort items.
@@ -73,7 +76,10 @@ namespace Gurux.UI.Components.Table
         /// <summary>
         /// Gets whether table cells can render editable content.
         /// </summary>
-        bool CanEdit { get; }
+        bool CanEdit
+        {
+            get;
+        }
 
         /// <summary>
         /// Determines whether the named table column is excluded from the configured visible columns.

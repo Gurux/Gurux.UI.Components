@@ -132,7 +132,10 @@ Loads available authorization policy names and edits a filtered selection of pol
     /// <summary>
     /// Loads the available authorization policy names.
     /// </summary>
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) { await LoadAsync(); StateHasChanged(); }
+    }
 
     /// <summary>
     /// Gets the optional service used to report component errors as notifications.

@@ -86,11 +86,7 @@ Edits a typed color value with optional browser local storage persistence.
     /// Gets or sets whether the input is marked as requiring a value.
     /// </summary>
     [Parameter]
-    public bool Required
-    {
-        get;
-        set;
-    }
+    public bool Required { get; set; }
 
     /// <summary>
     /// Creates the color selector and rejects unsupported bound value types.
@@ -108,11 +104,7 @@ Edits a typed color value with optional browser local storage persistence.
     /// Gets or sets the typed color value edited by the selector.
     /// </summary>
     [Parameter]
-    public TItem? Value
-    {
-        get;
-        set;
-    }
+    public TItem? Value { get; set; }
 
     /// <summary>
     /// Clears the selected color and requests rendering.
@@ -126,11 +118,7 @@ Edits a typed color value with optional browser local storage persistence.
     /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
-    public EventCallback<TItem?> ValueChanged
-    {
-        get;
-        set;
-    }
+    public EventCallback<TItem?> ValueChanged { get; set; }
 
     /// <summary>
     /// Formats the current value as text for the rendered input.

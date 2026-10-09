@@ -84,11 +84,7 @@ Edits supported IP address representations and can persist the bound value.
     /// Gets or sets whether the IP address input is marked as requiring a value.
     /// </summary>
     [Parameter]
-    public bool Required
-    {
-        get;
-        set;
-    }
+    public bool Required { get; set; }
 
     /// <summary>
     /// Creates the IP address input and verifies the supported address representation.
@@ -106,11 +102,7 @@ Edits supported IP address representations and can persist the bound value.
     /// Gets or sets the IP address as a supported address, numeric, or string representation.
     /// </summary>
     [Parameter]
-    public TItem? Value
-    {
-        get;
-        set;
-    }
+    public TItem? Value { get; set; }
 
     /// <summary>
     /// Clears the selected IP address value and requests rendering.
@@ -124,11 +116,7 @@ Edits supported IP address representations and can persist the bound value.
     /// Gets or sets the callback invoked when the bound value changes.
     /// </summary>
     [Parameter]
-    public EventCallback<TItem?> ValueChanged
-    {
-        get;
-        set;
-    }
+    public EventCallback<TItem?> ValueChanged { get; set; }
 
     /// <summary>
     /// Converts the supported numeric address representation to IP address text.

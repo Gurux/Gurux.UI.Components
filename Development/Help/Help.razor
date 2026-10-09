@@ -40,19 +40,19 @@ Displays a help link for the active topic unless the current URL is configured a
 
 @inject NavigationManager NavigationManager
 @implements IDisposable
-@inject GXHelpService HelpService
+@inject IServiceProvider Services
 
-@if (!HelpService.IsHidden(NavigationManager.Uri))
+@if (_helpService?.IsHidden(NavigationManager.Uri) == false)
 {
     <a class="help-link"
-       href="@HelpService.HelpUrl"
+       href="@_helpService.HelpUrl"
        target="_blank"
        rel="noopener noreferrer"
        aria-label="Help"
        title="Help">
-        @if (!string.IsNullOrEmpty(HelpService.Image))
+        @if (!string.IsNullOrEmpty(_helpService.Image))
         {
-            <Image Value="@HelpService.Image" id="help"></Image>
+            <Image Value="@_helpService.Image" id="help"></Image>
         }
         else
         {
@@ -66,12 +66,19 @@ Displays a help link for the active topic unless the current URL is configured a
 }
 
 @code {
+    private GXHelpService? _helpService;
+
+
     /// <summary>
     /// Subscribes to help topic and navigation changes that affect the help link.
     /// </summary>
     protected override void OnInitialized()
     {
-        HelpService.Changed += OnHelpChanged;
+        _helpService = Services.GetService<GXHelpService>();
+        if (_helpService is not null)
+        {
+            _helpService.Changed += OnHelpChanged;
+        }
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
@@ -96,7 +103,10 @@ Displays a help link for the active topic unless the current URL is configured a
     /// </summary>
     public void Dispose()
     {
-        HelpService.Changed -= OnHelpChanged;
+        if (_helpService is not null)
+        {
+            _helpService.Changed -= OnHelpChanged;
+        }
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }

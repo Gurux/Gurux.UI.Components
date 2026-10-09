@@ -38,7 +38,10 @@ Displays registered context menu items and manages pointer activation and delaye
 
 @using System.Timers
 @using Microsoft.AspNetCore.Components.Web;
-<div tabindex="0"
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+<div @ref="_trigger" tabindex="0"
      onclick="@((MouseEventArgs e) => HandleClick(e))"
      @oncontextmenu="OnContextMenu"
      @onblur="OnBlur"
@@ -48,7 +51,7 @@ Displays registered context menu items and manages pointer activation and delaye
 </div>
 
 <CascadingValue Value="this">
-    <div class="contextmenu"
+    <div @ref="_menu" class="contextmenu" popover="manual"
          style="@($"z-index:1000; visibility:{GetVisibility()};")">
         @if (_show)
         {
@@ -75,6 +78,38 @@ Displays registered context menu items and manages pointer activation and delaye
 </CascadingValue>
 
 @code {
+    private ElementReference _trigger;
+    private ElementReference _menu;
+    private IJSObjectReference? _module;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_show)
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/ContextMenu/ContextMenuController.razor.js");
+            await _module.InvokeVoidAsync("show", _menu, _trigger);
+        }
+        else if (_module != null)
+        {
+            await _module.InvokeVoidAsync("hide", _menu);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _timer.Stop();
+        _timer.Dispose();
+        if (_module != null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("hide", _menu);
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
     /// <summary>
     /// Returns the CSS visibility value for the context menu's current open state.
     /// </summary>

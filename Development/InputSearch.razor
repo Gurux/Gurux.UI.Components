@@ -104,11 +104,7 @@ Displays selectable, paged search results from static items or an asynchronous p
     /// Gets or sets the identifier of the search component.
     /// </summary>
     [Parameter]
-    public string Id
-    {
-        get;
-        set;
-    } = "";
+    public string Id { get; set; } = "";
 
     /// <summary>
     /// Gets or sets whether input changes immediately refresh search results.
@@ -148,11 +144,7 @@ Displays selectable, paged search results from static items or an asynchronous p
     /// Gets or sets the currently selected search result.
     /// </summary>
     [Parameter]
-    public TItem? Value
-    {
-        get;
-        set;
-    }
+    public TItem? Value { get; set; }
 
     /// <summary>
     /// Gets or sets the default selection option.

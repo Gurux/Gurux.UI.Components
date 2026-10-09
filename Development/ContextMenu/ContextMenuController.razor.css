@@ -1,5 +1,11 @@
 ﻿.contextmenu {
-    position: absolute;
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    border: 0;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -11,7 +17,6 @@
     box-shadow: 0 10px 20px rgba(0,0,0,.3), 0 0 0 1px #eee;
     padding: 5px 0;
     z-index: 1000;
-    right:5px;
 }
 
 

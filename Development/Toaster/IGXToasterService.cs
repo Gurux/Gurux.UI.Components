@@ -40,11 +40,7 @@ namespace Gurux.UI.Component.Toaster
         /// <summary>
         /// Gets or sets the stored-message limit used when adding toast messages.
         /// </summary>
-        int MaxCount
-        {
-            get;
-            set;
-        }
+        int MaxCount { get; set; }
 
         /// <summary>
         /// Adds a toast message to the service.
@@ -54,7 +50,10 @@ namespace Gurux.UI.Component.Toaster
         /// <summary>
         /// Gets whether any toast messages are currently stored.
         /// </summary>
-        bool Any { get; }
+        bool Any
+        {
+            get;
+        }
 
         /// <summary>
         /// Removes expired messages and returns the stored toast list.

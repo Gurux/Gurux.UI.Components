@@ -33,13 +33,15 @@
 @*
 <summary>
 Registers a contextual help topic for the lifetime of the component.
-</summary>
 *@
 
 @implements IDisposable
-@inject GXHelpService HelpService
+@inject IServiceProvider Services
 
 @code {
+
+    private GXHelpService? _helpService;
+
     /// <summary>
     /// Gets or sets the contextual help topic registered while this component is present.
     /// </summary>
@@ -52,7 +54,8 @@ Registers a contextual help topic for the lifetime of the component.
     /// </summary>
     protected override void OnParametersSet()
     {
-        HelpService.SetContext(this, Topic);
+        _helpService = Services.GetService<GXHelpService>();
+        _helpService?.SetContext(this, Topic);
     }
 
     /// <summary>
@@ -60,6 +63,6 @@ Registers a contextual help topic for the lifetime of the component.
     /// </summary>
     public void Dispose()
     {
-        HelpService.RemoveContext(this);
+        _helpService?.RemoveContext(this);
     }
 }

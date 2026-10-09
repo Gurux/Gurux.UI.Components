@@ -1169,9 +1169,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>
     /// Loads the initial table data from the items provider.
     /// </summary>
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await RefreshDataAsync(false);
+        if (firstRender)
+        {
+            await RefreshDataAsync(true);
+        }
     }
 
     /// <summary>

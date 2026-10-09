@@ -44,12 +44,18 @@ namespace Gurux.UI.Components
         /// <summary>
         /// Gets whether at least one progress operation is active, including operations without a message.
         /// </summary>
-        bool IsBusy { get; }
+        bool IsBusy
+        {
+            get;
+        }
 
         /// <summary>
         /// Gets the nonempty messages of the currently active progress operations.
         /// </summary>
-        IReadOnlyList<string> Tasks { get; }
+        IReadOnlyList<string> Tasks
+        {
+            get;
+        }
 
         /// <summary>
         /// Requests cancellation of all currently active progress operations.

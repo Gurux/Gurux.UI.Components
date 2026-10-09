@@ -33,10 +33,10 @@ namespace Gurux.UI.Components.Enums
         /// <summary>
         /// Uses the warning contextual color.
         /// </summary>
-        Warning, 
+        Warning,
         /// <summary>
         /// Uses the information contextual color.
         /// </summary>
         Info
-    }   
+    }
 }

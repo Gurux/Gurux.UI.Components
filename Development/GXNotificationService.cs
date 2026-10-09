@@ -51,7 +51,13 @@ public sealed class GXNotificationService : IGXNotificationService
     /// </summary>
     public NotificationFields VisibleFields
     {
-        get { lock (_sync) return _visibleFields; }
+        get
+        {
+            lock (_sync)
+            {
+                return _visibleFields;
+            }
+        }
         set
         {
             lock (_sync)
@@ -71,7 +77,13 @@ public sealed class GXNotificationService : IGXNotificationService
     /// </summary>
     public NotificationLevel LevelFilter
     {
-        get { lock (_sync) return _levelFilter; }
+        get
+        {
+            lock (_sync)
+            {
+                return _levelFilter;
+            }
+        }
         set
         {
             lock (_sync)
@@ -91,7 +103,13 @@ public sealed class GXNotificationService : IGXNotificationService
     /// </summary>
     public int MaxVisibleNotifications
     {
-        get { lock (_sync) return _maxVisibleNotifications; }
+        get
+        {
+            lock (_sync)
+            {
+                return _maxVisibleNotifications;
+            }
+        }
         set
         {
             lock (_sync)
@@ -111,7 +129,13 @@ public sealed class GXNotificationService : IGXNotificationService
     /// </summary>
     public IReadOnlyList<GXNotificationItem> Notifications
     {
-        get { lock (_sync) return _notifications.Values.ToArray(); }
+        get
+        {
+            lock (_sync)
+            {
+                return _notifications.Values.ToArray();
+            }
+        }
     }
 
     /// <summary>
@@ -162,7 +186,11 @@ public sealed class GXNotificationService : IGXNotificationService
     public Guid Add(GXNotificationItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        lock (_sync) _notifications[item.Id] = item;
+        lock (_sync)
+        {
+            _notifications[item.Id] = item;
+        }
+
         Changed?.Invoke();
         return item.Id;
     }
