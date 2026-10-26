@@ -2,3 +2,5 @@
 Development/.vs/
 Development/bin/
 Development/obj/
+/Tests
+/Views
