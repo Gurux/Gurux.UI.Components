@@ -32,7 +32,7 @@
 *@
 @*
 <summary>
-Displays shared top menu commands and updates their enabled state from progress and form changes.
+Displays shared commands and dropdowns and updates their enabled state from progress and form changes.
 </summary>
 *@
 
@@ -40,26 +40,45 @@ Displays shared top menu commands and updates their enabled state from progress 
 @using Microsoft.AspNetCore.Components.Routing
 
 @inject NavigationManager NavigationManager
-@inject IGXTopMenu Menu
+@inject IGXMenuService Menu
 @inject IGXProgress Progress
 @implements IDisposable
 
 <div class="btn-group" role="group">
-    @foreach (GXMenuItem it in Menu.Items)
+    @foreach (GXMenuItem it in Menu.GetItems(Location, Kind, MenuId))
     {
-        <button class="nav-link btn btn-link" onclick="@it.OnClick"
-                disabled="@IsDisabled(it)">
-            @if (it.Icon != null)
-            {
-                <Image Id="@it.Icon"></Image>
-            }
-            &nbsp;
-            <LocalizedText Value="@it.Text" />
-        </button>
+        @if (it.IsSeparator)
+        {
+            <hr role="separator" />
+        }
+        else if (it.Children.Count != 0)
+        {
+            <MenuControl @key="it" Dropdown="true" Text="@it.Text" Icon="@it.Icon"
+                         ReadOnly="@IsDisabled(it)" MenuItems="@GetDropdownItems(it)" />
+        }
+        else
+        {
+            <button @key="it" type="button" class="nav-link btn btn-link" @onclick="() => InvokeCommandAsync(it)"
+                    disabled="@IsDisabled(it)">
+                @if (it.Icon != null)
+                {
+                    <Image Id="@it.Icon"></Image>
+                }
+                &nbsp;
+                <LocalizedText Value="@it.Text" />
+            </button>
+        }
     }
 </div>
 @ChildContent
 @code {
+    /// <summary>Optional GXMenu.Id identifying a menu within the same location and kind.</summary>
+    [Parameter] public Guid? MenuId { get; set; }
+    /// <summary>Menu region rendered by this toolbar.</summary>
+    [Parameter] public MenuLocation Location { get; set; } = MenuLocation.Top;
+    /// <summary>Menu role rendered by this toolbar.</summary>
+    [Parameter] public MenuKind Kind { get; set; } = MenuKind.MenuBar;
+
     /// <summary>
     /// Gets or sets the content rendered inside the component.
     /// </summary>
@@ -69,6 +88,14 @@ Displays shared top menu commands and updates their enabled state from progress 
     private bool _disposed;
     private IDisposable? _navigationRegistration;
     private CancellationTokenRegistration _navigationCancellation;
+
+    private List<MenuItem> GetDropdownItems(GXMenuItem parent)
+        => parent.Children.Select(child => MenuItem.Create(child.Icon ?? string.Empty, child.Text,
+            EventCallback.Factory.Create(this, () => InvokeCommandAsync(child)), IsDisabled(child),
+            child.Children.Count == 0 ? null : GetDropdownItems(child), child.IsSeparator)).ToList();
+
+    private Task InvokeCommandAsync(GXMenuItem item)
+        => IsDisabled(item) ? Task.CompletedTask : item.OnClick.InvokeAsync();
 
     /// <summary>
     /// Disables commands during progress operations or when their required form edit state is not satisfied.
@@ -80,8 +107,8 @@ Displays shared top menu commands and updates their enabled state from progress 
             return true;
         }
         var enabled = item.Enabled == EnableStyle.Always ||
-            item.Enabled == EnableStyle.Modified && Menu.EditContext?.IsModified() == true ||
-            item.Enabled == EnableStyle.Unmodified && Menu.EditContext?.IsModified() == false;
+            item.Enabled == EnableStyle.Modified && Menu.GetEditContext(Location, Kind, MenuId)?.IsModified() == true ||
+            item.Enabled == EnableStyle.Unmodified && Menu.GetEditContext(Location, Kind, MenuId)?.IsModified() == false;
         return !enabled;
     }
 
@@ -113,7 +140,7 @@ Displays shared top menu commands and updates their enabled state from progress 
             return ValueTask.CompletedTask;
         }
         var sourceLocation = NavigationManager.Uri;
-        var restore = Menu.ClearForNavigation();
+        var restore = Menu.ClearForNavigation(Location, Kind, MenuId);
         _navigationCancellation = context.CancellationToken.Register(() =>
         {
             if (!_disposed)

@@ -42,13 +42,18 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 @using System.Reflection
 @using Gurux.UI.Components.Enums
 @using Microsoft.Extensions.Logging
+@using Microsoft.JSInterop
 
 @typeparam TItem
 @implements IGXTable
-@inject IGXLocalStorage LocalStorage
+@implements IAsyncDisposable
 @inject ILogger<GXTable<TItem>> Logger
 
 <CascadingValue Value="this">
+    @{
+        var header = PrepareColumnHeader();
+        bool showColumnConfiguration = AllowColumnCustomization && AvailableColumns.Count != 0;
+    }
     @if (Filter && FilterContent != null)
     {
         @if (ShowAllUsers)
@@ -77,6 +82,68 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         </MenuControl>
         <br />
     }
+    @if (showColumnConfiguration && _showColumnEditor)
+    {
+            var editorContext = CreateColumnEditorContext();
+            <Dialog Id="@(Id + "-columns")" Title="@ColumnSelectorText" Save="false" ManageFocus="true" OkButtonTitle="Save" CancelButtonTitle="Cancel"
+                    OnOk="SaveColumnEditorAsync" OnCancel="CloseColumnEditorAsync" aria-modal="true" aria-labelledby="@(Id + "-columns-title")">
+            <FooterContent>
+                @if (ColumnEditorFooterContent != null)
+                {
+                    @ColumnEditorFooterContent(editorContext)
+                }
+            </FooterContent>
+            <ChildContent>
+            <div class="gx-table-columns">
+            @if (ColumnEditorContent != null)
+            {
+                @ColumnEditorContent(editorContext)
+            }
+            else
+            {
+            <GXTable TItem="GXTableColumn" @ref="_columnEditor" ItemsProvider="@GetColumnItems"
+                     Save="false" Filter="false" Total="false" ShowAllData="true" ShowAllUsers="false" ShowRemoved="false"
+                     RearrangeRows="@(!_savingColumns)" OnItemMoved="@OnColumnMoved" ItemKey="@(column => column.Name)">
+                <HeaderContent>
+                    <th>@ColumnSelectorText</th>
+                    <th>Visibility</th>
+                </HeaderContent>
+                <ItemContent Context="column">
+                    <td><label class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" @bind:get="@IsDraftColumnVisible(column.Name)"
+                               disabled="@_savingColumns"
+                               @bind:set="@((bool visible) => ToggleDraftColumnAsync(column.Name, visible))" />
+                        <span class="form-check-label">
+                            @if (ColumnOptions == null && _registeredColumns.TryGetValue(column.Name, out var header) && header.Content != null)
+                            {
+                                @header.Content
+                            }
+                            else
+                            {
+                                @column.Text
+                            }
+                        </span>
+                    </label></td>
+                    <td><select class="form-select form-select-sm w-auto" aria-label="@(column.Text + " visibility")"
+                            @bind:get="@GetDraftVisibility(column.Name)" disabled="@_savingColumns"
+                            @bind:set="@((Visibility visibility) => SetDraftVisibilityAsync(column.Name, visibility))">
+                        @foreach (var visibility in Enum.GetValues<Visibility>())
+                        {
+                            <option value="@visibility">@visibility</option>
+                        }
+                    </select></td>
+                </ItemContent>
+            </GXTable>
+            }
+            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@_savingColumns" @onclick="ResetColumnDraftAsync">Reset</button>
+            @if (_columnError != null)
+            {
+                <div role="alert" class="text-danger">@_columnError</div>
+            }
+            </div>
+            </ChildContent>
+            </Dialog>
+    }
     <table id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GetCssClass()" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
         <thead>
             @if (Filter && FilterContent != null)
@@ -100,10 +167,18 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                     {
                         <th width="1%"></th>
                     }
-                    @FilterContent
+                    @OrderedCells(FilterContent)
+                    @if (Menu && MenuContent != null)
+                    {
+                        <th width="1%"></th>
+                    }
+                    @if (showColumnConfiguration)
+                    {
+                        <th class="gx-table-configuration-cell" aria-hidden="true"></th>
+                    }
                 </tr>
             }
-            @if (HeaderContent != null)
+            @if (HeaderContent != null || showColumnConfiguration)
             {
                 <tr>
                     @if (RearrangeRows)
@@ -118,10 +193,33 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                                    onchange="@((ChangeEventArgs __e) => ToggleAllRow(Convert.ToBoolean(__e.Value)))" />
                         </th>
                     }
-                    @HeaderContent(default!)
-                    @if (MenuContent != null)
+                    @header
+                    @if (HeaderContent == null)
+                    {
+                        @foreach (var column in OrderedColumns)
+                        {
+                            @if (!((IGXTable)this).IsHidden(column.Name))
+                            {
+                                <th class="@Fh.GetCssClass(GetColumnVisibility(column.Name, GetDefaultColumnVisibility(column.Name)), null)"></th>
+                            }
+                        }
+                    }
+                    @if (Menu && MenuContent != null)
                     {
                         <th width="1%"></th>
+                    }
+                    @if (showColumnConfiguration)
+                    {
+                        <th class="gx-table-configuration-cell" scope="col">
+                            <button type="button" class="gx-table-configuration-button btn btn-outline-secondary btn-sm"
+                                    title="@ColumnSelectorText" aria-label="@ColumnSelectorText" aria-haspopup="dialog"
+                                    aria-expanded="@(_showColumnEditor ? "true" : "false")" aria-controls="@(Id + "-columns")" @onclick="OpenColumnEditorAsync">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+                                    <polygon points="19.61,9.53 22.31,10 22.31,14 19.61,14.47 19.13,15.63 20.70,17.87 17.87,20.70 15.63,19.13 14.47,19.61 14,22.31 10,22.31 9.53,19.61 8.37,19.13 6.13,20.70 3.30,17.87 4.87,15.63 4.39,14.47 1.69,14 1.69,10 4.39,9.53 4.87,8.37 3.30,6.13 6.13,3.30 8.37,4.87 9.53,4.39 10,1.69 14,1.69 14.47,4.39 15.63,4.87 17.87,3.30 20.70,6.13 19.13,8.37" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </th>
                     }
                 </tr>
             }
@@ -132,7 +230,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
             {
                 @if (ItemContent != null)
                 {
-                    <tr class=@(GetSelectedClass(it)) onclick="@(() => SelectRow(it))"
+                    <tr @key="@(GetItemKey(it) ?? (object?)it)" class=@(GetSelectedClass(it)) onclick="@(() => SelectRow(it))"
                         alt="Drag"
                         title="@(@RearrangeRows ? "Drag row to new location" : "")"
                         draggable="@RearrangeRows"
@@ -157,10 +255,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                                        onchange="@((ChangeEventArgs __e) => ToggleRow(it, Convert.ToBoolean(__e.Value)))" />
                             </td>
                         }
-                        @ItemContent(it)
+                        <CascadingValue Value="@(new GXTableRowContext(it, EditLink?.Invoke(it)))">
+                            @OrderedCells(ItemContent(it))
+                        </CascadingValue>
                         @if (Menu && MenuContent != null)
                         {
-                            @if (it != null && it.Equals(Active))
+                            @if (it != null && (Compare(it, Active) || it.Equals(Active)))
                             {
                                 <td class="gx-table-menu-cell">
                                     <ContextMenuController>
@@ -172,6 +272,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                             {
                                 <td>&nbsp;</td>
                             }
+                        }
+                        @if (showColumnConfiguration)
+                        {
+                            <td class="gx-table-configuration-cell" aria-hidden="true"></td>
                         }
                     </tr>
                 }
@@ -255,7 +359,64 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>
     /// Gets the optional service used to report component errors as notifications.
     /// </summary>
-    public IGXNotificationService? NotificationService { get; private set; }
+    private IGXNotificationService? NotificationService { get; set; }
+
+    private IGXLocalStorage? LocalStorage { get; set; }
+
+    /// <summary>Persists table column preferences when an explicit table id is supplied.</summary>
+    [Parameter]
+    public bool Save { get; set; } = true;
+
+    /// <summary>Optional stable personal preference identity independent of the table's HTML id.</summary>
+    [Parameter]
+    public string? PreferencesId { get; set; }
+
+    private readonly Dictionary<string, double> _columnWidths = new(StringComparer.Ordinal);
+    private IJSObjectReference? _widthModule;
+    private IJSObjectReference? _widthHandler;
+    private DotNetObjectReference<GXTable<TItem>>? _widthReference;
+    private Task? _widthInitialization;
+
+    private string? ColumnWidthsKey => GetStorageKey("ColumnWidths");
+    private string? ColumnSettingsKey => GetStorageKey("Columns");
+    private string? SortKey => GetStorageKey("Sort");
+
+    private sealed class SortPreferences
+    {
+        public string? OrderBy { get; set; }
+        public SortMode SortMode { get; set; }
+    }
+
+    private string? GetStorageKey(string setting)
+    {
+        string? id = !string.IsNullOrWhiteSpace(PreferencesId) ? PreferencesId : GXComponentAttributes.GetValue(AdditionalAttributes, "id");
+        return Save && !string.IsNullOrWhiteSpace(id) ? $"GXTable:{id}:{setting}" : null;
+    }
+
+    /// <summary>Returns the saved CSS pixel width of a named column.</summary>
+    public string? GetColumnWidth(string? name) => ColumnWidthsKey != null && name != null &&
+        _columnWidths.TryGetValue(name, out double width)
+        ? width.ToString(System.Globalization.CultureInfo.InvariantCulture) + "px" : null;
+
+    /// <summary>Persists a column width after the user finishes resizing it.</summary>
+    [JSInvokable]
+    public async Task SaveColumnWidthAsync(string name, double width)
+    {
+        string? key = ColumnWidthsKey;
+        if (key == null || LocalStorage == null || string.IsNullOrWhiteSpace(name) || !double.IsFinite(width) || width <= 0)
+        {
+            return;
+        }
+        _columnWidths[name] = width;
+        try
+        {
+            await LocalStorage.SetValueAsync(key, System.Text.Json.JsonSerializer.Serialize(_columnWidths));
+        }
+        catch (Exception ex)
+        {
+            NotificationService?.ReportError(ex);
+        }
+    }
 
     /// <summary>
     /// Resolves the optional notification service used to report table errors.
@@ -263,6 +424,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     protected override void OnInitialized()
     {
         NotificationService = Services.GetService<IGXNotificationService>();
+        LocalStorage = Services.GetService<IGXLocalStorage>();
     }
 
     /// <summary>
@@ -499,7 +661,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>
     /// Selected items.
     /// </summary>
-    private SortedList<object, TItem> _selectedItems = new SortedList<object, TItem>();
+    private Dictionary<object, TItem> _selectedItems = new();
 
     /// <summary>
     /// Returns the displayed row indices of checked items and the active item without duplicates.
@@ -671,11 +833,542 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     [Parameter]
     public string[]? Columns { get; set; }
 
+    /// <summary>Default visible columns, applied when no personal selection has been saved.</summary>
+    [Parameter] public string[]? DefaultColumns { get; set; }
+
+    /// <summary>Default column order, applied when no personal order has been saved.</summary>
+    [Parameter] public string[]? DefaultColumnOrder { get; set; }
+
+    /// <summary>Default responsive visibility, overridden by personal column settings.</summary>
+    [Parameter] public IReadOnlyDictionary<string, Visibility>? DefaultColumnVisibility { get; set; }
+
+    /// <summary>Available columns and their display labels.</summary>
+    [Parameter] public IReadOnlyList<GXTableColumn>? ColumnOptions { get; set; }
+    /// <summary>Allows users to choose columns and change their responsive and print visibility.</summary>
+    [Parameter] public bool AllowColumnCustomization { get; set; }
+    /// <summary>Replaces the default column editor UI while retaining the dialog and its Save, Cancel and Reset actions.</summary>
+    [Parameter] public RenderFragment<GXTableColumnEditorContext>? ColumnEditorContent { get; set; }
+    /// <summary>Adds custom actions, such as Save as Default, before the editor's Save and Cancel buttons.</summary>
+    [Parameter] public RenderFragment<GXTableColumnEditorContext>? ColumnEditorFooterContent { get; set; }
+    /// <summary>Applies custom draft defaults after Reset, before the user saves or cancels.</summary>
+    [Parameter] public EventCallback<GXTableColumnEditorContext> OnColumnEditorReset { get; set; }
+    /// <summary>Caption for the column selector.</summary>
+    [Parameter] public string ColumnSelectorText { get; set; } = "Columns";
+    /// <summary>Loads visible column identifiers. Null uses the default columns.</summary>
+    [Parameter] public Func<Task<string[]?>>? ColumnsProvider { get; set; }
+    /// <summary>Persists visible column identifiers before they are applied.</summary>
+    [Parameter] public EventCallback<string[]> ColumnsChanged { get; set; }
+    private bool _savingColumns;
+    private string? _columnError;
+    private string[]? _visibleColumns;
+    private string[]? _parameterColumns;
+    private string[]? _parameterDefaultColumns;
+    private string[]? _defaultColumns;
+    private string[]? _columnOrder;
+    private string?[]? _sourceColumnNames;
+    private GXTable<GXTableColumn>? _columnEditor;
+    private bool _showColumnEditor;
+    private ColumnPreferences? _columnDraft;
+    private bool _draftResetWidths;
+
+    private GXTableColumnEditorContext CreateColumnEditorContext()
+    {
+        var draft = _columnDraft!;
+        var columns = OrderColumns(draft.Order ?? DefaultColumnOrder).ToArray();
+        Task Run(Func<Task> action) => _disposed ? Task.CompletedTask : InvokeAsync(() =>
+            !_disposed && _showColumnEditor && ReferenceEquals(_columnDraft, draft) ? action() : Task.CompletedTask);
+        return new GXTableColumnEditorContext
+        {
+            Columns = Array.AsReadOnly(columns),
+            ColumnOrder = Array.AsReadOnly(columns.Select(column => column.Name).ToArray()),
+            VisibleColumns = Array.AsReadOnly(columns.Where(column => IsDraftColumnVisible(column.Name)).Select(column => column.Name).ToArray()),
+            Visibility = new System.Collections.ObjectModel.ReadOnlyDictionary<string, Visibility>(
+                columns.ToDictionary(column => column.Name, column => GetDraftVisibility(column.Name), StringComparer.Ordinal)),
+            Widths = new System.Collections.ObjectModel.ReadOnlyDictionary<string, double>(
+                _draftResetWidths ? new Dictionary<string, double>(StringComparer.Ordinal) : new Dictionary<string, double>(_columnWidths, StringComparer.Ordinal)),
+            IsSaving = _savingColumns,
+            Error = _columnError,
+            SetVisible = (name, visible) => Run(() => ToggleDraftColumnAsync(name, visible)),
+            SetVisibility = (name, visibility) => Run(() => SetDraftVisibilityAsync(name, visibility)),
+            Move = (name, index) => Run(() => MoveDraftColumnAsync(name, index)),
+            Reset = () => Run(ResetColumnDraftAsync),
+            Save = () => Run(SaveColumnEditorAsync),
+            Cancel = () => Run(CloseColumnEditorAsync)
+        };
+    }
+
+    private async Task OpenColumnEditorAsync()
+    {
+        if (!AllowColumnCustomization || AvailableColumns.Count == 0 || _showColumnEditor) return;
+        _columnDraft = new ColumnPreferences
+        {
+            VisibleColumns = _visibleColumns?.ToArray(),
+            Visibility = new(_columnVisibility, StringComparer.Ordinal),
+            Order = _columnOrder?.ToArray()
+        };
+        _draftResetWidths = false;
+        _columnError = null;
+        _showColumnEditor = true;
+        await InvokeAsync(StateHasChanged);
+        if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+    }
+
+    private Task CloseColumnEditorAsync()
+    {
+        if (_savingColumns) return Task.CompletedTask;
+        _showColumnEditor = false;
+        _columnEditor = null;
+        _columnDraft = null;
+        _draftResetWidths = false;
+        _columnError = null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private bool IsDraftColumnVisible(string name) =>
+        _columnDraft?.VisibleColumns == null || _columnDraft.VisibleColumns.Contains(name, StringComparer.Ordinal);
+
+    private Visibility GetDraftVisibility(string name) =>
+        _columnDraft?.Visibility is { } values && values.TryGetValue(name, out var visibility)
+            ? visibility : GetDefaultColumnVisibility(name);
+
+    private Task ToggleDraftColumnAsync(string name, bool visible)
+    {
+        if (_savingColumns || _columnDraft == null || !AvailableColumns.Any(column => column.Name == name)) return Task.CompletedTask;
+        _columnDraft.VisibleColumns = AvailableColumns.Where(column => column.Name == name ? visible : IsDraftColumnVisible(column.Name))
+            .Select(column => column.Name).ToArray();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task SetDraftVisibilityAsync(string name, Visibility visibility)
+    {
+        if (_savingColumns || _columnDraft == null || !Enum.IsDefined(visibility) || !AvailableColumns.Any(column => column.Name == name))
+            return Task.CompletedTask;
+        (_columnDraft.Visibility ??= new(StringComparer.Ordinal))[name] = visibility;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task MoveDraftColumnAsync(string name, int index)
+    {
+        if (_savingColumns || _columnDraft == null) return Task.CompletedTask;
+        var order = OrderColumns(_columnDraft.Order ?? DefaultColumnOrder).Select(column => column.Name).ToList();
+        if (index < 0 || index >= order.Count || !order.Remove(name)) return Task.CompletedTask;
+        order.Insert(index, name);
+        _columnDraft.Order = order.ToArray();
+        return RefreshColumnEditorAsync();
+    }
+
+    private async Task ResetColumnDraftAsync()
+    {
+        if (_savingColumns || _columnDraft == null) return;
+        _columnDraft.VisibleColumns = _defaultColumns?.ToArray() ?? AvailableColumns.Select(column => column.Name).ToArray();
+        _columnDraft.Visibility = new(StringComparer.Ordinal);
+        _columnDraft.Order = null;
+        _draftResetWidths = true;
+        if (OnColumnEditorReset.HasDelegate)
+            await OnColumnEditorReset.InvokeAsync(CreateColumnEditorContext());
+        await RefreshColumnEditorAsync();
+    }
+
+    private async Task SaveColumnEditorAsync()
+    {
+        if (_savingColumns || _columnDraft == null) return;
+        var draft = _columnDraft;
+        _savingColumns = true;
+        _columnError = null;
+        var storage = LocalStorage;
+        string? settingsKey = ColumnSettingsKey;
+        string? widthsKey = ColumnWidthsKey;
+        string? previousSettings = null;
+        string? previousWidths = null;
+        var previousColumns = _visibleColumns;
+        bool resetWidths = _draftResetWidths;
+        bool settingsWritten = false;
+        bool widthsWritten = false;
+        bool saved = false;
+        try
+        {
+            var visibility = draft.Visibility ?? new(StringComparer.Ordinal);
+            if (settingsKey != null && storage != null) previousSettings = await storage.GetValueAsync(settingsKey);
+            if (resetWidths && widthsKey != null && storage != null)
+            {
+                previousWidths = await storage.GetValueAsync(widthsKey);
+                await storage.SetValueAsync(widthsKey, "{}");
+                widthsWritten = true;
+            }
+            await PersistColumnsAsync(draft.VisibleColumns, visibility, draft.Order);
+            settingsWritten = settingsKey != null && storage != null;
+            await ColumnsChanged.InvokeAsync(draft.VisibleColumns ?? AvailableColumns.Select(column => column.Name).ToArray());
+            _visibleColumns = draft.VisibleColumns?.ToArray();
+            _columnOrder = draft.Order?.ToArray();
+            _columnVisibility.Clear();
+            foreach (var column in visibility) _columnVisibility[column.Key] = column.Value;
+            if (resetWidths) _columnWidths.Clear();
+            saved = true;
+        }
+        catch (Exception ex)
+        {
+            _visibleColumns = previousColumns;
+            if (settingsWritten && settingsKey != null && storage != null)
+            {
+                try { await storage.SetValueAsync(settingsKey, previousSettings); }
+                catch (Exception restoreError) { NotificationService?.ReportError(restoreError); }
+            }
+            if (widthsWritten && widthsKey != null && storage != null)
+            {
+                try { await storage.SetValueAsync(widthsKey, previousWidths); }
+                catch (Exception restoreError) { NotificationService?.ReportError(restoreError); }
+            }
+            _columnError = ex.Message;
+            NotificationService?.ReportError(ex);
+        }
+        finally
+        {
+            _savingColumns = false;
+            if (saved) await CloseColumnEditorAsync();
+            else await InvokeAsync(StateHasChanged);
+        }
+    }
+    private bool _columnsInitialized;
+    private bool _disposed;
+    private readonly Dictionary<string, RegisteredColumn> _registeredColumns = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Visibility> _columnVisibility = new(StringComparer.Ordinal);
+
+    private sealed record RegisteredColumn(RenderFragment? Content, Visibility Visibility);
+
+    private sealed class ColumnPreferences
+    {
+        public ColumnPreferences() { }
+        public string[]? VisibleColumns { get; set; }
+        public Dictionary<string, Visibility>? Visibility { get; set; }
+        public string[]? Order { get; set; }
+    }
+
+    private IReadOnlyList<GXTableColumn> AvailableColumns => ColumnOptions ??
+        (_sourceColumnNames ?? []).OfType<string>().Where(_registeredColumns.ContainsKey)
+            .Concat(_registeredColumns.Keys).Distinct(StringComparer.Ordinal).Select(name => new GXTableColumn(name, name)).ToArray();
+
+    private RenderFragment? PrepareColumnHeader()
+    {
+        if (HeaderContent == null) return null;
+        var content = HeaderContent(default!);
+        if (!AllowColumnCustomization && EffectiveColumnOrder == null) return content;
+        var cells = new GXTableCellOrder(content);
+        _sourceColumnNames = cells.Names;
+        return cells.Render(EffectiveColumnOrder);
+    }
+
+    private RenderFragment OrderedCells(RenderFragment content) => !AllowColumnCustomization && EffectiveColumnOrder == null ? content
+        : new GXTableCellOrder(content).Render(EffectiveColumnOrder, _sourceColumnNames);
+
+    private string[]? EffectiveColumnOrder => _columnOrder ?? DefaultColumnOrder;
+
+    private IReadOnlyList<GXTableColumn> OrderedColumns => OrderColumns(EffectiveColumnOrder);
+
+    private IReadOnlyList<GXTableColumn> OrderColumns(string[]? order) => AvailableColumns.OrderBy(column =>
+    {
+        int position = order == null ? -1 : Array.IndexOf(order, column.Name);
+        return position < 0 ? int.MaxValue : position;
+    }).ToArray();
+
+    private ValueTask<ItemsProviderResult<GXTableColumn>> GetColumnItems(GXItemsProviderRequest request)
+        => ValueTask.FromResult(new ItemsProviderResult<GXTableColumn>(OrderColumns((_columnDraft != null ? _columnDraft.Order : _columnOrder) ?? DefaultColumnOrder), AvailableColumns.Count));
+
+    private Task OnColumnMoved((GXTableColumn Item, int Index) moved) => MoveDraftColumnAsync(moved.Item.Name, moved.Index);
+
+    /// <summary>Moves a column to a zero-based position and persists its order when Save and an explicit table id are set.</summary>
+    public async Task MoveColumnAsync(string name, int index)
+    {
+        if (_savingColumns) return;
+        var order = OrderedColumns.Select(column => column.Name).ToList();
+        if (index < 0 || index >= order.Count || !order.Remove(name)) return;
+        order.Insert(index, name);
+        _savingColumns = true;
+        _columnError = null;
+        try
+        {
+            var updated = order.ToArray();
+            await PersistColumnsAsync(_visibleColumns, _columnVisibility, updated);
+            _columnOrder = updated;
+        }
+        catch (Exception ex) { _columnError = ex.Message; NotificationService?.ReportError(ex); }
+        finally
+        {
+            _savingColumns = false;
+            if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>Restores configured column selection, order, responsive visibility and widths.</summary>
+    public async Task ResetColumnsAsync()
+    {
+        if (_savingColumns) return;
+        _savingColumns = true;
+        _columnError = null;
+        bool widthsWritten = false;
+        try
+        {
+            var defaults = _defaultColumns?.ToArray() ?? AvailableColumns.Select(column => column.Name).ToArray();
+            await ColumnsChanged.InvokeAsync(defaults);
+            if (ColumnWidthsKey is string key && LocalStorage != null)
+            {
+                await LocalStorage.SetValueAsync(key, "{}");
+                widthsWritten = true;
+            }
+            await PersistColumnsAsync(defaults, new(StringComparer.Ordinal), null);
+            _visibleColumns = defaults;
+            _columnOrder = null;
+            _columnVisibility.Clear();
+            _columnWidths.Clear();
+        }
+        catch (Exception ex)
+        {
+            if (widthsWritten && ColumnWidthsKey is string key && LocalStorage != null)
+            {
+                try { await LocalStorage.SetValueAsync(key, System.Text.Json.JsonSerializer.Serialize(_columnWidths)); }
+                catch (Exception restoreError) { NotificationService?.ReportError(restoreError); }
+            }
+            _columnError = ex.Message;
+            NotificationService?.ReportError(ex);
+        }
+        finally
+        {
+            _savingColumns = false;
+            if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Visibility GetDefaultColumnVisibility(string name) =>
+        GetConfiguredVisibility(name, _registeredColumns.TryGetValue(name, out var column) ? column.Visibility : Visibility.All);
+
+    private Visibility GetConfiguredVisibility(string? name, Visibility fallback) => name != null &&
+        DefaultColumnVisibility?.TryGetValue(name, out var visibility) == true && Enum.IsDefined(visibility) ? visibility : fallback;
+
+    /// <summary>Registers a header using its stable Id or Name, including hidden headers.</summary>
+    public void RegisterColumn(string name, RenderFragment? content, Visibility visibility)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(name)) return;
+        bool changed = !_registeredColumns.TryGetValue(name, out var previous) || previous.Visibility != visibility;
+        _registeredColumns[name] = new(content, visibility);
+        if (changed && AllowColumnCustomization) _ = RefreshColumnEditorAsync();
+    }
+
+    /// <summary>Removes the customization entry when a header is removed.</summary>
+    public void UnregisterColumn(string name)
+    {
+        if (!_disposed && _registeredColumns.Remove(name) && AllowColumnCustomization) _ = RefreshColumnEditorAsync();
+    }
+
+    private Task RefreshColumnEditorAsync() => InvokeAsync(async () =>
+    {
+        if (_disposed) return;
+        if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+        StateHasChanged();
+    });
+
+    /// <summary>Returns the user's visibility override or the component's configured default.</summary>
+    public Visibility GetColumnVisibility(string? name, Visibility defaultValue) =>
+        name != null && _columnVisibility.TryGetValue(name, out var visibility) ? visibility : GetConfiguredVisibility(name, defaultValue);
+
+    private async Task PersistColumnsAsync(string[]? columns, Dictionary<string, Visibility> visibility, string[]? order)
+    {
+        if (ColumnSettingsKey is string key && LocalStorage != null)
+        {
+            await LocalStorage.SetValueAsync(key, System.Text.Json.JsonSerializer.Serialize(new ColumnPreferences
+            {
+                VisibleColumns = columns,
+                Visibility = visibility,
+                Order = order
+            }));
+        }
+    }
+
+    /// <summary>Changes responsive visibility for every cell with the matching column identifier.</summary>
+    public async Task SetColumnVisibilityAsync(string name, Visibility visibility)
+    {
+        if (_savingColumns || !Enum.IsDefined(visibility) || !AvailableColumns.Any(c => c.Name == name)) return;
+        _savingColumns = true;
+        _columnError = null;
+        try
+        {
+            var updated = new Dictionary<string, Visibility>(_columnVisibility, StringComparer.Ordinal) { [name] = visibility };
+            await PersistColumnsAsync(_visibleColumns, updated, _columnOrder);
+            _columnVisibility[name] = visibility;
+        }
+        catch (Exception ex)
+        {
+            _columnError = ex.Message;
+            NotificationService?.ReportError(ex);
+        }
+        finally
+        {
+            _savingColumns = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SortKey is string sortKey && LocalStorage != null)
+        {
+            try
+            {
+                string? json = await LocalStorage.GetValueAsync(sortKey);
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var sort = System.Text.Json.JsonSerializer.Deserialize<SortPreferences>(json);
+                    if (sort != null && !string.IsNullOrWhiteSpace(sort.OrderBy) && Enum.IsDefined(sort.SortMode))
+                    {
+                        OrderBy = sort.OrderBy;
+                        SortMode = sort.SortMode;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                NotificationService?.ReportError(ex);
+            }
+        }
+        if (ColumnWidthsKey is string key && LocalStorage != null)
+        {
+            try
+            {
+                string? json = await LocalStorage.GetValueAsync(key);
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var widths = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, double>>(json);
+                    if (widths != null)
+                    {
+                        foreach (var column in widths)
+                        {
+                            if (!string.IsNullOrWhiteSpace(column.Key) && double.IsFinite(column.Value) && column.Value > 0)
+                            {
+                                _columnWidths[column.Key] = column.Value;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                NotificationService?.ReportError(ex);
+            }
+        }
+        _parameterColumns = Columns;
+        _parameterDefaultColumns = DefaultColumns;
+        _defaultColumns = (Columns ?? DefaultColumns)?.ToArray();
+        _visibleColumns = Columns ?? DefaultColumns;
+        _columnsInitialized = true;
+        if (ColumnsProvider != null)
+        {
+            try { _visibleColumns = await ColumnsProvider(); }
+            catch (Exception ex)
+            {
+                _columnError = ex.Message;
+                NotificationService?.ReportError(ex);
+            }
+        }
+        if (ColumnSettingsKey is string settingsKey && LocalStorage != null)
+        {
+            try
+            {
+                string? json = await LocalStorage.GetValueAsync(settingsKey);
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var preferences = System.Text.Json.JsonSerializer.Deserialize<ColumnPreferences>(json);
+                    if (preferences != null)
+                    {
+                        _columnOrder = preferences.Order?.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.Ordinal).ToArray();
+                        if (preferences.VisibleColumns != null) _visibleColumns = preferences.VisibleColumns;
+                        if (preferences.Visibility != null)
+                        {
+                            foreach (var column in preferences.Visibility)
+                            {
+                                if (!string.IsNullOrWhiteSpace(column.Key) && Enum.IsDefined(column.Value))
+                                    _columnVisibility[column.Key] = column.Value;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _columnError = ex.Message;
+                NotificationService?.ReportError(ex);
+            }
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!AllowColumnCustomization)
+        {
+            _showColumnEditor = false;
+            _columnEditor = null;
+            _columnDraft = null;
+            _draftResetWidths = false;
+        }
+        // Re-rendering an owner with the same default must not discard a loaded or edited selection.
+        if (!ReferenceEquals(Columns, _parameterColumns))
+        {
+            _parameterColumns = Columns;
+            _defaultColumns = (Columns ?? DefaultColumns)?.ToArray();
+            _visibleColumns = Columns ?? DefaultColumns;
+        }
+        if (!ReferenceEquals(DefaultColumns, _parameterDefaultColumns))
+        {
+            // Personal selections loaded from storage or committed by the editor have their own array.
+            if (Columns == null && ReferenceEquals(_visibleColumns, _parameterDefaultColumns))
+                _visibleColumns = DefaultColumns;
+            _parameterDefaultColumns = DefaultColumns;
+            _defaultColumns = (Columns ?? DefaultColumns)?.ToArray();
+        }
+    }
+
+    /// <summary>Changes a column, retaining the previous selection if saving fails.</summary>
+    public async Task ToggleColumnAsync(string name, bool visible)
+    {
+        var available = AvailableColumns;
+        if (_savingColumns || !available.Any(c => c.Name == name)) return;
+        var selected = available.Where(c => c.Name == name ? visible : !((IGXTable)this).IsHidden(c.Name))
+            .Select(c => c.Name).ToArray();
+        _savingColumns = true;
+        _columnError = null;
+        try
+        {
+            await ColumnsChanged.InvokeAsync(selected);
+            await PersistColumnsAsync(selected, _columnVisibility, _columnOrder);
+            _visibleColumns = selected;
+        }
+        catch (Exception ex)
+        {
+            _columnError = ex.Message;
+            NotificationService?.ReportError(ex);
+        }
+        finally
+        {
+            _savingColumns = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     /// <summary>
     /// Gets or sets whether table cells can render editable content.
     /// </summary>
     [Parameter]
     public bool CanEdit { get; set; } = true;
+
+    /// <summary>Gets or sets the stable row identifier. Defaults to the item's Id property.</summary>
+    [Parameter]
+    public Func<TItem, object>? ItemKey { get; set; }
+
+    /// <summary>Gets or sets the row edit URL used by cells with EditLink enabled.</summary>
+    [Parameter]
+    public Func<TItem, string>? EditLink { get; set; }
+
+    private object? GetItemKey(TItem? item) => item == null ? null :
+        ItemKey != null ? ItemKey(item) : item.GetType().GetProperty("Id")?.GetValue(item);
 
     /// <summary>
     /// Gets or sets whether row selection is disabled, single, or multiple.
@@ -795,8 +1488,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     {
         if (Items != null && items != null && items.Any())
         {
-            PropertyInfo? pi = typeof(TItem).GetProperty("Id");
-            if (pi != null)
+            if (ItemKey != null || typeof(TItem).GetProperty("Id") != null)
             {
                 bool updated = false;
                 List<TItem> tmp = new List<TItem>(Items);
@@ -804,11 +1496,13 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 {
                     foreach (var it in tmp)
                     {
-                        object? value = pi.GetValue(removed);
-                        if (value != null && value.Equals(pi.GetValue(it)))
+                        object? value = GetItemKey(removed);
+                        if (value != null && value.Equals(GetItemKey(it)))
                         {
                             --TotalCount;
-                            _selectedItems.Remove(it!);
+                            _selectedItems.Remove(value);
+                            AnyChecked = _selectedItems.Any();
+                            if (Compare(Active, it)) Active = default;
                             tmp.Remove(it);
                             updated = true;
                             break;
@@ -845,7 +1539,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
             ShowAllData ? 0 : PageSize,
             ShowAllUserData,
             Removed,
-            OrderBy,
+            SortMode == SortMode.None ? null : OrderBy,
             SortMode == SortMode.Descending,
             null,
             cancellationToken);
@@ -880,7 +1574,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 {
                     continue;
                 }
-                object? value = it.GetType().GetProperty("Id")?.GetValue(it);
+                object? value = GetItemKey(it);
                 if (value != null)
                 {
                     _selectedItems.Add(value, it);
@@ -949,11 +1643,27 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
     public async Task NotificationShortChange()
     {
+        if (SortKey is string key && LocalStorage != null && !string.IsNullOrWhiteSpace(OrderBy) && Enum.IsDefined(SortMode))
+        {
+            try
+            {
+                await LocalStorage.SetValueAsync(key, System.Text.Json.JsonSerializer.Serialize(new SortPreferences
+                {
+                    OrderBy = OrderBy,
+                    SortMode = SortMode
+                }));
+            }
+            catch (Exception ex)
+            {
+                NotificationService?.ReportError(ex);
+            }
+        }
         if (SortChanged.HasDelegate && !string.IsNullOrEmpty(OrderBy))
         {
             await SortChanged.InvokeAsync((SortMode, OrderBy));
         }
-        await InvokeAsync(StateHasChanged);
+        CurrentPage = 0;
+        await RefreshDataAsync(true);
     }
 
     /// <summary>
@@ -964,11 +1674,11 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         object? current = null, value = null;
         if (active != null)
         {
-            value = active.GetType().GetProperty("Id")?.GetValue(active);
+            value = GetItemKey(active);
         }
         if (Active != null)
         {
-            current = Active.GetType().GetProperty("Id")?.GetValue(Active);
+            current = GetItemKey(Active);
         }
         return value != null && value.Equals(current) ? "table-info" : "table-striped";
     }
@@ -1061,7 +1771,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         bool ret = false;
         if (selected != null)
         {
-            object? value = selected.GetType().GetProperty("Id")?.GetValue(selected);
+            object? value = GetItemKey(selected);
             if (value != null)
             {
                 ret = _selectedItems.ContainsKey(value);
@@ -1076,17 +1786,16 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
 
     /// <summary>
-    /// Compares two table items by their nonnull Id property values.
+    /// Compares two table items by their nonnull row identifiers.
     /// </summary>
-    private static bool Compare(TItem? item1, TItem? item2)
+    private bool Compare(TItem? item1, TItem? item2)
     {
         if (item1 == null || item2 == null)
         {
             return false;
         }
-        var prop = item1.GetType().GetProperty("Id");
-        object? value1 = prop?.GetValue(item1);
-        object? value2 = prop?.GetValue(item2);
+        object? value1 = GetItemKey(item1);
+        object? value2 = GetItemKey(item2);
         return value1 == null ? false : value1.Equals(value2);
     }
 
@@ -1100,7 +1809,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         {
             foreach (var it in Items)
             {
-                object? value = it?.GetType().GetProperty("Id")?.GetValue(it);
+                object? value = GetItemKey(it);
                 if (value != null)
                 {
                     if (!select && _selectedItems.ContainsKey(value))
@@ -1125,7 +1834,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     {
         if (selected != null)
         {
-            object? value = selected.GetType().GetProperty("Id")?.GetValue(selected);
+            object? value = GetItemKey(selected);
             if (value != null)
             {
                 if (!select && _selectedItems.ContainsKey(value))
@@ -1159,11 +1868,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <returns>True, if table column is hidden.</returns>
     bool IGXTable.IsHidden(string? name)
     {
-        if (string.IsNullOrEmpty(name) || Columns == null || !Columns.Any())
+        var visibleColumns = _columnsInitialized ? _visibleColumns : Columns ?? DefaultColumns;
+        if (string.IsNullOrEmpty(name) || visibleColumns == null)
         {
             return false;
         }
-        return !Columns.Contains(name);
+        return !visibleColumns.Contains(name, StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -1171,6 +1881,11 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (ColumnWidthsKey != null && Services.GetService<IJSRuntime>() is IJSRuntime js)
+        {
+            _widthInitialization ??= InitializeColumnResizingAsync(js);
+            await _widthInitialization;
+        }
         if (firstRender)
         {
             await RefreshDataAsync(true);
@@ -1182,6 +1897,36 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// </summary>
     public void Dispose()
     {
+        _disposed = true;
+        _showColumnEditor = false;
+        _columnDraft = null;
+        _columnEditor = null;
+        _draftResetWidths = false;
         _cts?.Cancel();
+    }
+
+    private async Task InitializeColumnResizingAsync(IJSRuntime js)
+    {
+        _widthModule = await js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Table/widths.js");
+        _widthReference = DotNetObjectReference.Create(this);
+        _widthHandler = await _widthModule.InvokeAsync<IJSObjectReference>("initialize", Id, _widthReference);
+    }
+
+    /// <summary>Removes browser resize listeners and releases interop references.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        try
+        {
+            if (_widthInitialization != null) await _widthInitialization;
+            if (_widthHandler != null)
+            {
+                await _widthHandler.InvokeVoidAsync("dispose");
+                await _widthHandler.DisposeAsync();
+            }
+            if (_widthModule != null) await _widthModule.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+        finally { _widthReference?.Dispose(); }
     }
 }

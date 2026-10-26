@@ -104,6 +104,75 @@ Use `MarkdownView` to display Markdown stored in your application or received fr
 }
 ```
 
+### Display an RSS or Atom feed
+
+`GXFeedViewer` uses `System.ServiceModel.Syndication.SyndicationFeed` to read RSS and Atom feeds.
+Register an `HttpClient` in the application's dependency injection services if one is not already registered:
+
+```csharp
+builder.Services.AddScoped(_ => new HttpClient());
+```
+
+```razor
+<GXFeedViewer Url="https://gurux.fi/rss.xml"
+              MaxItems="10"
+              ShowImages="true"
+              ShowDescription="true" />
+```
+
+The defaults are ten entries with images and descriptions enabled. Entries keep the feed's order.
+Images are read from image enclosures and Media RSS content or thumbnails. Descriptions are displayed as
+plain text. Changing `Url` loads the new feed and cancels any previous request. Loading failures are shown
+in the component. In Blazor WebAssembly, the feed server must allow cross-origin requests (CORS), or the
+application must provide a server endpoint that fetches the feed.
+
+### Display an OpenStreetMap map
+
+`GXMap` uses the bundled Leaflet 1.9.4 JavaScript and CSS files, with no Blazor wrapper or additional
+NuGet dependencies. Assets load automatically on the first interactive render. OpenStreetMap tiles
+require an internet connection. The application must enable Blazor interactivity.
+
+```razor
+<GXMap Latitude="61.4978"
+       Longitude="23.7610"
+       Zoom="15"
+       Markers="@markers" />
+
+@code {
+    private readonly List<GXMapMarker> markers =
+    [
+        new() { Latitude = 61.4978, Longitude = 23.7610,
+                Title = "Tampere", Url = "https://www.tampere.fi/" }
+    ];
+}
+```
+
+Clicking a marker opens its absolute HTTP/HTTPS URL in a new tab. A marker without a valid URL
+is displayed without navigation. `Height` defaults to `400px`; `Label` sets the accessible map name.
+Coordinates, zoom and markers are updated when parameters change and the component renders.
+Unrelated renders preserve the user's current pan and zoom. Multiple maps can appear on the same page.
+The component removes map resources when disposed. Leaflet's license is included in `wwwroot/leaflet/LICENSE`.
+Keep the displayed OpenStreetMap attribution and follow the
+[OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
+
+### Use a same-origin HTTP proxy
+
+Both `GXFeedViewer` and `GXMap` accept an optional `ProxyUrl` parameter. The endpoint must accept GET
+requests with the original absolute URL in the `url` query parameter and return the original content type.
+Relative proxy paths resolve against the application's base address. GXFeedViewer also proxies displayed
+images; GXMap proxies map tiles while keeping its attribution and external marker navigation.
+
+```razor
+<GXFeedViewer Url="https://gurux.fi/rss.xml" ProxyUrl="api/HttpProxy" />
+<GXMap Latitude="61.4978" Longitude="23.7610" Zoom="15"
+       Markers="@markers" ProxyUrl="api/HttpProxy" />
+```
+
+The AMI server provides this endpoint with configurable allowed origins, caching and request limits.
+When using a different proxy, return an `X-Gurux-Source-Url` header containing the final upstream URL
+if redirects change the base used for relative feed links. Cookie authentication is supported by normal
+same-origin tile/image requests. Omitting `ProxyUrl` keeps direct requests.
+
 ## License
 
 This project is licensed under the [GNU General Public License v2.0](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html) only.

@@ -1,0 +1,94 @@
+@namespace Gurux.UI.Components
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="_element" class="gx-map" style="height:@Height;width:100%;" aria-label="@Label"></div>
+
+@code {
+    /// <summary>Gets or sets the initial or updated center latitude in degrees.</summary>
+    [Parameter] public double Latitude { get; set; }
+
+    /// <summary>Gets or sets the initial or updated center longitude in degrees.</summary>
+    [Parameter] public double Longitude { get; set; }
+
+    /// <summary>Gets or sets the zoom level, from zero to nineteen.</summary>
+    [Parameter] public int Zoom { get; set; } = 15;
+
+    /// <summary>Gets or sets the markers. Changes are applied when the component renders.</summary>
+    [Parameter] public IEnumerable<GXMapMarker>? Markers { get; set; }
+
+    /// <summary>Gets or sets the map height as a CSS length. Defaults to 400px.</summary>
+    [Parameter] public string Height { get; set; } = "400px";
+
+    /// <summary>Gets or sets the accessible map label.</summary>
+    [Parameter] public string Label { get; set; } = "Map";
+
+    /// <summary>Optional same-origin GET endpoint accepting a tile target in its url query parameter.</summary>
+    [Parameter] public string? ProxyUrl { get; set; }
+
+    private ElementReference _element;
+    private IJSObjectReference? _module;
+    private GXMapMarker[] _markers = [];
+    private bool _disposed;
+
+    /// <summary>Validates the view and snapshots the markers for JavaScript serialization.</summary>
+    protected override void OnParametersSet()
+    {
+        ValidateCoordinates(Latitude, Longitude);
+        if (Zoom is < 0 or > 19)
+            throw new ArgumentOutOfRangeException(nameof(Zoom), "Zoom must be between 0 and 19.");
+        _markers = Markers?.Select(marker => new GXMapMarker
+        {
+            Latitude = marker.Latitude, Longitude = marker.Longitude, Title = marker.Title, Url = marker.Url
+        }).ToArray() ?? [];
+        foreach (var marker in _markers)
+            ValidateCoordinates(marker.Latitude, marker.Longitude);
+    }
+
+    private static void ValidateCoordinates(double latitude, double longitude)
+    {
+        if (!double.IsFinite(latitude) || latitude is < -90 or > 90)
+            throw new ArgumentOutOfRangeException(nameof(Latitude));
+        if (!double.IsFinite(longitude) || longitude is < -180 or > 180)
+            throw new ArgumentOutOfRangeException(nameof(Longitude));
+    }
+
+    /// <summary>Initializes or updates Leaflet after the map container is rendered.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed) return;
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/GXMap.razor.js");
+            if (!_disposed)
+                await _module.InvokeVoidAsync("update", _element, Latitude, Longitude, Zoom, _markers, ProxyUrl);
+        }
+        catch (JSDisconnectedException) { }
+        finally
+        {
+            if (_disposed && _module is not null)
+                await ReleaseModuleAsync();
+        }
+    }
+
+    private async ValueTask ReleaseModuleAsync()
+    {
+        var module = _module;
+        _module = null;
+        if (module is null) return;
+        try
+        {
+            await module.InvokeVoidAsync("dispose", _element);
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    /// <summary>Removes the map, observers and JavaScript module reference.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        await ReleaseModuleAsync();
+    }
+}

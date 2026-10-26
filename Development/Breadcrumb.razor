@@ -1,3 +1,35 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
 
 @*
 <summary>
@@ -66,6 +98,12 @@ Renders supplied breadcrumbs or generates a localized trail from the current URL
     [Parameter] public Dictionary<string, string>? SegmentLabelMap { get; set; }
 
     /// <summary>
+    /// Gets or sets URL segments omitted from generated labels, matched without case.
+    /// Hidden segments are retained in breadcrumb link destinations.
+    /// </summary>
+    [Parameter] public IEnumerable<string>? HiddenSegments { get; set; }
+
+    /// <summary>
     /// Gets explicit breadcrumb items when provided, or generates them from the current URL.
     /// </summary>
     private IReadOnlyList<BreadcrumbItem> ItemsToRender => Items is not null && Items.Any()
@@ -96,12 +134,17 @@ Renders supplied breadcrumbs or generates a localized trail from the current URL
         }
 
         var segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var hidden = new HashSet<string>(HiddenSegments ?? [], StringComparer.OrdinalIgnoreCase);
 
         var acc = "";
         for (int i = 0; i < segments.Length; i++)
         {
             var seg = segments[i];
             acc += "/" + seg;
+            if (hidden.Contains(Uri.UnescapeDataString(seg)))
+            {
+                continue;
+            }
             var isLast = i == segments.Length - 1;
             var href = isLast ? null : (Nav.BaseUri.TrimEnd('/') + acc);
             //Guids are not localized even if they look like a normal segment
@@ -117,6 +160,11 @@ Renders supplied breadcrumbs or generates a localized trail from the current URL
             }
 
             list.Add(new BreadcrumbItem(label, href, isLast, !isGuid));
+        }
+
+        if (hidden.Count != 0 && segments.Length != 0)
+        {
+            list[^1] = list[^1] with { Href = null, Active = true };
         }
 
         Update = true;

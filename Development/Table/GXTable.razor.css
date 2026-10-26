@@ -14,6 +14,18 @@
     margin-left: auto;
 }
 
+.gx-table-configuration-cell {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.gx-table-configuration-button svg {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
 .icon-move {
     width: 24px;
     height: 24px;

@@ -37,8 +37,6 @@ Displays a movable, optionally resizable dialog and can persist its position and
 *@
 
 @using Microsoft.AspNetCore.Components.Web
-@inject IGXLocalStorage LocalStorage
-@inject Microsoft.JSInterop.IJSRuntime JS
 @inject IServiceProvider Services
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
@@ -64,6 +62,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
                 @ChildContent
             </div>
             <div class="modal-footer">
+                @FooterContent
                 @if (!string.IsNullOrEmpty(OkButtonTitle))
                 {
                     <button type="button" class="btn btn-primary"
@@ -96,11 +95,22 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// </summary>
     [Parameter] public RenderFragment? HeaderContent { get; set; }
 
+    /// <summary>Gets or sets additional actions rendered before the standard dialog buttons.</summary>
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+
     /// <summary>
     /// Gets or sets whether the dialog can be resized by dragging its bottom-right corner.
     /// </summary>
     [Parameter]
     public bool Resizable { get; set; }
+
+    /// <summary>Moves focus into the dialog, traps Tab navigation, and restores focus when it closes.</summary>
+    [Parameter]
+    public bool ManageFocus { get; set; }
+
+    private IGXLocalStorage? LocalStorage => Services.GetService(typeof(IGXLocalStorage)) as IGXLocalStorage;
+    private IJSRuntime? JS => Services.GetService(typeof(IJSRuntime)) as IJSRuntime;
+    private string? _focusKey;
 
     /// <summary>
     /// Gets or sets whether the dialog's position and size are restored from and saved to browser local storage.
@@ -178,7 +188,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// <summary>
     /// Gets the local storage key for the dialog layout, or null when layout persistence is disabled.
     /// </summary>
-    private string? StorageKey => Save
+    private string? StorageKey => Save && LocalStorage != null && JS != null
         ? "Dialog:" + Uri.EscapeDataString(ElementId) + ":Layout" : null;
 
     /// <summary>
@@ -186,6 +196,18 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && ManageFocus && JS is IJSRuntime runtime)
+        {
+            try
+            {
+                _module ??= await runtime.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Dialog.razor.js");
+                if (_disposed) return;
+                _focusKey = Guid.NewGuid().ToString("N");
+                await _module.InvokeVoidAsync("openDialog", _dialog, _focusKey);
+            }
+            catch (JSDisconnectedException) { }
+            catch (Exception ex) { ReportStorageError(ex); }
+        }
         string? key = StorageKey;
         if (_disposed || key == _loadedKey)
         {
@@ -199,12 +221,14 @@ Displays a movable, optionally resizable dialog and can persist its position and
             {
                 await _module.InvokeVoidAsync("disconnect", _dialog);
             }
-            if (key == null)
+            var storage = LocalStorage;
+            var js = JS;
+            if (key == null || storage == null || js == null)
             {
                 return;
             }
             double[]? layout = null;
-            string? json = await LocalStorage.GetValueAsync(key);
+            string? json = await storage.GetValueAsync(key);
             if (!string.IsNullOrWhiteSpace(json))
             {
                 try { layout = System.Text.Json.JsonSerializer.Deserialize<double[]>(json); }
@@ -223,7 +247,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
                 _offsetX = layout[0];
                 _offsetY = layout[1];
             }
-            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Dialog.razor.js");
+            _module ??= await js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Dialog.razor.js");
             if (_disposed)
             {
                 return;
@@ -261,7 +285,8 @@ Displays a movable, optionally resizable dialog and can persist its position and
     private async Task SaveLayoutAsync()
     {
         string? key = StorageKey;
-        if (_disposed || !_ready || key == null || key != _loadedKey)
+        var storage = LocalStorage;
+        if (_disposed || !_ready || key == null || key != _loadedKey || storage == null)
         {
             return;
         }
@@ -273,7 +298,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
                 _width = size[0];
                 _height = size[1];
             }
-            await LocalStorage.SetValueAsync(key, System.Text.Json.JsonSerializer.Serialize(
+            await storage.SetValueAsync(key, System.Text.Json.JsonSerializer.Serialize(
                 new[] { _offsetX, _offsetY, _width, _height }));
         }
         catch (JSDisconnectedException) { }
@@ -303,6 +328,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
         {
             if (_module != null)
             {
+                if (_focusKey != null) await _module.InvokeVoidAsync("closeDialog", _focusKey);
                 await _module.InvokeVoidAsync("disconnect", _dialog);
                 await _module.DisposeAsync();
             }

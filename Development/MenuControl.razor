@@ -32,36 +32,142 @@
 *@
 @*
 <summary>
-Renders registered menu commands with configurable right and bottom alignment.
+Renders command buttons or a dropdown with configurable right and bottom alignment.
 </summary>
 *@
 
 @using System.Diagnostics
 @using Microsoft.Extensions.Logging
 @inject ILogger<MenuControl> Logger
+@implements IDisposable
 
 <CascadingValue Value="this">
-    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "btn-group")" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())">
-        @foreach (MenuItem it in Items)
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Dropdown ? (Submenu ? "btn-group gx-menu-control gx-menu-submenu" : "btn-group gx-menu-control") : "btn-group")" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(Submenu && _isOpen)">
+        @if (Dropdown)
         {
-            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" class="@it.CssClass" disabled="@it.ReadOnly" style="@GetButtonStyle(it)" onclick=@it.OnClick>
-                @if (!string.IsNullOrEmpty(it.Image))
+            <button @ref="_toggle" type="button" class="nav-link btn btn-link gx-menu-toggle" disabled="@ReadOnly"
+                    aria-expanded="@(_isOpen ? "true" : "false")" aria-controls="@_popupId" @onclick="Toggle">
+                @if (!string.IsNullOrEmpty(Icon))
                 {
-                    <Image Value="@it.Image"></Image>
+                    <Image Id="@Icon" />
                 }
-                else if (!string.IsNullOrEmpty(it.Id))
-                {
-                    <Image Id="@it.Id"></Image>
-                }
-                &nbsp;
-                <LocalizedText Value="@it.Text" />
+                <LocalizedText Value="@Text" />
+                <span aria-hidden="true">▾</span>
             </button>
+            @if (_isOpen)
+            {
+                @if (!Submenu)
+                {
+                    <button type="button" class="gx-menu-dismiss" tabindex="-1" aria-label="Close menu" @onclick="Close" />
+                }
+                <div id="@_popupId" class="gx-menu-popup @(Submenu ? "gx-menu-popup-nested" : null) @(RightCorner ? "gx-menu-popup-right" : null) @(Bottom ? "gx-menu-popup-above" : null)">
+                    @CommandButtons
+                </div>
+            }
+        }
+        else
+        {
+            @CommandButtons
         }
     </div>
     @ChildContent
 </CascadingValue>
 
 @code {
+    private RenderFragment CommandButtons => @<text>
+        @foreach (MenuItem it in Items)
+        {
+            @if (it.IsSeparator)
+            {
+                <hr class="gx-menu-separator" role="separator" />
+            }
+            else if (it.Children is { Count: > 0 })
+            {
+                <MenuControl @key="it" Dropdown="true" Submenu="true" Text="@it.Text" Icon="@it.Id"
+                             ReadOnly="@(ReadOnly || it.ReadOnly)" MenuItems="@it.Children" OnSelected="CloseBranchAsync" />
+            }
+            else
+            {
+            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" class="@it.CssClass" disabled="@(ReadOnly || it.ReadOnly)" style="@GetButtonStyle(it)" @onclick="() => SelectAsync(it)">
+                @if (!string.IsNullOrEmpty(it.Image))
+                {
+                    <Image Value="@it.Image" />
+                }
+                else if (!string.IsNullOrEmpty(it.Id))
+                {
+                    <Image Id="@it.Id" />
+                }
+                &nbsp;
+                <LocalizedText Value="@it.Text" />
+            </button>
+            }
+        }
+    </text>;
+
+    /// <summary>Renders a labelled dropdown instead of a row of command buttons.</summary>
+    [Parameter]
+    public bool Dropdown { get; set; }
+
+    /// <summary>Expands inside a parent popup, using the parent's outside-click dismissal.</summary>
+    [Parameter]
+    public bool Submenu { get; set; }
+
+    /// <summary>Notifies an enclosing menu when a descendant command is selected.</summary>
+    [Parameter]
+    public EventCallback OnSelected { get; set; }
+
+    /// <summary>Resource key or text displayed on the dropdown toggle.</summary>
+    [Parameter]
+    public string? Text { get; set; }
+
+    /// <summary>Optional resource icon displayed on the dropdown toggle.</summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>Disables the toggle and all commands in this control.</summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    private readonly string _popupId = $"gx-menu-{Guid.NewGuid():N}";
+    private ElementReference _toggle;
+    private bool _isOpen;
+    private bool _disposed;
+
+    private void Toggle()
+    {
+        if (!ReadOnly)
+        {
+            _isOpen = !_isOpen;
+        }
+    }
+
+    private void Close() => _isOpen = false;
+
+    private async Task CloseBranchAsync()
+    {
+        Close();
+        await OnSelected.InvokeAsync();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs args)
+    {
+        if (Dropdown && _isOpen && args.Key == "Escape")
+        {
+            Close();
+            await _toggle.FocusAsync(preventScroll: true);
+        }
+    }
+
+    private async Task SelectAsync(MenuItem item)
+    {
+        if (ReadOnly || item.ReadOnly || item.IsSeparator)
+        {
+            return;
+        }
+        await CloseBranchAsync();
+        await item.OnClick.InvokeAsync();
+    }
+
     /// <summary>
     /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
@@ -117,12 +223,13 @@ Renders registered menu commands with configurable right and bottom alignment.
     }
 
     /// <summary>
-    /// Gets or sets menu items registered before the component is initialized.
+    /// Gets or sets commands supplied as data, in addition to declarative child items.
     /// </summary>
     [Parameter]
     public List<MenuItem>? MenuItems { get; set; }
 
-    List<MenuItem> Items = new List<MenuItem>();
+    private readonly List<MenuItem> _childItems = new();
+    private IEnumerable<MenuItem> Items => (MenuItems ?? Enumerable.Empty<MenuItem>()).Concat(_childItems);
 
     /// <summary>
     /// Registers a child menu item with the containing menu.
@@ -130,19 +237,34 @@ Renders registered menu commands with configurable right and bottom alignment.
     /// <param name="item">Menu item</param>
     internal void AddMenuItem(MenuItem item)
     {
-        Items.Add(item);
+        _childItems.Add(item);
         InvokeAsync(StateHasChanged);
     }
 
-    /// <summary>
-    /// Registers any menu items supplied before initialization and requests rendering.
-    /// </summary>
-    protected override void OnInitialized()
+    /// <summary>Unregisters a declarative command when its component is removed.</summary>
+    internal void RemoveMenuItem(MenuItem item)
     {
-        if (MenuItems != null && MenuItems.Count != 0)
+        if (_childItems.Remove(item) && !_disposed)
         {
-            Items.AddRange(MenuItems);
-            InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>Stops child removal notifications from scheduling renders during disposal.</summary>
+    public void Dispose()
+    {
+        _disposed = true;
+        _childItems.Clear();
+    }
+
+    /// <summary>
+    /// Closes the popup if its toggle becomes disabled or the control becomes flat.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        if (ReadOnly || !Dropdown)
+        {
+            Close();
         }
     }
 }

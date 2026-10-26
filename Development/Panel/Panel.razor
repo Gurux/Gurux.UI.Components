@@ -22,7 +22,7 @@ Arranges child panels around a draggable splitter and persists their resized dim
                 @Items[0].ChildContent
             }
         </div>
-        <div id="verticalDivider">&nbsp;</div>
+        <div id="verticalDivider" title="Drag to resize panels"></div>
         <div @attributes="GetItemAttributes(1)" id="rightDiv" class="@GetItemClass(1)" style="@GetStyle(1)">
             @if (Items?.Count > 1)
             {

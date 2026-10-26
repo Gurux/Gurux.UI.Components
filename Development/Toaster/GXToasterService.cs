@@ -62,10 +62,23 @@ namespace Gurux.UI.Component.Toaster
             }
         }
 
-        /// <summary>
-        /// Gets or sets the toast count at which adding a message removes the oldest stored message.
-        /// </summary>
-        public int MaxCount { get; set; }
+        private int _maxCount = 20;
+
+        /// <summary>Gets or sets the positive display limit, removing the oldest excess messages immediately.</summary>
+        public int MaxCount
+        {
+            get => _maxCount;
+            set
+            {
+                ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+                _maxCount = value;
+                if (_toastList.Count > value)
+                {
+                    _toastList.RemoveRange(0, _toastList.Count - value);
+                    ToasterChanged?.Invoke(this, EventArgs.Empty);
+                }
+            }
+        }
 
         /// <summary>
         /// Creates a toaster service with a stored-message limit of twenty and a one-second expiration timer.
@@ -108,7 +121,7 @@ namespace Gurux.UI.Component.Toaster
             {
                 return;
             }
-            if (MaxCount == _toastList.Count)
+            while (_toastList.Count >= MaxCount)
             {
                 //Remove oldest item when toater is full.
                 Remove(_toastList.First());

@@ -46,9 +46,9 @@ Renders a responsive table cell with editable content or guarded link navigation
 @if (!_hidden)
 {
     <td style="@CssStyle" class="@GetCssClass()" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)">
-        @if (Parent != null && Parent.CanEdit)
+        @if (Parent != null && Parent.CanEdit && !string.IsNullOrEmpty(EffectiveLink))
         {
-            <a href="@Link" onclick="@(() => OnSelect())">
+            <a href="@EffectiveLink" @onclick="OnSelect" @onclick:preventDefault="true">
                 @ChildContent
             </a>
         }
@@ -95,6 +95,15 @@ Renders a responsive table cell with editable content or guarded link navigation
     [Parameter]
     public string? Link { get; set; }
 
+    /// <summary>Gets or sets whether this cell uses the containing row's edit link. An explicit Link takes precedence.</summary>
+    [Parameter]
+    public bool EditLink { get; set; }
+
+    [CascadingParameter]
+    private GXTableRowContext? Row { get; set; }
+
+    private string? EffectiveLink => Link ?? (EditLink ? Row?.EditLink : null);
+
     /// <summary>
     /// Gets or sets the value passed to the parent table's cell selection callback.
     /// </summary>
@@ -138,14 +147,14 @@ Renders a responsive table cell with editable content or guarded link navigation
     /// <summary>
     /// Is hidden.
     /// </summary>
-    bool _hidden;
+    bool _hidden => Parent?.IsHidden(Id) == true;
 
     /// <summary>
     /// Combines the cell's captured CSS classes with its responsive and print visibility classes.
     /// </summary>
     private string? GetCssClass()
     {
-        return Fh.GetCssClass(Visibility, CssClass);
+        return Fh.GetCssClass(Parent?.GetColumnVisibility(Id, Visibility) ?? Visibility, CssClass);
     }
 
     /// <summary>
@@ -159,18 +168,20 @@ Renders a responsive table cell with editable content or guarded link navigation
     /// </summary>
     private async Task OnSelect()
     {
-        if (Target != null)
+        var target = Target ?? (EditLink ? Row?.Item : null);
+        if (target != null)
         {
             if (Parent != null)
             {
-                await Parent.SelectCell(Target);
+                await Parent.SelectCell(target);
             }
         }
-        if (!string.IsNullOrEmpty(Link))
+        var link = EffectiveLink;
+        if (CanEdit && !string.IsNullOrEmpty(link))
         {
-            if (NavigationGuardService != null && await NavigationGuardService.CanNavigateAsync(NavigationManager.Uri))
+            if (NavigationGuardService == null || await NavigationGuardService.CanNavigateAsync(NavigationManager.Uri))
             {
-                NavigationManager.NavigateTo(Link);
+                NavigationManager.NavigateTo(link);
             }
         }
     }
@@ -184,7 +195,6 @@ Renders a responsive table cell with editable content or guarded link navigation
         {
             throw new ArgumentNullException(nameof(Parent), "Th must exist within a GXTable");
         }
-        _hidden = Parent.IsHidden(Id);
         base.OnInitialized();
         NavigationGuardService = Services.GetService<IGXNavigationGuardService>();
     }

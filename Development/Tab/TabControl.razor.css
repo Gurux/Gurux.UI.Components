@@ -1,0 +1,13 @@
+.gx-sticky-tabs {
+    position: sticky;
+    top: var(--gx-tab-header-top, 0);
+    z-index: 10;
+    flex-shrink: 0;
+    background-color: var(--bs-body-bg, #fff);
+}
+
+@media print {
+    .gx-sticky-tabs {
+        position: static;
+    }
+}

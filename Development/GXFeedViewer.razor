@@ -1,0 +1,200 @@
+@namespace Gurux.UI.Components
+@using System.Net
+@using System.ServiceModel.Syndication
+@using System.Xml
+@using System.Xml.Linq
+@using System.Text.RegularExpressions
+@implements IDisposable
+@inject HttpClient Http
+
+<div class="gx-feed-viewer" aria-busy="@_loading.ToString().ToLowerInvariant()">
+    @if (_loading)
+    {
+        <p role="status">Loading feed...</p>
+    }
+    else if (_error)
+    {
+        <p role="alert">Unable to load the feed.</p>
+    }
+    else
+    {
+        <ul class="list-unstyled">
+            @foreach (var item in _items.Take(Math.Max(0, MaxItems)))
+            {
+                <li class="mb-3">
+                    <article>
+                        <h3>
+                            @if (GetLink(item) is { } link)
+                            {
+                                <a href="@link">@item.Title?.Text</a>
+                            }
+                            else
+                            {
+                                @item.Title?.Text
+                            }
+                        </h3>
+                        @if (ShowImages && GetImage(item) is { } image)
+                        {
+                            <img class="img-fluid" src="@ProxyRequestUrl(image)" alt="" loading="lazy" />
+                        }
+                        @if (ShowDescription)
+                        {
+                            <p>@GetDescription(item)</p>
+                        }
+                    </article>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    /// <summary>Gets or sets the absolute HTTP or HTTPS URL of an RSS or Atom feed.</summary>
+    [Parameter] public string? Url { get; set; }
+
+    /// <summary>Optional same-origin GET endpoint accepting the target in its url query parameter.</summary>
+    [Parameter] public string? ProxyUrl { get; set; }
+
+    /// <summary>Gets or sets the maximum number of entries to display. Defaults to ten.</summary>
+    [Parameter] public int MaxItems { get; set; } = 10;
+
+    /// <summary>Gets or sets whether enclosure and media images are displayed.</summary>
+    [Parameter] public bool ShowImages { get; set; } = true;
+
+    /// <summary>Gets or sets whether entry summaries are displayed as plain text.</summary>
+    [Parameter] public bool ShowDescription { get; set; } = true;
+
+    private IReadOnlyList<SyndicationItem> _items = Array.Empty<SyndicationItem>();
+    private string? _loadedUrl;
+    private string? _loadedProxyUrl;
+    private Uri? _baseUri;
+    private CancellationTokenSource? _request;
+    private bool _loading;
+    private bool _error;
+
+    /// <summary>Loads the feed when its URL changes, canceling any previous request.</summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.Equals(_loadedUrl, Url, StringComparison.Ordinal) && string.Equals(_loadedProxyUrl, ProxyUrl, StringComparison.Ordinal))
+            return;
+        _loadedUrl = Url;
+        _loadedProxyUrl = ProxyUrl;
+        _request?.Cancel();
+        _request?.Dispose();
+        _request = new CancellationTokenSource();
+        var request = _request;
+        _items = Array.Empty<SyndicationItem>();
+        _error = false;
+        _loading = false;
+        if (string.IsNullOrWhiteSpace(Url))
+            return;
+        if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri) || !IsHttp(uri))
+        {
+            _error = true;
+            return;
+        }
+        _loading = true;
+        try
+        {
+            using var response = await Http.GetAsync(ProxyRequestUrl(uri.AbsoluteUri), HttpCompletionOption.ResponseHeadersRead, request.Token);
+            response.EnsureSuccessStatusCode();
+            await using var stream = await response.Content.ReadAsStreamAsync(request.Token);
+            // Buffer asynchronously before the synchronous syndication parser runs (also works in WebAssembly).
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, request.Token);
+            buffer.Position = 0;
+            using var reader = XmlReader.Create(buffer, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                MaxCharactersInDocument = 10_000_000
+            });
+            var feed = SyndicationFeed.Load(reader);
+            var items = feed?.Items.ToArray() ?? Array.Empty<SyndicationItem>();
+            if (!request.IsCancellationRequested)
+            {
+                _baseUri = string.IsNullOrWhiteSpace(ProxyUrl) ? response.RequestMessage?.RequestUri ?? uri : uri;
+                if (!string.IsNullOrWhiteSpace(ProxyUrl) && response.Headers.TryGetValues("X-Gurux-Source-Url", out var sources) &&
+                    Uri.TryCreate(sources.FirstOrDefault(), UriKind.Absolute, out var source) && IsHttp(source))
+                    _baseUri = source;
+                _items = items;
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or XmlException or FormatException or InvalidOperationException or ArgumentException or OperationCanceledException or IOException)
+        {
+            if (!request.IsCancellationRequested)
+                _error = true;
+        }
+        finally
+        {
+            if (!request.IsCancellationRequested)
+                _loading = false;
+        }
+    }
+
+    private static bool IsHttp(Uri uri) => uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps;
+
+    private string ProxyRequestUrl(string url) => string.IsNullOrWhiteSpace(ProxyUrl) ? url
+        : ProxyUrl + (ProxyUrl.Contains('?') ? "&" : "?") + "url=" + Uri.EscapeDataString(url);
+
+    private string? SafeUrl(string? value, Uri? baseUri = null)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            !Uri.TryCreate(baseUri ?? _baseUri, value, out uri))
+            return null;
+        return uri is not null && IsHttp(uri) ? uri.AbsoluteUri : null;
+    }
+
+    private string? GetLink(SyndicationItem item) => item.Links
+        .Where(link => string.IsNullOrEmpty(link.RelationshipType) || link.RelationshipType == "alternate")
+        .Select(link => SafeUrl(link.Uri?.ToString(), item.BaseUri))
+        .FirstOrDefault(link => link is not null);
+
+    private string? GetImage(SyndicationItem item)
+    {
+        var enclosure = item.Links
+            .Where(link => link.RelationshipType == "enclosure" && link.MediaType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
+            .Select(link => SafeUrl(link.Uri?.ToString(), item.BaseUri))
+            .FirstOrDefault(link => link is not null);
+        if (enclosure is not null)
+            return enclosure;
+        foreach (var extension in item.ElementExtensions)
+        {
+            if (extension.OuterNamespace != "http://search.yahoo.com/mrss/")
+                continue;
+            using var reader = extension.GetReader();
+            var element = XElement.Load(reader);
+            foreach (var media in element.DescendantsAndSelf())
+            {
+                if (media.Name.NamespaceName == "http://search.yahoo.com/mrss/" &&
+                    (media.Name.LocalName == "thumbnail" ||
+                    (media.Name.LocalName == "content" && ((string?)media.Attribute("medium") == "image" ||
+                        ((string?)media.Attribute("type"))?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true))))
+                {
+                    var url = SafeUrl((string?)media.Attribute("url"), item.BaseUri);
+                    if (url is not null)
+                        return url;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static string? GetDescription(SyndicationItem item)
+    {
+        var content = item.Summary ?? item.Content as TextSyndicationContent;
+        if (content is null || content.Type == "text")
+            return content?.Text;
+        return WebUtility.HtmlDecode(Regex.Replace(content.Text ?? string.Empty, "<[^>]*>", string.Empty,
+            RegexOptions.None, TimeSpan.FromSeconds(1)));
+    }
+
+    /// <summary>Cancels pending loading when the component is removed.</summary>
+    public void Dispose()
+    {
+        _request?.Cancel();
+        _request?.Dispose();
+    }
+}

@@ -96,14 +96,14 @@ Renders a table filter header with responsive visibility and captured styling.
     /// <summary>
     /// Is hidden.
     /// </summary>
-    bool _hidden;
+    bool _hidden => Parent?.IsHidden(Id) == true;
 
     /// <summary>
     /// Combines captured CSS classes with Bootstrap display classes for the requested responsive and print visibility.
     /// </summary>
     private string? GetCssClass()
     {
-        return GetCssClass(Visibility, CssClass);
+        return GetCssClass(Parent?.GetColumnVisibility(Id, Visibility) ?? Visibility, CssClass);
     }
 
     /// <summary>
@@ -191,7 +191,6 @@ Renders a table filter header with responsive visibility and captured styling.
         {
             throw new ArgumentNullException(nameof(Parent), "Fh must exist within a GXTable");
         }
-        _hidden = Parent.IsHidden(Id);
         base.OnInitialized();
     }
 }

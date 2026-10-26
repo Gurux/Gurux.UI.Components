@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Components.Forms;
 namespace Gurux.UI.Components;
 
 /// <summary>
-/// Maintains shared top menu commands and tracks changes to the active form's edit state.
+/// Maintains one addressed menu's commands and tracks changes to the active form's edit state.
 /// </summary>
-public sealed class GXTopMenuService : IGXTopMenu, IDisposable
+internal sealed class GXMenuState : IDisposable
 {
     private readonly List<GXMenuItem> _items = new();
     private EditContext? _editContext;
@@ -40,7 +40,7 @@ public sealed class GXTopMenuService : IGXTopMenu, IDisposable
     }
 
     /// <summary>
-    /// Adds the supplied commands to the shared top menu and notifies listeners.
+    /// Adds the supplied commands to the addressed menu and notifies listeners.
     /// </summary>
     public void AddMenuItems(params IEnumerable<GXMenuItem> menus)
     {
@@ -69,6 +69,12 @@ public sealed class GXTopMenuService : IGXTopMenu, IDisposable
     /// <inheritdoc />
     public Action ClearForNavigation()
     {
+        // A second renderer for the same address must not invalidate the first
+        // renderer's pending navigation snapshot by clearing an empty menu again.
+        if (_items.Count == 0 && _editContext == null && _registration == null)
+        {
+            return static () => { };
+        }
         var commands = _items.ToArray();
         var editContext = _editContext;
         var registration = _registration;
@@ -121,9 +127,9 @@ public sealed class GXTopMenuService : IGXTopMenu, IDisposable
         }
     }
 
-    private sealed class Registration(GXTopMenuService service) : IDisposable
+    private sealed class Registration(GXMenuState service) : IDisposable
     {
-        private GXTopMenuService? _service = service;
+        private GXMenuState? _service = service;
         public bool IsDisposed => _service == null;
 
         public void Dispose() => Interlocked.Exchange(ref _service, null)?.Release(this);

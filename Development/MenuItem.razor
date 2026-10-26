@@ -36,6 +36,8 @@ Defines a menu command with text, an icon, authorization, and a click callback.
 </summary>
 *@
 
+@implements IDisposable
+
 @code {
     /// <summary>
     /// Gets or sets captured HTML attributes forwarded to the underlying element.
@@ -97,6 +99,14 @@ Defines a menu command with text, an icon, authorization, and a click callback.
     [Parameter]
     public EventCallback OnClick { get; set; }
 
+    /// <summary>Optional commands displayed in a nested dropdown.</summary>
+    [Parameter]
+    public List<MenuItem>? Children { get; set; }
+
+    /// <summary>Displays a separator instead of a command button.</summary>
+    [Parameter]
+    public bool IsSeparator { get; set; }
+
     /// <summary>
     /// Registers the menu item with its containing menu control.
     /// </summary>
@@ -110,6 +120,9 @@ Defines a menu command with text, an icon, authorization, and a click callback.
         Parent.AddMenuItem(this);
     }
 
+    /// <summary>Removes this declarative command from its containing menu.</summary>
+    public void Dispose() => Parent?.RemoveMenuItem(this);
+
 
     /// <summary>
     /// Creates a menu item with the supplied identifier, label, click action, and read-only state.
@@ -120,12 +133,33 @@ Defines a menu command with text, an icon, authorization, and a click callback.
     /// <param name="readOnly">Is menu read-only.</param>
     /// <returns>New menu item.</returns>
     public static MenuItem Create(string id, string text, EventCallback action, bool readOnly)
+        => Create(id, text, action, readOnly, null, false);
+
+    /// <summary>Creates an icon-only command with a tooltip and accessible label.</summary>
+    /// <param name="image">Base64 raster image content, as accepted by Image.Value.</param>
+    /// <param name="text">Tooltip and accessible command name.</param>
+    /// <param name="action">Command callback.</param>
+    /// <param name="readOnly">Disables the command when true.</param>
+    public static MenuItem CreateIcon(string image, string text, EventCallback action, bool readOnly = false)
+        => new()
+        {
+            Image = image,
+            OnClick = action,
+            ReadOnly = readOnly,
+            AdditionalAttributes = new() { ["title"] = text, ["aria-label"] = text }
+        };
+
+    /// <summary>Creates a command, nested dropdown, or separator.</summary>
+    public static MenuItem Create(string id, string text, EventCallback action, bool readOnly,
+        List<MenuItem>? children, bool isSeparator)
     {
         MenuItem ret = new MenuItem();
         ret.Text = text;
         ret.Id = id;
         ret.OnClick = action;
         ret.ReadOnly = readOnly;
+        ret.Children = children;
+        ret.IsSeparator = isSeparator;
         return ret;
     }
 }

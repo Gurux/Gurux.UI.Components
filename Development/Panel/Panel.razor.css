@@ -19,11 +19,31 @@
     overflow: auto;
 }
 #verticalDivider {
+    position: relative;
     box-sizing: border-box;
     flex: 0 0 6px;
     align-self: stretch;
-    background: #1b1b51;
-    cursor: col-resize;
+    background: #e1e5e8;
+    cursor: ew-resize;
     touch-action: none;
     user-select: none;
+}
+
+#verticalDivider::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: #616a72;
+    box-shadow: 0 -4px 0 #616a72, 0 4px 0 #616a72;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+#verticalDivider:hover,
+#verticalDivider:active {
+    background: #c8cfd5;
 }

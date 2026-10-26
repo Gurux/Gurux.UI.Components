@@ -74,7 +74,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 @inject NavigationManager NavigationManager
 
 <CascadingValue Value="this">
-    <ul class="nav nav-tabs"
+    <ul class="nav nav-tabs @(StickyHeader ? "gx-sticky-tabs" : null)"
         role="tablist"
         style="width:100%">
         @foreach (var it in GetPages())
@@ -102,6 +102,10 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 </CascadingValue>
 
 @code {
+    /// <summary>Keeps the tab headers at the top of their scrolling container.</summary>
+    [Parameter]
+    public bool StickyHeader { get; set; } = true;
+
     /// <summary>
     /// Gets or sets the tab page components registered inside the tab control.
     /// </summary>

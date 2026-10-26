@@ -39,12 +39,13 @@ Renders a responsive table header and coordinates sorting through the parent tab
 @using Gurux.UI.Components.Enums
 @using System.Linq.Expressions
 @inherits ComponentBase
+@implements IDisposable
 
 @typeparam TItem
 
 @if (!_hidden)
 {
-    <th id="@GetId()" style="@CssStyle" class="@GetCssClass()" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)"
+    <th id="@GetId()" data-gx-column="@(Id ?? Name)" style="@CssStyle" class="@GetCssClass()" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)"
         onclick="@(() => SortTable())">
         @ChildContent
         <span class="@(GetSortIcon())"></span>
@@ -126,7 +127,8 @@ Renders a responsive table header and coordinates sorting through the parent tab
     /// <summary>
     /// Gets the inline CSS declarations obtained from the captured attributes.
     /// </summary>
-    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
+    private string? CssStyle => GXComponentAttributes.CombineStyles(GXComponentAttributes.GetStyle(AdditionalAttributes),
+        Parent?.GetColumnWidth(Id ?? Name) is string width ? $"width:{width};min-width:{width};max-width:{width}" : null);
 
     /// <summary>
     /// Gets the CSS classes obtained by combining component defaults with captured attributes.
@@ -138,7 +140,7 @@ Renders a responsive table header and coordinates sorting through the parent tab
     /// </summary>
     private string? GetCssClass()
     {
-        return Fh.GetCssClass(Visibility, CssClass);
+        return Fh.GetCssClass(Parent?.GetColumnVisibility(Id ?? Name, Visibility) ?? Visibility, CssClass);
     }
 
     /// <summary>
@@ -150,13 +152,28 @@ Renders a responsive table header and coordinates sorting through the parent tab
     /// <summary>
     /// Is hidden.
     /// </summary>
-    bool _hidden;
+    bool _hidden => Parent?.IsHidden(Id ?? Name) == true;
 
     /// <summary>
     /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? _registeredName;
+
+    protected override void OnParametersSet()
+    {
+        string? name = Id ?? Name;
+        if (_registeredName != name && _registeredName != null) Parent?.UnregisterColumn(_registeredName);
+        _registeredName = string.IsNullOrWhiteSpace(name) ? null : name;
+        if (_registeredName != null) Parent?.RegisterColumn(_registeredName, ChildContent, Visibility);
+    }
+
+    public void Dispose()
+    {
+        if (_registeredName != null) Parent?.UnregisterColumn(_registeredName);
+    }
 
     /// <summary>
     /// Verifies that a parent table exists and initializes the column identifier, sorting, and visibility.
@@ -167,12 +184,11 @@ Renders a responsive table header and coordinates sorting through the parent tab
         {
             throw new ArgumentNullException(nameof(Parent), "Th must exist within a GXTable");
         }
-        if (SortMode != SortMode.None)
+        if (SortMode != SortMode.None && string.IsNullOrEmpty(Parent.OrderBy))
         {
             Parent.SortMode = SortMode;
-            Parent.OrderBy = Name;
+            Parent.OrderBy = Sort != null ? GetPath(Sort) : Name;
         }
-        _hidden = Parent.IsHidden(Name);
         base.OnInitialized();
     }
 
@@ -183,15 +199,11 @@ Renders a responsive table header and coordinates sorting through the parent tab
     {
         if (Parent != null)
         {
-            string? OrderBy = null;
-            if (Sort != null)
+            string? orderBy = Sort != null ? GetPath(Sort) : Name;
+            if (string.IsNullOrEmpty(orderBy)) return;
+            if (orderBy != Parent.OrderBy)
             {
-                OrderBy = GetPath(Sort);
-            }
-            if (Name != Parent.OrderBy ||
-                (!string.IsNullOrEmpty(OrderBy) && OrderBy != Parent.OrderBy))
-            {
-                Parent.OrderBy = Name;
+                Parent.OrderBy = orderBy;
                 Parent.SortMode = SortMode.Ascending;
             }
             else
@@ -247,7 +259,7 @@ Renders a responsive table header and coordinates sorting through the parent tab
     /// </summary>
     public string GetSortIcon()
     {
-        if (Parent != null && Parent.OrderBy == Name)
+        if (Parent != null && Parent.OrderBy == (Sort != null ? GetPath(Sort) : Name))
         {
             switch (Parent.SortMode)
             {

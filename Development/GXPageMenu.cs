@@ -31,13 +31,14 @@
 //---------------------------------------------------------------------------
 
 using Microsoft.AspNetCore.Components.Forms;
+using Gurux.UI.Components.Enums;
 
 namespace Gurux.UI.Components;
 
 /// <summary>
 /// Collects a page's commands under one ownership registration and ignores updates after disposal.
 /// </summary>
-public sealed class GXPageMenu(IGXTopMenu menu) : IDisposable
+public sealed class GXPageMenu(IGXMenuService menu, MenuLocation location = MenuLocation.Top, MenuKind kind = MenuKind.MenuBar, Guid? menuId = null) : IDisposable
 {
     private readonly List<GXMenuItem> _commands = [];
     private IDisposable? _registration;
@@ -92,7 +93,7 @@ public sealed class GXPageMenu(IGXTopMenu menu) : IDisposable
     private void Publish()
     {
         var previous = _registration;
-        _registration = menu.RegisterMenu(_commands, _editContext);
+        _registration = menu.RegisterMenu(_commands, _editContext, location, kind, menuId);
         previous?.Dispose();
     }
 

@@ -87,5 +87,17 @@ namespace Gurux.UI.Components.Table
         /// <param name="name">Column name.</param>
         /// <returns>True, if column is hidden.</returns>
         bool IsHidden(string? name);
+
+        /// <summary>Returns the persisted CSS width for the column, if available.</summary>
+        string? GetColumnWidth(string? name) => null;
+
+        /// <summary>Registers a named header for automatic column customization.</summary>
+        void RegisterColumn(string name, Microsoft.AspNetCore.Components.RenderFragment? content, Visibility visibility) { }
+
+        /// <summary>Removes a header from automatic column customization.</summary>
+        void UnregisterColumn(string name) { }
+
+        /// <summary>Returns the customized visibility or the component's default.</summary>
+        Visibility GetColumnVisibility(string? name, Visibility defaultValue) => defaultValue;
     }
 }

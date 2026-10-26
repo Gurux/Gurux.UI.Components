@@ -43,7 +43,7 @@ Displays collapsible content with a text or templated header.
     <div class="accordion" id="@Id">
         <div class="accordion-item">
             <h2 class="accordion-header" id="@("heading-" + Id)">
-                <button class="@GetButtonClass()" onclick="@(() => Toggle())" aria-expanded="true">
+                <button type="button" class="@GetButtonClass()" onclick="@(() => Toggle())" aria-expanded="@(IsExpand ? "true" : "false")">
                     @if (HeaderTemplate != null)
                     {
                         @HeaderTemplate

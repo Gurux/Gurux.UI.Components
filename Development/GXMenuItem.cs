@@ -51,6 +51,14 @@ namespace Gurux.UI.Components
         public string? Icon { get; set; }
 
         /// <summary>
+        /// Commands displayed in a dropdown instead of invoking this item's click callback.
+        /// </summary>
+        public List<GXMenuItem> Children { get; set; } = new();
+
+        /// <summary>Displays a separator instead of an actionable command.</summary>
+        public bool IsSeparator { get; set; }
+
+        /// <summary>
         /// Stores the callback invoked when the menu command is clicked.
         /// </summary>
         public EventCallback OnClick;

@@ -70,6 +70,7 @@ Displays transient toast messages and refreshes them as messages are added, remo
 @code
 {
     private IGXToasterService? ToasterService;
+    private bool _disposed;
 
     /// <summary>
     /// Subscribes to toast list changes and expiration notifications.
@@ -97,7 +98,13 @@ Displays transient toast messages and refreshes them as messages are added, remo
     /// </summary>
     private void ToastChanged(object? sender, EventArgs e)
     {
-        StateHasChanged();
+        _ = InvokeAsync(() =>
+        {
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
+        });
     }
 
     /// <summary>
@@ -105,6 +112,7 @@ Displays transient toast messages and refreshes them as messages are added, remo
     /// </summary>
     public void Dispose()
     {
+        _disposed = true;
         if (ToasterService != null)
         {
             ToasterService.ToasterChanged -= ToastChanged;
