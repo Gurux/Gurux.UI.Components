@@ -6,6 +6,45 @@
     background-color: var(--bs-body-bg, #fff);
 }
 
+.gx-tab-icon ::deep svg,
+.gx-tab-icon ::deep img {
+    width: 1em;
+    height: 1em;
+    object-fit: contain;
+    vertical-align: -0.125em;
+}
+
+.gx-tab-icon ::deep svg:not([fill="none"]),
+.gx-tab-icon ::deep svg :is(path, circle, rect, ellipse, polygon, polyline, text) {
+    fill: currentColor !important;
+}
+
+.gx-tab-icon ::deep svg[stroke]:not([stroke="none"]),
+.gx-tab-icon ::deep svg [stroke]:not([stroke="none"]),
+.gx-tab-icon ::deep svg [style*="stroke:"]:not([style*="stroke:none"]):not([style*="stroke: none"]) {
+    stroke: currentColor !important;
+}
+
+.gx-tab-icon ::deep svg[fill="none"] :is(path, circle, rect, ellipse, polygon, polyline, text),
+.gx-tab-icon ::deep svg [fill="none"],
+.gx-tab-icon ::deep svg [fill="none"] *,
+.gx-tab-icon ::deep svg[style*="fill:none"] :is(path, circle, rect, ellipse, polygon, polyline, text),
+.gx-tab-icon ::deep svg[style*="fill: none"] :is(path, circle, rect, ellipse, polygon, polyline, text),
+.gx-tab-icon ::deep svg [style*="fill:none"],
+.gx-tab-icon ::deep svg [style*="fill: none"] {
+    fill: none !important;
+}
+
+.gx-tab-icon ::deep svg[stroke="none"] *,
+.gx-tab-icon ::deep svg [stroke="none"],
+.gx-tab-icon ::deep svg [stroke="none"] *,
+.gx-tab-icon ::deep svg[style*="stroke:none"] *,
+.gx-tab-icon ::deep svg[style*="stroke: none"] *,
+.gx-tab-icon ::deep svg [style*="stroke:none"],
+.gx-tab-icon ::deep svg [style*="stroke: none"] {
+    stroke: none !important;
+}
+
 @media print {
     .gx-sticky-tabs {
         position: static;

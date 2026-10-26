@@ -90,7 +90,16 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
                     {
                         @if (!string.IsNullOrEmpty(@it.Icon))
                         {
-                            <Image Id="@it.Icon"></Image>
+                            @if (string.IsNullOrWhiteSpace(it.IconColor))
+                            {
+                                <Image Id="@it.Icon"></Image>
+                            }
+                            else
+                            {
+                                <span class="gx-tab-icon" style="color:@it.IconColor">
+                                    <Image Id="@it.Icon" Color="@it.IconColor" style="color:inherit"></Image>
+                                </span>
+                            }
                         }
                         @it.Text
                     }
@@ -146,7 +155,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     private bool userSelected;
     private TabPage? selectedPage;
     private string? previousActive;
-    private (TabPage Page, string Text, string? Icon, string? Path, string? Padge, int Count, TraceLevel Type)[] previousHeaders = [];
+    private (TabPage Page, string Text, string? Icon, string? IconColor, string? Path, string? Padge, int Count, TraceLevel Type)[] previousHeaders = [];
     /// <summary>
     /// Gets or sets the active registered tab, rejecting inaccessible pages.
     /// </summary>
@@ -250,7 +259,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
         {
             ActivePage = Pages.ElementAtOrDefault(InitialTab)is { IsAccessible: true } initial ? initial : Pages.FirstOrDefault(page => page.IsAccessible);
         }
-        var headers = GetPages().Select(page => (page, page.Text, page.Icon, page.Path, page.Padge, page.PadgeCount, page.PadgeType)).ToArray();
+        var headers = GetPages().Select(page => (page, page.Text, page.Icon, page.IconColor, page.Path, page.Padge, page.PadgeCount, page.PadgeType)).ToArray();
         if (!ReferenceEquals(before, ActivePage) || !previousHeaders.SequenceEqual(headers))
         {
             previousHeaders = headers;

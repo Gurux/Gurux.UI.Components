@@ -117,6 +117,12 @@ Defines a tab page whose header and content can be restricted by an authorizatio
     public string? Icon { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional CSS color used only for the tab header icon.
+    /// </summary>
+    [Parameter]
+    public string? IconColor { get; set; }
+
+    /// <summary>
     /// Gets or sets whether this tab requests initial activation in its parent control.
     /// </summary>
     [Parameter]
