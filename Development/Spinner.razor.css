@@ -3,6 +3,36 @@ html, body {
     padding: 0;
 }
 
+.spinner-task-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    padding: 0;
+    list-style: none;
+    gap: 0.25rem;
+}
+
+.spinner-task-progress {
+    position: relative;
+    overflow: hidden;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+}
+
+.spinner-task-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background-color: #9ec5fe;
+}
+
+.spinner-task-message {
+    position: relative;
+    display: block;
+    padding: 0.25rem 0.5rem;
+    overflow-wrap: anywhere;
+}
+
 .spinner-overlay {
     position: fixed;
     top: 0;

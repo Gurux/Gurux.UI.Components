@@ -6,10 +6,10 @@ namespace Gurux.UI.Components;
 public sealed class GXProgressService : IGXProgress
 {
     private readonly object _sync = new();
-    private readonly Dictionary<Guid, (GXProgressScope Scope, string? Message)> _operations = new();
+    private readonly Dictionary<Guid, (GXProgressScope Scope, GXProgressItem Item)> _operations = new();
 
     /// <summary>
-    /// Occurs when progress operations are added or ended.
+    /// Occurs when progress operations are added, updated, or ended.
     /// </summary>
     public event Action? Changed;
 
@@ -36,21 +36,45 @@ public sealed class GXProgressService : IGXProgress
         {
             lock (_sync)
             {
-                return _operations.Values.Select(operation => operation.Message)
+                return _operations.Values.Select(operation => operation.Item.Message)
                 .Where(message => !string.IsNullOrWhiteSpace(message)).Select(message => message!).ToArray();
             }
         }
     }
 
-    /// <summary>
-    /// Registers a progress operation and returns a scope whose disposal ends that operation.
-    /// </summary>
-    public GXProgressScope ProgressStart(string? message)
+    /// <inheritdoc />
+    public IReadOnlyList<GXProgressItem> Items
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _operations.Values.Select(operation => operation.Item).ToArray();
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void ProgressUpdate(Guid id, int completed, int total)
+    {
+        lock (_sync)
+        {
+            if (!_operations.TryGetValue(id, out var operation))
+            {
+                return;
+            }
+            _operations[id] = (operation.Scope, operation.Item with { Completed = completed, Total = total });
+        }
+        Changed?.Invoke();
+    }
+
+    /// <inheritdoc />
+    public GXProgressScope ProgressStart(string? message, int completed = 0, int total = 0)
     {
         var scope = new GXProgressScope(ProgressEnd);
         lock (_sync)
         {
-            _operations.Add(scope.Id, (scope, message));
+            _operations.Add(scope.Id, (scope, new GXProgressItem(scope.Id, message, completed, total)));
         }
 
         Changed?.Invoke();

@@ -63,9 +63,23 @@ namespace Gurux.UI.Components
         Task CancelAllAsync();
 
         /// <summary>
+        /// Gets snapshots of the active operations and their progress.
+        /// </summary>
+        IReadOnlyList<GXProgressItem> Items { get; }
+
+        /// <summary>
+        /// Updates an active operation and notifies listeners.
+        /// A total of zero indicates that progress is unknown.
+        /// </summary>
+        void ProgressUpdate(Guid id, int completed, int total);
+
+        /// <summary>
         /// Registers a progress operation and returns a scope whose disposal ends that operation.
         /// </summary>
-        GXProgressScope ProgressStart(string? message);
+        /// <param name="message">The message describing the operation.</param>
+        /// <param name="completed">The number of completed work items.</param>
+        /// <param name="total">The total number of work items, or zero when unknown.</param>
+        GXProgressScope ProgressStart(string? message, int completed = 0, int total = 0);
 
         /// <summary>
         /// Ends the progress operation with the specified id and notifies listeners when an operation was removed.
