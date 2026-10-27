@@ -90,16 +90,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
                     {
                         @if (!string.IsNullOrEmpty(@it.Icon))
                         {
-                            @if (string.IsNullOrWhiteSpace(it.IconColor))
-                            {
-                                <Image Id="@it.Icon"></Image>
-                            }
-                            else
-                            {
-                                <span class="gx-tab-icon" style="color:@it.IconColor">
-                                    <Image Id="@it.Icon" Color="@it.IconColor" style="color:inherit"></Image>
-                                </span>
-                            }
+                            <TabIcon Id="@it.Icon" Color="@it.IconColor" />
                         }
                         @it.Text
                     }

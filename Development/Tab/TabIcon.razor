@@ -1,0 +1,55 @@
+@namespace Gurux.UI.Components.Tab
+
+@if (string.IsNullOrWhiteSpace(Color))
+{
+    @Icon
+}
+else
+{
+    <span class="gx-tab-icon" style="color:@Color">
+        @Icon
+    </span>
+}
+
+@code {
+    /// <summary>Gets or sets a named image resource used by the tab header.</summary>
+    [Parameter] public string? Id { get; set; }
+
+    /// <summary>Gets or sets direct icon markup or an icon identifier used by a custom header.</summary>
+    [Parameter] public string? Value { get; set; }
+
+    /// <summary>Gets or sets the optional CSS color applied to the icon.</summary>
+    [Parameter] public string? Color { get; set; }
+
+    private RenderFragment Icon => builder =>
+    {
+        builder.OpenComponent<Image>(0);
+        if (Value != null)
+        {
+            builder.AddAttribute(1, nameof(Image.Value), NormalizeSvg(Value));
+        }
+        else
+        {
+            builder.AddAttribute(1, nameof(Image.Id), Id);
+        }
+        if (!string.IsNullOrWhiteSpace(Color))
+        {
+            builder.AddAttribute(2, nameof(Image.Color), Color);
+            builder.AddAttribute(3, "style", "color:inherit");
+        }
+        builder.CloseComponent();
+    };
+
+    private string? NormalizeSvg(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(Color) || string.IsNullOrWhiteSpace(value) ||
+            !value.TrimStart().StartsWith("<svg", StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+        value = System.Text.RegularExpressions.Regex.Replace(value,
+            @"(?i)(fill|stroke)\s*:\s*(?!none\b|transparent\b)[^;}]+", "$1:currentColor");
+        return System.Text.RegularExpressions.Regex.Replace(value,
+            "(?i)(fill|stroke)\\s*=\\s*([\"'])(?!none\\2|transparent\\2)[^\"']+\\2", "$1=$2currentColor$2");
+    }
+}
