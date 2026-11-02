@@ -58,6 +58,9 @@ namespace Gurux.UI.Components
         /// <summary>Displays a separator instead of an actionable command.</summary>
         public bool IsSeparator { get; set; }
 
+        /// <summary>Gets or sets the authorization policy required to display and execute this command.</summary>
+        public string? Policy { get; set; }
+
         /// <summary>
         /// Stores the callback invoked when the menu command is clicked.
         /// </summary>

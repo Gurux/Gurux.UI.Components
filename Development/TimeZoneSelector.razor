@@ -40,7 +40,7 @@ Provides a searchable selection of system time zones and binds the chosen zone i
 @using System.Linq
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 
-<DropdownSearch @attributes="AdditionalAttributes" class="@CssClass"
+<DropdownSearch @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")"
                 Id="@Id"
                 Immediate="true"
                 LastValue="@LastValue"
@@ -106,11 +106,6 @@ Provides a searchable selection of system time zones and binds the chosen zone i
     /// </summary>
     [Parameter]
     public EventCallback<string?> ValueChanged { get; set; }
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
 
     /// <summary>
     /// Gets or sets the placeholder text option.

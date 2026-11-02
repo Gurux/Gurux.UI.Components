@@ -3,4 +3,11 @@ Development/.vs/
 Development/bin/
 Development/obj/
 /Tests
+!/Tests/
+/Tests/*
+!/Tests/MenuAuthorization/
+!/Tests/ContextMenuAuthorization/
+!/Tests/TableResizeBrowser/
+/Tests/**/bin/
+/Tests/**/obj/
 /Views

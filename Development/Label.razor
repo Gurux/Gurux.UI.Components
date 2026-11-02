@@ -41,7 +41,7 @@ Displays child content as a label and can mark the associated input as required.
 @inject IGXLocalStorage localStorage
 @inject ILogger<Label> Logger
 
-<label @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GetClass()" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">@ChildContent</label>
+<label @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Required ? "required" : null)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">@ChildContent</label>
 
 @code {
     /// <summary>
@@ -62,21 +62,4 @@ Displays child content as a label and can mark the associated input as required.
     [Parameter]
     public bool Required { get; set; } = false;
 
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
-
-    /// <summary>
-    /// Combines default CSS classes with the captured class attribute.
-    /// </summary>
-    private string? GetClass()
-    {
-        string? str = CssClass;
-        if (Required)
-        {
-            str += " required";
-        }
-        return str;
-    }
 }

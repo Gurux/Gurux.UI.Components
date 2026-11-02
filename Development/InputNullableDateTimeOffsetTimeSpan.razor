@@ -42,7 +42,7 @@ Edits a nullable time value with an optional static sentinel represented by Date
 
 @inherits InputBase<DateTimeOffset?>
 
-<input @attributes="AdditionalAttributes" class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))" disabled="@IsDisabled()" value="@BindConverter.FormatValue(CurrentValueAsString)" onchange="@((ChangeEventArgs __e) => CurrentValueAsString = Convert.ToString(__e.Value))" />
+<input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))" disabled="@IsDisabled()" value="@BindConverter.FormatValue(CurrentValueAsString)" onchange="@((ChangeEventArgs __e) => CurrentValueAsString = Convert.ToString(__e.Value))" />
 <Gurux.UI.Components.InputCheckbox @bind-Value="Static" />
 @code {
 

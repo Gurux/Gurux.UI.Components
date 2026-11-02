@@ -36,7 +36,12 @@ Defines an authorized context menu command with a label, icon, link, and click c
 </summary>
 *@
 
+@implements IDisposable
+
 @code {
+    private ContextMenuController? _registeredParent;
+    private string? _lastPolicy, _lastText, _lastImage, _lastId;
+    private bool _disposed;
     /// <summary>
     /// Gets or sets the containing component supplied through a cascading parameter.
     /// </summary>
@@ -89,20 +94,47 @@ Defines an authorized context menu command with a label, icon, link, and click c
     /// </summary>
     public void Click()
     {
-        OnClick.InvokeAsync();
-        Parent?.Hide();
+        _ = InvokeAsync(ClickAsync);
+    }
+
+    /// <summary>Rechecks the current policy before invoking the command.</summary>
+    public async Task ClickAsync()
+    {
+        var parent = _registeredParent;
+        if (_disposed || parent == null || !await parent.CanExecuteAsync(this)) return;
+        if (_disposed || !ReferenceEquals(parent, _registeredParent)) return;
+        await OnClick.InvokeAsync();
+        parent.Hide();
     }
 
     /// <summary>
     /// Registers the context menu item with its containing controller.
     /// </summary>
-    protected override void OnInitialized()
+    protected override async Task OnParametersSetAsync()
     {
         if (Parent == null)
         {
             throw new ArgumentNullException(nameof(Parent), "MenuItem must exist within a ContextMenuController");
         }
-        base.OnInitialized();
-        Parent.AddMenuItem(this);
+        bool changed = !ReferenceEquals(Parent, _registeredParent) ||
+            _lastPolicy != Policy || _lastText != Text || _lastImage != Image || _lastId != Id;
+        if (!ReferenceEquals(Parent, _registeredParent))
+        {
+            _registeredParent?.RemoveMenuItem(this);
+            _registeredParent = Parent;
+            Parent.AddMenuItem(this);
+        }
+        _lastPolicy = Policy;
+        _lastText = Text;
+        _lastImage = Image;
+        _lastId = Id;
+        if (changed) await Parent.MenuItemChangedAsync();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _registeredParent?.RemoveMenuItem(this);
+        _registeredParent = null;
     }
 }

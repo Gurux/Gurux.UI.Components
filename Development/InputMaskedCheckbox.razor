@@ -52,7 +52,7 @@ Uses a checkbox to set or clear selected bits in a bound numeric value.
                type="checkbox"
                checked="@IsChecked"
                placeholder="@Placeholder"
-               @attributes="AdditionalAttributes" class="@CssClass"
+               @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-check-input")"
                disabled="@IsDisabled()"
                onchange="@(async (ChangeEventArgs e) => await UpdateString(e.Value))" />
     </div>
@@ -221,11 +221,6 @@ Uses a checkbox to set or clear selected bits in a bound numeric value.
     /// </summary>
     [Parameter]
     public EventCallback<TItem?> ValueChanged { get; set; }
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-check-input");
 
     /// <summary>
     /// Returns the disabled HTML attribute when editing is disabled.

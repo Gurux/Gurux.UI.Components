@@ -74,7 +74,7 @@ else if (Type == ImageType.Svg)
 {
     @if (!string.IsNullOrWhiteSpace(Value))
     {
-        <span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@BuildSpanStyle()">
+        <span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes)" style="@BuildSpanStyle()">
             @((MarkupString)Value)
         </span>
     }
@@ -89,7 +89,7 @@ else if (Type == ImageType.Raster)
     {
         <img @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" src="@GetDataUri()"
              alt="@Alt"
-             class="@CssClass"
+             class="@GXComponentAttributes.GetClass(AdditionalAttributes)"
              style="@Style"
              width="@Width"
              height="@Height"
@@ -104,11 +104,11 @@ else if (Type == ImageType.Html)
 {
     @if (string.IsNullOrEmpty(Color))
     {
-        <span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@Style">@((MarkupString)(Value ?? string.Empty))</span>
+        <span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes)" style="@Style">@((MarkupString)(Value ?? string.Empty))</span>
     }
     else
     {
-        <span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, $"color:{Color}")">@((MarkupString)(Value ?? string.Empty))</span>
+        <span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, $"color:{Color}")">@((MarkupString)(Value ?? string.Empty))</span>
     }
 }
 else
@@ -166,11 +166,6 @@ else
     /// </summary>
     [Parameter]
     public string? Alt { get; set; }
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
 
     /// <summary>
     /// Gets the captured inline CSS declarations applied to the image.

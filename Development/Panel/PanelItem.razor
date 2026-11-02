@@ -116,11 +116,6 @@ Defines panel content, styling, and dimensions that can be restored from local s
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    internal string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
-
-    /// <summary>
     /// Gets captured styles combined with the panel's default scrolling and padding.
     /// </summary>
     internal string? Style => GXComponentAttributes.GetStyle(AdditionalAttributes, "overflow:auto;padding:1rem;");

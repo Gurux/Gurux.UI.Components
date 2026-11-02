@@ -38,7 +38,7 @@ Displays a translated resource string and refreshes it when the resource changes
 
 @using Microsoft.Extensions.Logging
 
-<span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
+<span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
     @GetValue()
     @ChildContent
 </span>
@@ -107,11 +107,6 @@ Displays a translated resource string and refreshes it when the resource changes
     /// Gets the optional service used to retrieve localized resources.
     /// </summary>
     public IGXResourceStorage? ResourceStorage => Services.GetService<IGXResourceStorage>();
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
 
     /// <summary>
     /// Loads the translation for the supplied resource key, falling back to that key when no service is available.

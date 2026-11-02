@@ -45,7 +45,7 @@ Renders a responsive table cell with editable content or guarded link navigation
 
 @if (!_hidden)
 {
-    <td style="@CssStyle" class="@GetCssClass()" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)">
+    <td style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Fh.GetCssClass(Parent?.GetColumnVisibility(Id, Visibility) ?? Visibility, null))" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)">
         @if (Parent != null && Parent.CanEdit && !string.IsNullOrEmpty(EffectiveLink))
         {
             <a href="@EffectiveLink" @onclick="OnSelect" @onclick:preventDefault="true">
@@ -117,16 +117,6 @@ Renders a responsive table cell with editable content or guarded link navigation
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Gets the inline CSS declarations obtained from the captured attributes.
-    /// </summary>
-    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes);
-
-    /// <summary>
     /// Gets or sets the responsive breakpoints and print settings at which the cell is displayed.
     /// </summary>
     [Parameter]
@@ -148,14 +138,6 @@ Renders a responsive table cell with editable content or guarded link navigation
     /// Is hidden.
     /// </summary>
     bool _hidden => Parent?.IsHidden(Id) == true;
-
-    /// <summary>
-    /// Combines the cell's captured CSS classes with its responsive and print visibility classes.
-    /// </summary>
-    private string? GetCssClass()
-    {
-        return Fh.GetCssClass(Parent?.GetColumnVisibility(Id, Visibility) ?? Visibility, CssClass);
-    }
 
     /// <summary>
     /// Gets or sets captured HTML attributes forwarded to the underlying element.

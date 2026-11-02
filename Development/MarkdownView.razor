@@ -46,15 +46,15 @@ Renders inline or downloaded Markdown with section links and optional syntax hig
 
 @if (_loading)
 {
-    <p @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" role="status">@LoadingText</p>
+    <p @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "markdown-body")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" role="status">@LoadingText</p>
 }
 else if (_error)
 {
-    <p @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" role="alert">@ErrorText</p>
+    <p @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "markdown-body")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" role="alert">@ErrorText</p>
 }
 else if (!string.IsNullOrEmpty(_html))
 {
-    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" @ref="_root" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">@((MarkupString)_html)</div>
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" @ref="_root" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "markdown-body")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">@((MarkupString)_html)</div>
 }
 
 @code {
@@ -81,10 +81,6 @@ else if (!string.IsNullOrEmpty(_html))
     /// Gets or sets the message displayed when Markdown content cannot be loaded.
     /// </summary>
     [Parameter] public string ErrorText { get; set; } = "Unable to load the documentation.";
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "markdown-body");
     /// <summary>
     /// Gets or sets whether raw HTML blocks are included without encoding; disabled by default.
     /// </summary>

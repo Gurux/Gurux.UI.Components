@@ -1,0 +1,46 @@
+@using System.Text.RegularExpressions
+@namespace Gurux.UI.Components.TemplateToken
+
+@foreach (var part in Parse(Text ?? string.Empty))
+{
+    @if (part.Url is { } url)
+    {
+        <a href="@url">@part.Text</a>
+    }
+    else
+    {
+        @part.Text
+    }
+}
+
+@code {
+    /// <summary>Text containing optional [url:address]label[/url] tags. Ordinary HTML is displayed as text.</summary>
+    [Parameter] public string? Text { get; set; }
+    private readonly record struct Part(string Text, string? Url = null);
+    private static readonly Regex UrlTags = new(@"\[url:([^\]\r\n]+)\]([\s\S]*?)\[/url\]",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
+
+    private static IEnumerable<Part> Parse(string text)
+    {
+        int position = 0;
+        foreach (Match match in UrlTags.Matches(text))
+        {
+            if (match.Index > position) yield return new(text[position..match.Index]);
+            var url = match.Groups[1].Value.Trim();
+            yield return IsAllowedUrl(url) ? new(match.Groups[2].Value, url) : new(match.Value);
+            position = match.Index + match.Length;
+        }
+        if (position < text.Length) yield return new(text[position..]);
+    }
+
+    private static bool IsAllowedUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || url.Any(char.IsControl) || url.Contains('\\') || url.StartsWith("//", StringComparison.Ordinal)) return false;
+        // Browser-root-relative paths are safe, independently of platform-specific file URI parsing.
+        if (url.StartsWith('/')) return true;
+        if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var uri)) return false;
+        if (uri.IsAbsoluteUri) return uri.Scheme is "http" or "https";
+        var prefix = url.Split('/', '?', '#')[0];
+        return !prefix.Contains(':');
+    }
+}

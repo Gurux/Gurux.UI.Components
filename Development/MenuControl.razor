@@ -38,14 +38,16 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 
 @using System.Diagnostics
 @using Microsoft.Extensions.Logging
+@using Microsoft.AspNetCore.Components.Authorization
 @inject ILogger<MenuControl> Logger
+@inject IServiceProvider Services
 @implements IDisposable
 
 <CascadingValue Value="this">
     <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Dropdown ? (Submenu ? "btn-group gx-menu-control gx-menu-submenu" : "btn-group gx-menu-control") : "btn-group")" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(Submenu && _isOpen)">
         @if (Dropdown)
         {
-            <button @ref="_toggle" type="button" class="nav-link btn btn-link gx-menu-toggle" disabled="@ReadOnly"
+            <button @ref="_toggle" type="button" class="nav-link btn btn-link gx-menu-toggle" disabled="@(ReadOnly || !Items.Any(IsVisible))"
                     aria-expanded="@(_isOpen ? "true" : "false")" aria-controls="@_popupId" @onclick="Toggle">
                 @if (!string.IsNullOrEmpty(Icon))
                 {
@@ -75,7 +77,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 
 @code {
     private RenderFragment CommandButtons => @<text>
-        @foreach (MenuItem it in Items)
+        @foreach (MenuItem it in Items.Where(IsVisible))
         {
             @if (it.IsSeparator)
             {
@@ -84,11 +86,12 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             else if (it.Children is { Count: > 0 })
             {
                 <MenuControl @key="it" Dropdown="true" Submenu="true" Text="@it.Text" Icon="@it.Id"
-                             ReadOnly="@(ReadOnly || it.ReadOnly)" MenuItems="@it.Children" OnSelected="CloseBranchAsync" />
+                             ReadOnly="@(ReadOnly || it.ReadOnly)" MenuItems="@it.Children" OnSelected="CloseBranchAsync"
+                             ParentCanExecute="@(() => CanExecuteAsync(it))" />
             }
             else
             {
-            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" class="@it.CssClass" disabled="@(ReadOnly || it.ReadOnly)" style="@GetButtonStyle(it)" @onclick="() => SelectAsync(it)">
+            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" class="@GXComponentAttributes.GetClass(it.AdditionalAttributes, "btn button")" disabled="@(ReadOnly || it.ReadOnly)" style="@GetButtonStyle(it)" @onclick="() => SelectAsync(it)">
                 @if (!string.IsNullOrEmpty(it.Image))
                 {
                     <Image Value="@it.Image" />
@@ -132,13 +135,71 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     private ElementReference _toggle;
     private bool _isOpen;
     private bool _disposed;
+    private GXCommandAuthorization? _authorization;
 
-    private void Toggle()
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    /// <summary>Checks whether the enclosing command branch is still executable.</summary>
+    [Parameter]
+    public Func<Task<bool>>? ParentCanExecute { get; set; }
+
+    protected override void OnInitialized()
     {
-        if (!ReadOnly)
+        _authorization = new GXCommandAuthorization(Services, () =>
         {
-            _isOpen = !_isOpen;
+            if (!_disposed) _ = InvokeAsync(RefreshAuthorizationAsync);
+        });
+    }
+
+    protected override Task OnParametersSetAsync() => EvaluateAuthorizationAsync();
+
+    internal async Task RefreshAuthorizationAsync()
+    {
+        await EvaluateAuthorizationAsync();
+        if (!_disposed) await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EvaluateAuthorizationAsync()
+    {
+        if (_disposed || _authorization == null) return;
+        await _authorization.RefreshAsync(Policies(Items).ToArray(), AuthenticationState);
+        if (!_disposed && !Items.Any(IsVisible)) Close();
+    }
+
+    private static IEnumerable<string?> Policies(IEnumerable<MenuItem> items)
+    {
+        foreach (var item in items)
+        {
+            yield return item.Policy;
+            if (item.Children != null)
+                foreach (var policy in Policies(item.Children)) yield return policy;
         }
+    }
+
+    private bool IsVisible(MenuItem item) => !_disposed && _authorization?.IsAllowed(item.Policy) == true &&
+        (item.Children is not { Count: > 0 } || item.Children.Any(IsVisible));
+
+    private async Task<bool> CanExecuteAsync(MenuItem item)
+    {
+        if (_disposed || ReadOnly || item.ReadOnly || item.IsSeparator || !Items.Contains(item) || _authorization == null) return false;
+        var policy = item.Policy;
+        var authorizationVersion = _authorization.Version;
+        if (ParentCanExecute != null && !await ParentCanExecute()) return false;
+        if (!await _authorization.CanExecuteAsync(policy, AuthenticationState)) return false;
+        if (ParentCanExecute != null && !await ParentCanExecute()) return false;
+        return !_disposed && authorizationVersion == _authorization.Version && !ReadOnly && !item.ReadOnly &&
+            !item.IsSeparator && Items.Contains(item) && policy == item.Policy;
+    }
+
+    private async Task Toggle()
+    {
+        if (_disposed || ReadOnly) return;
+        if (_isOpen) { Close(); return; }
+        if (ParentCanExecute != null && !await ParentCanExecute()) return;
+        await RefreshAuthorizationAsync();
+        if (ParentCanExecute != null && !await ParentCanExecute()) return;
+        if (!_disposed && !ReadOnly && Items.Any(IsVisible)) _isOpen = true;
     }
 
     private void Close() => _isOpen = false;
@@ -160,12 +221,15 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 
     private async Task SelectAsync(MenuItem item)
     {
-        if (ReadOnly || item.ReadOnly || item.IsSeparator)
+        if (!await CanExecuteAsync(item))
         {
             return;
         }
-        await CloseBranchAsync();
-        await item.OnClick.InvokeAsync();
+        // Invoke directly after the final authorization check. Public selection notifications
+        // must not change policy/registration between authorization and the command callback.
+        Close();
+        try { await item.OnClick.InvokeAsync(); }
+        finally { if (!_disposed) await CloseBranchAsync(); }
     }
 
     /// <summary>
@@ -191,11 +255,6 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     /// </summary>
     [Parameter]
     public bool Bottom { get; set; }
-
-    /// <summary>
-    /// Gets the inline CSS declarations obtained from the captured attributes.
-    /// </summary>
-    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
 
     /// <summary>
     /// Combines a menu item's captured styles with the component's button styling.
@@ -254,6 +313,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     public void Dispose()
     {
         _disposed = true;
+        _authorization?.Dispose();
         _childItems.Clear();
     }
 

@@ -1,6 +1,8 @@
 // Delegate events so columns added or shown after initialization work as well.
 export function initialize(id, component) {
     const table = document.getElementById(id);
+    // Navigation can remove the table while the component awaits this module's import.
+    if (!table?.isConnected) return { dispose() { } };
     const listeners = new AbortController();
     const options = { signal: listeners.signal };
     let drag = null;

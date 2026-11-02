@@ -56,6 +56,9 @@ namespace Gurux.UI.Components
         /// Gets the Guid used to identify and remove this notification.
         /// </summary>
         public Guid Id { get; init; } = Guid.NewGuid();
+        /// <summary>Optional trusted UI content for the title. Plain text remains the default.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Microsoft.AspNetCore.Components.RenderFragment? TitleContent { get; init; }
         /// <summary>
         /// Gets the notification creation time used to order notifications.
         /// </summary>

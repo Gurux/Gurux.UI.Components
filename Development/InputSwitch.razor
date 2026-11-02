@@ -49,8 +49,8 @@ Binds a switch to a form value with callbacks, localized labels, and optional pe
     </label>
     @ChildContent
     <div class="form-check form-switch">
-        <input @attributes="AdditionalAttributes" id="@Id" type="checkbox" checked="@(CurrentValue is true)"
-               class="@(GXComponentAttributes.CombineClasses("form-check-input", CssClass))"
+        <input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" id="@Id" type="checkbox" checked="@(CurrentValue is true)"
+               class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-check-input", EditContext?.FieldCssClass(FieldIdentifier)))"
                disabled="@IsDisabled()"
                onchange="@(async (ChangeEventArgs e) => await UpdateCheck(Convert.ToBoolean(e.Value)))" />
     </div>

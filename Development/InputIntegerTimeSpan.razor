@@ -45,17 +45,17 @@ Edits an integer duration using time and optional day inputs in the configured u
 @if (Days == true)
 {
     <span class="d-inline-block">
-        <input @attributes="AdditionalAttributes" class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))" type="number" step="1" min="0" max="365"
+        <input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))" type="number" step="1" min="0" max="365"
                value="@GetDaysAsString()"
                onchange="@((ChangeEventArgs __e) => SetDaysAsString(__e.Value))" />
-        <input class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))" type="time" step="@Step"
+        <input class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))" type="time" step="@Step"
                value="@BindConverter.FormatValue(CurrentValueAsString)"
                onchange="@((ChangeEventArgs __e) => SetTimeAsString(__e.Value))" />
     </span>
 }
 else
 {
-    <input @attributes="AdditionalAttributes" type="time" class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))" step="@Step" value="@BindConverter.FormatValue(CurrentValueAsString)"
+    <input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" type="time" class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))" step="@Step" value="@BindConverter.FormatValue(CurrentValueAsString)"
            onchange="@((ChangeEventArgs __e) => CurrentValueAsString = Convert.ToString(__e.Value))" />
 
 }

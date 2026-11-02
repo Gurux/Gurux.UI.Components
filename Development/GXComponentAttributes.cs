@@ -3,7 +3,7 @@ namespace Gurux.UI.Components;
 /// <summary>
 /// Resolves component identifiers and combines captured HTML classes and styles without modifying the caller's attributes.
 /// </summary>
-internal static class GXComponentAttributes
+public static class GXComponentAttributes
 {
     /// <summary>
     /// Returns the supplied nonempty id, otherwise lazily creates and caches a Guid id in the caller's generatedId field.

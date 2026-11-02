@@ -39,7 +39,7 @@ Displays a progress value within a configured range and optional descriptive tex
 
 @if (Maximum != 0)
 {
-    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "progress")" style="@CssStyle">
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "progress")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
         <div class="progress-bar" role="progressbar" aria-valuenow="@Current"
              aria-valuemin="@Minimum" aria-valuemax="@Maximum"
              style="@CurrentPercentToString()">
@@ -130,11 +130,6 @@ Displays a progress value within a configured range and optional descriptive tex
             InvokeAsync(StateHasChanged);
         }
     }
-
-    /// <summary>
-    /// Gets the inline CSS declarations obtained from the captured attributes.
-    /// </summary>
-    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
 
     /// <summary>
     /// Combines the progress bar's base class with its custom class attribute.

@@ -43,8 +43,8 @@ Renders a table filter header with responsive visibility and captured styling.
 @if (!_hidden)
 {
     <th id="@Id"
-        style="@CssStyle"
-        class="@GetCssClass()"
+        style="@GXComponentAttributes.GetStyle(AdditionalAttributes)"
+        class="@GXComponentAttributes.GetClass(AdditionalAttributes, GetCssClass(Parent?.GetColumnVisibility(Id, Visibility) ?? Visibility, null))"
         @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)">
         @ChildContent
     </th>
@@ -78,16 +78,6 @@ Renders a table filter header with responsive visibility and captured styling.
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Gets the inline CSS declarations obtained from the captured attributes.
-    /// </summary>
-    private string? CssStyle => GXComponentAttributes.GetStyle(AdditionalAttributes);
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes);
-
-    /// <summary>
     /// Gets or sets the responsive breakpoints and print settings at which the cell is displayed.
     /// </summary>
     [Parameter]
@@ -101,82 +91,74 @@ Renders a table filter header with responsive visibility and captured styling.
     /// <summary>
     /// Combines captured CSS classes with Bootstrap display classes for the requested responsive and print visibility.
     /// </summary>
-    private string? GetCssClass()
-    {
-        return GetCssClass(Parent?.GetColumnVisibility(Id, Visibility) ?? Visibility, CssClass);
-    }
-
-    /// <summary>
-    /// Combines captured CSS classes with Bootstrap display classes for the requested responsive and print visibility.
-    /// </summary>
-    internal static string? GetCssClass(Visibility visibility, string? CssClass)
+    internal static string? GetCssClass(Visibility visibility, string? cssClass)
     {
         string? str = null;
         if (visibility == Visibility.ExtraLargeLarge)
         {
-            str = "d-none d-xll-table-cell " + CssClass;
+            str = "d-none d-xll-table-cell " + cssClass;
         }
         else if (visibility == Visibility.ExtraLarge)
         {
-            str = "d-none d-xl-table-cell " + CssClass;
+            str = "d-none d-xl-table-cell " + cssClass;
         }
         else if (visibility == Visibility.Large)
         {
-            str = "d-none d-lg-table-cell " + CssClass;
+            str = "d-none d-lg-table-cell " + cssClass;
         }
         else if (visibility == Visibility.Medium)
         {
-            str = "d-none d-md-table-cell " + CssClass;
+            str = "d-none d-md-table-cell " + cssClass;
         }
         else if (visibility == Visibility.Small)
         {
-            str = "d-none d-sm-table-cell " + CssClass;
+            str = "d-none d-sm-table-cell " + cssClass;
         }
         else if (visibility == Visibility.ExtraSmall)
         {
-            str = "d-none d-xs-table-cell " + CssClass;
+            str = "d-none d-xs-table-cell " + cssClass;
         }
         else if (visibility == Visibility.Print)
         {
-            str = "d-none d-print-table-cell " + CssClass;
+            str = "d-none d-print-table-cell " + cssClass;
         }
         else if (visibility == Visibility.PrintHide)
         {
-            str = "d-print-none " + CssClass;
+            str = "d-print-none " + cssClass;
         }
         else
         {
-            str = CssClass;
+            str = cssClass;
         }
 
         /*
         if (visibility == Visibility.Large)
         {
-            str = "d-none d-xl-table-cell  " + CssClass;
+            str = "d-none d-xl-table-cell  " + cssClass;
             }
         else if (visibility == Visibility.Medium)
         {
-            str = "d-none d-lg-table-cell " + CssClass;
+            str = "d-none d-lg-table-cell " + cssClass;
             }
         else if (visibility == Visibility.Small)
         {
-            str = "d-none d-md-table-cell " + CssClass;
+            str = "d-none d-md-table-cell " + cssClass;
             }
         else if (visibility == Visibility.ExtraSmall)
         {
-            str = "d-none d-sm-table-cell " + CssClass;
+            str = "d-none d-sm-table-cell " + cssClass;
             }
         else if (visibility == Visibility.Print)
         {
-            str = "d-none d-print-table-cell " + CssClass;
+            str = "d-none d-print-table-cell " + cssClass;
             }
         else if (visibility == Visibility.PrintHide)
         {
-            str = "d-print-none " + CssClass;
+            str = "d-print-none " + cssClass;
             }
         else
         {
-            str = CssClass;
+            str = cssClass;
             }
         */
         return str;

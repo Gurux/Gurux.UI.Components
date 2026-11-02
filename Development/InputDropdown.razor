@@ -49,8 +49,8 @@ Binds a typed select input to static values with selection callbacks and optiona
 
 @if (Values != null)
 {
-    <select @attributes="AdditionalAttributes" id="@Id"
-            class="@(GXComponentAttributes.CombineClasses("form-select", CssClass))"
+    <select @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" id="@Id"
+            class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-select", EditContext?.FieldCssClass(FieldIdentifier)))"
             value="@Value"
             onchange="@((ChangeEventArgs e) => SelectionChanged(e))">
         @foreach (var it in Values)

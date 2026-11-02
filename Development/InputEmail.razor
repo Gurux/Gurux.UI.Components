@@ -42,8 +42,8 @@ Renders an email form input with optional restoration and persistence of its val
 @inject ILogger<InputEmail> Logger
 
 @inherits Microsoft.AspNetCore.Components.Forms.InputText
-<input id="@Id" @attributes="AdditionalAttributes" type="email" value="@CurrentValue"
-       class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))"
+<input id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" type="email" value="@CurrentValue"
+       class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))"
        onchange="@((ChangeEventArgs __e) => UpdateValue(__e.Value))" />
 
 @code {

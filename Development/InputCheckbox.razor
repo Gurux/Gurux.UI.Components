@@ -42,8 +42,8 @@ Binds a checkbox to a supported boolean value through the Blazor form input syst
 @typeparam TValue
 @inherits InputBase<TValue>
 
-<input @attributes="AdditionalAttributes" type="checkbox" checked="@(CurrentValue is true)"
-       class="@(GXComponentAttributes.CombineClasses("form-check-input", CssClass))"
+<input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" type="checkbox" checked="@(CurrentValue is true)"
+       class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-check-input", EditContext?.FieldCssClass(FieldIdentifier)))"
        @onchange="@((ChangeEventArgs args) => { CurrentValue = FromBoolean(Convert.ToBoolean(args.Value)); })" />
 @code {
     /// <summary>

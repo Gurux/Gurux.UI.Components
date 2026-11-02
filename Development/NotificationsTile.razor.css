@@ -1,3 +1,12 @@
+.notification-list {
+    /* Keep accumulated errors readable without displacing or covering the page editor. */
+    max-height: 30vh;
+    min-height: 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
 .close {
     float: right;
     font-size: 1.5rem;

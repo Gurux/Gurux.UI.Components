@@ -47,7 +47,7 @@ Edits a string value and optionally restores and saves it in browser local stora
            type="text"
            value="@Value"
            placeholder="@Placeholder"
-           @attributes="AdditionalAttributes" class="@CssClass"
+           @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")"
            onchange="@(async (ChangeEventArgs e) => await UpdateString(e.Value))" />
 </CascadingValue>
 
@@ -98,11 +98,6 @@ Edits a string value and optionally restores and saves it in browser local stora
     /// </summary>
     [Parameter]
     public EventCallback<string?> ValueChanged { get; set; }
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
 
     /// <summary>
     /// Gets or sets the hint displayed when the input has no value.

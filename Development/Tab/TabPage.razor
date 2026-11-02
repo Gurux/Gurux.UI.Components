@@ -268,13 +268,17 @@ Defines a tab page whose header and content can be restricted by an authorizatio
         {
             return;
         }
+        bool retainDecision = evaluated && Policy == evaluatedPolicy && ReferenceEquals(state, evaluatedAuthentication);
         evaluated = true;
         evaluatedPolicy = Policy;
         evaluatedAuthentication = state;
         var version = Interlocked.Increment(ref authorizationVersion);
         var policy = Policy;
-        authorized = false;
-        Parent?.PageChanged(this);
+        if (!retainDecision)
+        {
+            authorized = false;
+            Parent?.PageChanged(this);
+        }
         bool allowed = string.IsNullOrWhiteSpace(policy);
         try
         {

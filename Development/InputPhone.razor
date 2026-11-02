@@ -42,8 +42,8 @@ Renders a telephone form input with optional restoration and persistence of its 
 @inject ILogger<InputPhone> Logger
 
 @inherits Microsoft.AspNetCore.Components.Forms.InputText
-<input @attributes="AdditionalAttributes" id="@Id" type="tel" value="@CurrentValue"
-       class="@(GXComponentAttributes.CombineClasses("form-control", CssClass))"
+<input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" id="@Id" type="tel" value="@CurrentValue"
+       class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))"
        onchange="@((ChangeEventArgs e) => UpdateValue(e.Value))" />
 
 @code {

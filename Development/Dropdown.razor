@@ -49,7 +49,7 @@ Renders a typed dropdown with static items, selection callbacks, and optional va
 {
     <select @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" id="@Id"
             @ref="_element"
-            class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" disabled="@Disabled"
+            class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-select")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" disabled="@Disabled"
             value="@Value"
             onchange="@((ChangeEventArgs e) => SelectionChanged(e))">
         @foreach (var it in Items)
@@ -113,11 +113,6 @@ Renders a typed dropdown with static items, selection callbacks, and optional va
     /// </summary>
     [Parameter]
     public EventCallback<TItem> OnSelected { get; set; }
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-select");
 
     /// <summary>
     /// Gets or sets whether user interaction with the input is disabled.

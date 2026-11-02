@@ -43,7 +43,7 @@ Displays a severity-styled callout with optional content and a close button.
 @inject IGXLocalStorage localStorage
 @inject ILogger<Callout> Logger
 
-<div id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@CssClass" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, "position: relative; display: inline-block;")">
+<div id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, "position: relative; display: inline-block;")">
     @if (Visible && !string.IsNullOrEmpty(Text))
     {
         <div  class="@GetDivClass()" role="@GetRole()">
@@ -76,11 +76,6 @@ Displays a severity-styled callout with optional content and a close button.
     private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
     private string? _generatedId;
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
 
     /// <summary>
     /// Gets or sets the severity used to choose the callout's appearance.
@@ -187,9 +182,9 @@ Displays a severity-styled callout with optional content and a close button.
             default:
                 throw new ArgumentException(nameof(GetClass));
         }
-        if (!string.IsNullOrEmpty(CssClass))
+        if (!string.IsNullOrEmpty(GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")))
         {
-            str += "; " + CssClass;
+            str += "; " + GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
         }
         return str;
     }

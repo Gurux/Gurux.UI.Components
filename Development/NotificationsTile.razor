@@ -39,6 +39,7 @@ Displays stored notifications using severity filters, field settings, and option
 
 @namespace Gurux.UI.Components
 @using Gurux.UI.Components.Enums
+@using Gurux.UI.Components.TemplateToken
 @implements IDisposable
 
 @inject IGXNotificationService NotificationService
@@ -55,9 +56,12 @@ Displays stored notifications using severity filters, field settings, and option
                     <button type="button" class="btn-close" aria-label="Close" @onclick="() => Close(notification.Id)">
                     </button>
                 }
-                @if (NotificationService.VisibleFields.HasFlag(NotificationFields.Title) && !string.IsNullOrWhiteSpace(notification.Title))
+                @if (NotificationService.VisibleFields.HasFlag(NotificationFields.Title) && (notification.TitleContent != null || !string.IsNullOrWhiteSpace(notification.Title)))
                 {
-                    <h4 class="alert-heading">@notification.Title</h4>
+                    <h4 class="alert-heading">
+                        @if (notification.TitleContent != null) { @notification.TitleContent }
+                        else { <TemplateTokenText Text="@notification.Title" /> }
+                    </h4>
                 }
                 @if (NotificationService.VisibleFields.HasFlag(NotificationFields.CreatedAt))
                 {
@@ -69,7 +73,7 @@ Displays stored notifications using severity filters, field settings, and option
                 {
                     <div class="small text-muted">Id: @notification.Id</div>
                 }
-                <div style="white-space: pre-wrap; overflow-wrap: anywhere;">@notification.Description</div>
+                <div style="white-space: pre-wrap; overflow-wrap: anywhere;"><TemplateTokenText Text="@notification.Description" /></div>
             </li>
         }
     </ul>

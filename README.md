@@ -270,6 +270,19 @@ Both the parent and child commands respect the menu's edit context and progress
 state. Starting a progress operation closes and disables the dropdown. Register
 `IGXProgress` with `GXProgressService` as well as the menu service.
 
+Commands in `MenuControl`, `ContextMenuController`, and `GXMenuBar` enforce their
+named `Policy` both when rendering and immediately before invoking a callback.
+Use `MenuItem.Policy`, `ContextMenuItem.Policy`, or `GXMenuItem.Policy` respectively.
+Commands without a policy retain their existing behavior. A protected command is
+hidden when authorization services are unavailable or the policy is unknown.
+Nested commands require their ancestor policies as well. Authentication changes
+and `IGXAuthorizationRefreshSource.Changed` refresh visibility and invalidate pending
+authorization decisions. Server endpoints must also enforce their own policies.
+
+The `Tests/MenuAuthorization` and `Tests/ContextMenuAuthorization` executable checks
+use the Blazor renderer and named authorization policies to cover visibility,
+invocation, permission changes, nested commands, and asynchronous invalidation.
+
 `MenuControl` also supports standalone declarative dropdowns:
 
 ```razor
@@ -289,6 +302,8 @@ is not required. Ensure the application loads the generated scoped CSS bundle.
 
 ```powershell
 dotnet run --project Tests/MenuDropdowns/MenuDropdowns.Checks.csproj
+dotnet run --project Tests/MenuAuthorization/MenuAuthorization.Checks.csproj
+dotnet run --project Tests/ContextMenuAuthorization/ContextMenuAuthorization.Checks.csproj
 ```
 
 Clear(location, kind) clears one pair. ClearForNavigation(location, kind) returns
@@ -322,3 +337,126 @@ Two menu bars can be stacked in a layout:
 
 Each `(MenuLocation, MenuKind, MenuId)` address has independent command ownership,
 form tracking and navigation rollback.
+
+## Persistent tab selection
+
+URL persistence is optional:
+
+```razor
+<TabControl PersistSelectionInUrl="true">
+    <TabPage Path="General" Text="General">General settings</TabPage>
+    <TabPage Path="Advanced" Text="Advanced">Advanced settings</TabPage>
+</TabControl>
+```
+
+Selection uses `?tab=Advanced`, with `tab2`, `tab3`, etc. for nested controls.
+Reload and browser history restore the selection. Changing a parent clears deeper
+selection parameters while retaining other query parameters and the fragment.
+Set stable, unique `TabPage.Path` values for bookmarks; a missing Path falls back
+to Text. Removing the query key restores Active or InitialTab.
+
+Ordinary controls keep direct Path navigation. With persistence enabled, Path
+is the selection key and `NavigateOnSelection` does not cause direct navigation
+to that path. `SelectionChanged` still runs once for each explicit selection.
+Sticky headers default to true; nested controls using persistence default to
+false. Set StickyHeader explicitly to override this.
+
+Applications can supply `ITabRouteResolver` through the RouteResolver parameter
+or dependency injection. RouteGroup is passed to that resolver for optional
+canonical application routes. Without a resolver, selection uses only the
+current page's query string; the UI library has no application-specific route map.
+
+## Template token editor
+
+```razor
+@using Gurux.UI.Components.TemplateToken
+
+<TemplateTokenEditor @bind-Value="Model.Message" />
+```
+
+Use inside an EditForm. The component lists available tokens, appends selected
+`[namespace:name]` tokens, and provides a plain-text View dialog. Optional TargetType
+and TargetId parameters scope token discovery and resolution. Register an
+application implementation of `ITemplateTokenEditorService` in dependency
+injection. The service receives `TemplateTokenEditorContext` (target and culture)
+and returns generic `TemplateTokenDefinition` values. No AMI project or fixed API
+endpoint is required by the UI library. Preview output is rendered as text.
+
+## Menu navigation guards
+
+GXMenuBar clears its own commands on navigation by default and restores them if
+the navigation is canceled. Configure grouped ownership and confirmation when a
+page and its editor use separate menus:
+
+```razor
+<GXMenuBar MenuId="@EditorId" ProtectedMenuIds="@ProtectedMenus"
+           PreserveCommandsOnNavigation="@IsTabNavigation"
+           ConfirmNavigation="@ConfirmDiscardAsync"
+           WarnOnUnsavedChanges="true" />
+<GXMenuBar NavigationGuardEnabled="false" />
+```
+
+`ProtectedMenus` is an `IReadOnlyList<Guid?>`; include null for the default menu.
+It defaults to the renderer's own MenuId when omitted. Protected menus share the
+renderer’s Location and Kind. `PreserveCommandsOnNavigation` accepts source and
+target URL strings and returns true for navigation that retains the current
+commands. `ConfirmNavigation` is a `Func<CancellationToken, Task<bool>>`; it is
+called only when a protected EditContext is modified. Return false to stay and
+honor the cancellation token to dismiss superseded confirmation requests.
+
+`WarnOnUnsavedChanges` enables the built-in internal confirmation when no ConfirmNavigation callback is provided, and the browser warning for refresh, external links
+and tab close. The component provides an internal discard/stay dialog. Applications may override it using ConfirmNavigation and supply
+route classification; the UI library has no AMI dependency. Disable the guard on
+secondary renderers when another GXMenuBar already protects their menus.
+
+TemplateTokenEditor also requires IGXProgress and IGXNotificationService in DI.
+Catalog loading, preview and validation use cancellable progress scopes; request
+failures are reported through the shared notification service. Validate refreshes
+the available definitions and checks token syntax and names without changing the
+template. It reports success or distinct validation errors through notifications.
+Preview resolves the actual values. IGXNotifier is the event subscription contract
+and is not used to display errors.
+
+Template token definitions can supply an optional ExampleValue. Validate checks
+syntax and names. View opens a dialog with actual values; without a TargetId,
+unavailable known tokens may use their examples. Such a dialog is titled Example
+text. Unknown references remain visible. ExampleValue is never a runtime default
+and neither action modifies the bound template. Each original token reference
+is resolved once per distinct name; replacement text is not expanded again.
+
+The built-in unsaved-changes dialog uses UnsavedChangesTitle,
+UnsavedChangesMessage, DiscardChangesText and StayText for customizable captions.
+It is dismissed when navigation is canceled or the component is disposed.
+No separate application confirmation service or dialog host is required.
+
+## Notification page lifetime
+
+GXNotificationService automatically observes successful LocationChanged events
+when NavigationManager is available through dependency injection. Page-scoped
+notifications (the default) are removed when leaving their page; Global notices
+remain. Rejected navigation has no effect. Each notice tracks the page where it
+was added so a destination notice is not erased by late navigation callbacks.
+
+The default tab classifier retains notices for same-path URL changes affecting
+only tab/tab2 query parameters. An optional ITabRouteResolver.IsTabNavigation
+implementation can recognize application-specific canonical tab routes. The
+service detaches navigation tracking on disposal. Manually constructed services
+without a NavigationManager do not track browser navigation.
+
+TemplateTokenEditor supports an optional Page scope and Values dictionary for
+page-specific draft values. Both are forwarded in TemplateTokenEditorContext.
+Changing either invalidates the open View dialog and reloads token definitions.
+The application decides how to discover and resolve tokens for each Page.
+
+TemplateTokenEditor has two tabs. Editor contains the text field, searchable
+token insertion, Validate and View actions. Tokens lists all definitions available
+in the current page/target context using GXTable. Its immediate filter searches
+names, descriptions and example values, ignoring case. Table filtering does not
+modify the template or persist search settings in browser storage.
+
+URL tags can be displayed using the reusable UI component
+`TemplateTokenText`: `[url:config/Manufacturer]Manufacturers[/url]`.
+NotificationsTile supports these tags in both titles and descriptions.
+HTTP, HTTPS and application-relative links are supported. Labels and ordinary HTML
+are displayed as escaped text; unsafe URLs and incomplete tags remain text.
+URL tags are presentation markup and do not require a server token provider.

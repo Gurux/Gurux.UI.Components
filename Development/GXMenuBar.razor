@@ -38,14 +38,17 @@ Displays shared commands and dropdowns and updates their enabled state from prog
 
 @using Gurux.UI.Components.Enums
 @using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject NavigationManager NavigationManager
 @inject IGXMenuService Menu
 @inject IGXProgress Progress
+@inject IServiceProvider Services
 @implements IDisposable
 
 <div class="btn-group" role="group">
-    @foreach (GXMenuItem it in Menu.GetItems(Location, Kind, MenuId))
+    @foreach (GXMenuItem it in Items().Where(IsVisible))
     {
         @if (it.IsSeparator)
         {
@@ -54,7 +57,8 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         else if (it.Children.Count != 0)
         {
             <MenuControl @key="it" Dropdown="true" Text="@it.Text" Icon="@it.Icon"
-                         ReadOnly="@IsDisabled(it)" MenuItems="@GetDropdownItems(it)" />
+                         ReadOnly="@IsDisabled(it)" MenuItems="@GetDropdownItems(it)"
+                         ParentCanExecute="@(() => CanExecuteAsync(it))" />
         }
         else
         {
@@ -71,6 +75,18 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     }
 </div>
 @ChildContent
+@if (NavigationGuardEnabled && WarnOnUnsavedChanges)
+{
+    <NavigationLock ConfirmExternalNavigation="@ModifiedContexts().Any()" />
+}
+@if (_pendingConfirmation != null)
+{
+    <Dialog Title="@UnsavedChangesTitle" Save="false" ManageFocus="true"
+            OkButtonTitle="@DiscardChangesText" CancelButtonTitle="@StayText"
+            OnOk="@(() => CompleteDiscard(true))" OnCancel="@(() => CompleteDiscard(false))">
+        <LocalizedText Value="@UnsavedChangesMessage" />
+    </Dialog>
+}
 @code {
     /// <summary>Optional GXMenu.Id identifying a menu within the same location and kind.</summary>
     [Parameter] public Guid? MenuId { get; set; }
@@ -85,17 +101,99 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>Whether this toolbar owns a navigation guard; disable when another toolbar guards the same menus.</summary>
+    [Parameter] public bool NavigationGuardEnabled { get; set; } = true;
+    /// <summary>Menus cleared and protected together at this location and kind. Defaults to this toolbar's MenuId.</summary>
+    [Parameter] public IReadOnlyList<Guid?>? ProtectedMenuIds { get; set; }
+    /// <summary>Identifies navigation that retains the current page's commands, for example a tab selection.</summary>
+    [Parameter] public Func<string, string, bool>? PreserveCommandsOnNavigation { get; set; }
+    /// <summary>Confirms leaving modified forms. False cancels navigation; the token cancels a superseded or disposed request.</summary>
+    [Parameter] public Func<CancellationToken, Task<bool>>? ConfirmNavigation { get; set; }
+    /// <summary>Protects modified forms with browser warnings externally and the built-in dialog internally unless ConfirmNavigation overrides it.</summary>
+    [Parameter] public bool WarnOnUnsavedChanges { get; set; }
+    /// <summary>Title of the built-in unsaved-changes dialog.</summary>
+    [Parameter] public string UnsavedChangesTitle { get; set; } = "Unsaved changes";
+    /// <summary>Message of the built-in unsaved-changes dialog.</summary>
+    [Parameter] public string UnsavedChangesMessage { get; set; } = "Discard your unsaved changes?";
+    /// <summary>Button text for discarding changes.</summary>
+    [Parameter] public string DiscardChangesText { get; set; } = "Discard changes";
+    /// <summary>Button text for staying on the modified page.</summary>
+    [Parameter] public string StayText { get; set; } = "Cancel";
+    private TaskCompletionSource<bool>? _pendingConfirmation;
+    private readonly CancellationTokenSource _lifetime = new();
+    private IEnumerable<Guid?> GuardedIds() => (ProtectedMenuIds ?? new Guid?[] { MenuId }).Distinct();
+    private IEnumerable<EditContext> ModifiedContexts() => GuardedIds()
+        .Select(id => Menu.GetEditContext(Location, Kind, id)).OfType<EditContext>().Distinct().Where(context => context.IsModified());
     private bool _disposed;
+    private GXCommandAuthorization? _authorization;
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
     private IDisposable? _navigationRegistration;
     private CancellationTokenRegistration _navigationCancellation;
 
-    private List<MenuItem> GetDropdownItems(GXMenuItem parent)
-        => parent.Children.Select(child => MenuItem.Create(child.Icon ?? string.Empty, child.Text,
-            EventCallback.Factory.Create(this, () => InvokeCommandAsync(child)), IsDisabled(child),
-            child.Children.Count == 0 ? null : GetDropdownItems(child), child.IsSeparator)).ToList();
+    private IEnumerable<GXMenuItem> Items() => Menu.GetItems(Location, Kind, MenuId);
 
-    private Task InvokeCommandAsync(GXMenuItem item)
-        => IsDisabled(item) ? Task.CompletedTask : item.OnClick.InvokeAsync();
+    private bool IsVisible(GXMenuItem item) => !_disposed && _authorization?.IsAllowed(item.Policy) == true &&
+        (item.Children.Count == 0 || item.Children.Any(IsVisible));
+
+    private static IEnumerable<string?> Policies(IEnumerable<GXMenuItem> items)
+    {
+        foreach (var item in items)
+        {
+            yield return item.Policy;
+            foreach (var policy in Policies(item.Children)) yield return policy;
+        }
+    }
+
+    private List<MenuItem> GetDropdownItems(GXMenuItem parent) => parent.Children.Select(child =>
+    {
+        return MenuItem.Create(child.Icon ?? string.Empty, child.Text,
+            EventCallback.Factory.Create(this, () => InvokeCommandAsync(child)), IsDisabled(child),
+            child.Children.Count == 0 ? null : GetDropdownItems(child), child.IsSeparator, child.Policy);
+    }).ToList();
+
+    private bool FindPath(IEnumerable<GXMenuItem> items, GXMenuItem target, List<GXMenuItem> path)
+    {
+        foreach (var item in items)
+        {
+            path.Add(item);
+            if (ReferenceEquals(item, target) || FindPath(item.Children, target, path)) return true;
+            path.RemoveAt(path.Count - 1);
+        }
+        return false;
+    }
+
+    private async Task<bool> CanExecuteAsync(GXMenuItem item)
+    {
+        if (_disposed || item.IsSeparator || _authorization == null) return false;
+        var path = new List<GXMenuItem>();
+        if (!FindPath(Items(), item, path) || path.Any(IsDisabled)) return false;
+        var policies = path.Select(command => command.Policy).ToArray();
+        var version = _authorization.Version;
+        foreach (var policy in policies)
+            if (!await _authorization.CanExecuteAsync(policy, AuthenticationState)) return false;
+        var currentPath = new List<GXMenuItem>();
+        return !_disposed && version == _authorization.Version && FindPath(Items(), item, currentPath) &&
+            currentPath.SequenceEqual(path) && policies.SequenceEqual(path.Select(command => command.Policy)) && !path.Any(IsDisabled);
+    }
+
+    private async Task InvokeCommandAsync(GXMenuItem item)
+    {
+        if (await CanExecuteAsync(item)) await item.OnClick.InvokeAsync();
+    }
+
+    private async Task EvaluateAuthorizationAsync()
+    {
+        if (!_disposed && _authorization != null)
+            await _authorization.RefreshAsync(Policies(Items()).ToArray(), AuthenticationState);
+    }
+
+    private async Task RefreshAuthorizationAsync()
+    {
+        await EvaluateAuthorizationAsync();
+        if (!_disposed) StateHasChanged();
+    }
+
+    protected override Task OnParametersSetAsync() => EvaluateAuthorizationAsync();
 
     /// <summary>
     /// Disables commands during progress operations or when their required form edit state is not satisfied.
@@ -117,6 +215,10 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     /// </summary>
     protected override void OnInitialized()
     {
+        _authorization = new GXCommandAuthorization(Services, () =>
+        {
+            if (!_disposed) _ = InvokeAsync(RefreshAuthorizationAsync);
+        });
         Menu.Changed += OnChanged;
         Progress.Changed += OnChanged;
         NavigationManager.LocationChanged += OnLocationChanged;
@@ -125,38 +227,67 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     /// <summary>Registers the navigation guard when this component becomes interactive.</summary>
     protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender)
-        {
+        if (NavigationGuardEnabled && _navigationRegistration == null)
             _navigationRegistration = NavigationManager.RegisterLocationChangingHandler(OnLocationChanging);
+        else if (!NavigationGuardEnabled && _navigationRegistration != null)
+        {
+            _navigationRegistration.Dispose();
+            _navigationRegistration = null;
         }
     }
 
-    private ValueTask OnLocationChanging(LocationChangingContext context)
+    private void CompleteDiscard(bool discard) => _pendingConfirmation?.TrySetResult(discard);
+
+    private async Task<bool> ConfirmDiscardAsync(CancellationToken cancellationToken)
+    {
+        _pendingConfirmation?.TrySetResult(false);
+        var request = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingConfirmation = request;
+        await InvokeAsync(StateHasChanged);
+        try { return await request.Task.WaitAsync(cancellationToken); }
+        finally
+        {
+            if (ReferenceEquals(_pendingConfirmation, request)) _pendingConfirmation = null;
+            if (!_disposed) await InvokeAsync(StateHasChanged);
+        }
+    }
+    private async ValueTask OnLocationChanging(LocationChangingContext context)
     {
         _navigationCancellation.Dispose();
         _navigationCancellation = default;
-        if (_disposed || context.CancellationToken.IsCancellationRequested)
-        {
-            return ValueTask.CompletedTask;
-        }
+        if (_disposed || !NavigationGuardEnabled || context.CancellationToken.IsCancellationRequested ||
+            PreserveCommandsOnNavigation?.Invoke(NavigationManager.Uri, context.TargetLocation) == true)
+            return;
         var sourceLocation = NavigationManager.Uri;
-        var restore = Menu.ClearForNavigation(Location, Kind, MenuId);
+        if ((ConfirmNavigation != null || WarnOnUnsavedChanges) && ModifiedContexts().Any())
+        {
+            using var pending = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken, _lifetime.Token);
+            try
+            {
+                var approved = ConfirmNavigation != null ? await ConfirmNavigation(pending.Token) : await ConfirmDiscardAsync(pending.Token);
+                if (!approved || _disposed || pending.IsCancellationRequested || NavigationManager.Uri != sourceLocation)
+                {
+                    context.PreventNavigation();
+                    return;
+                }
+            }
+            catch (OperationCanceledException) when (pending.IsCancellationRequested)
+            {
+                context.PreventNavigation();
+                return;
+            }
+        }
+        var restores = GuardedIds().Select(id => Menu.ClearForNavigation(Location, Kind, id)).ToArray();
         _navigationCancellation = context.CancellationToken.Register(() =>
         {
             if (!_disposed)
-            {
                 _ = InvokeAsync(() =>
                 {
                     if (!_disposed && NavigationManager.Uri == sourceLocation)
-                    {
-                        restore();
-                    }
+                        foreach (var restore in restores) restore();
                 });
-            }
         });
-        return ValueTask.CompletedTask;
     }
-
     /// <summary>
     /// Releases cancellation handling after successful navigation, leaving destination commands intact.
     /// </summary>
@@ -175,13 +306,7 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         {
             return;
         }
-        _ = InvokeAsync(() =>
-        {
-            if (!_disposed)
-            {
-                StateHasChanged();
-            }
-        });
+        _ = InvokeAsync(RefreshAuthorizationAsync);
     }
 
     /// <summary>
@@ -189,7 +314,13 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return;
         _disposed = true;
+        _authorization?.Dispose();
+        _lifetime.Cancel();
+        _pendingConfirmation?.TrySetResult(false);
+        _pendingConfirmation = null;
+        _lifetime.Dispose();
         _navigationRegistration?.Dispose();
         _navigationCancellation.Dispose();
         _navigationCancellation = default;

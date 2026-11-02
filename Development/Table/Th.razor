@@ -45,7 +45,8 @@ Renders a responsive table header and coordinates sorting through the parent tab
 
 @if (!_hidden)
 {
-    <th id="@GetId()" data-gx-column="@(Id ?? Name)" style="@CssStyle" class="@GetCssClass()" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)"
+    <th id="@GetId()" data-gx-column="@(Id ?? Name)" style="@(GXComponentAttributes.CombineStyles(GXComponentAttributes.GetStyle(AdditionalAttributes),
+        Parent?.GetColumnWidth(Id ?? Name) is string width ? $"width:{width};min-width:{width};max-width:{width}" : null))" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Fh.GetCssClass(Parent?.GetColumnVisibility(Id ?? Name, Visibility) ?? Visibility, "sort-th"))" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)"
         onclick="@(() => SortTable())">
         @ChildContent
         <span class="@(GetSortIcon())"></span>
@@ -123,25 +124,6 @@ Renders a responsive table header and coordinates sorting through the parent tab
     /// </summary>
     [Parameter]
     public Expression<Func<TItem, object>>? Sort { get; set; }
-
-    /// <summary>
-    /// Gets the inline CSS declarations obtained from the captured attributes.
-    /// </summary>
-    private string? CssStyle => GXComponentAttributes.CombineStyles(GXComponentAttributes.GetStyle(AdditionalAttributes),
-        Parent?.GetColumnWidth(Id ?? Name) is string width ? $"width:{width};min-width:{width};max-width:{width}" : null);
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "sort-th");
-
-    /// <summary>
-    /// Combines the header's captured CSS classes with its responsive and print visibility classes.
-    /// </summary>
-    private string? GetCssClass()
-    {
-        return Fh.GetCssClass(Parent?.GetColumnVisibility(Id ?? Name, Visibility) ?? Visibility, CssClass);
-    }
 
     /// <summary>
     /// Gets or sets the responsive breakpoints and print settings at which the cell is displayed.

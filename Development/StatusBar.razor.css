@@ -1,0 +1,14 @@
+.gx-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    min-width: 0;
+    min-height: 1.75rem;
+    margin-top: auto;
+    padding: 0.25rem 0.75rem;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.875rem;
+}

@@ -55,7 +55,7 @@ Arranges child panels around a draggable splitter and persists their resized dim
     /// <summary>
     /// Returns the captured CSS classes for a child panel at the specified index.
     /// </summary>
-    private string? GetItemClass(int index) => Items.Count > index ? Items[index].CssClass : null;
+    private string? GetItemClass(int index) => Items.Count > index ? GXComponentAttributes.GetClass(Items[index].AdditionalAttributes) : null;
     /// <summary>
     /// Combines a child panel's styles with its saved or configured splitter dimensions.
     /// </summary>
@@ -132,11 +132,6 @@ Arranges child panels around a draggable splitter and persists their resized dim
     /// Child panels.
     /// </summary>
     private readonly List<PanelItem> Items = new List<PanelItem>();
-
-    /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    internal string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, null);
 
     /// <summary>
     /// Gets the inline CSS declarations applied to the component.

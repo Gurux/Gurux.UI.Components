@@ -71,11 +71,6 @@ Defines a menu command with text, an icon, authorization, and a click callback.
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    internal string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "btn button");
-
-    /// <summary>
     /// Gets or sets the text displayed by the component.
     /// </summary>
     [Parameter]
@@ -120,6 +115,20 @@ Defines a menu command with text, an icon, authorization, and a click callback.
         Parent.AddMenuItem(this);
     }
 
+    private bool _parametersApplied;
+    private string? _lastPolicy;
+
+    /// <summary>Refreshes command visibility when a declarative policy changes.</summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_parametersApplied || !string.Equals(_lastPolicy, Policy, StringComparison.Ordinal))
+        {
+            _parametersApplied = true;
+            _lastPolicy = Policy;
+            if (Parent != null) await Parent.RefreshAuthorizationAsync();
+        }
+    }
+
     /// <summary>Removes this declarative command from its containing menu.</summary>
     public void Dispose() => Parent?.RemoveMenuItem(this);
 
@@ -161,5 +170,14 @@ Defines a menu command with text, an icon, authorization, and a click callback.
         ret.Children = children;
         ret.IsSeparator = isSeparator;
         return ret;
+    }
+
+    /// <summary>Creates a command with a named authorization policy.</summary>
+    public static MenuItem Create(string id, string text, EventCallback action, bool readOnly,
+        List<MenuItem>? children, bool isSeparator, string? policy)
+    {
+        var item = Create(id, text, action, readOnly, children, isSeparator);
+        item.Policy = policy;
+        return item;
     }
 }

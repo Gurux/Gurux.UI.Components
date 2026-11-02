@@ -31,14 +31,48 @@
 //---------------------------------------------------------------------------
 
 using Gurux.UI.Components.Enums;
+using Gurux.UI.Components.Tab;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
 
 namespace Gurux.UI.Components;
 
 /// <summary>
 /// Stores notifications and exposes filtered snapshots for the lifetime of the service instance.
 /// </summary>
-public sealed class GXNotificationService : IGXNotificationService
+public sealed class GXNotificationService : IGXNotificationService, IDisposable
 {
+    private readonly NavigationManager? _navigation;
+    private readonly ITabRouteResolver? _tabRoutes;
+    private readonly Dictionary<Guid, string> _notificationPages = new();
+
+    /// <summary>Tracks successful navigation when a navigation manager is available through dependency injection.</summary>
+    public GXNotificationService(NavigationManager? navigation = null, ITabRouteResolver? tabRoutes = null)
+    {
+        _navigation = navigation;
+        _tabRoutes = tabRoutes;
+        if (_navigation != null) _navigation.LocationChanged += LocationChanged;
+    }
+
+    private void LocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        bool changed = false;
+        lock (_sync)
+        {
+            var ids = _notifications.Values.Where(item => item.Scope != NotificationScope.Global &&
+                (!_notificationPages.TryGetValue(item.Id, out var page) ||
+                 !(_tabRoutes?.IsTabNavigation(page, args.Location) ?? TabUrlState.IsTabNavigation(page, args.Location))))
+                .Select(item => item.Id).ToArray();
+            foreach (var id in ids) { _notifications.Remove(id); _notificationPages.Remove(id); changed = true; }
+        }
+        if (changed) Changed?.Invoke();
+    }
+
+    /// <summary>Releases the navigation subscription owned by this service scope.</summary>
+    public void Dispose()
+    {
+        if (_navigation != null) _navigation.LocationChanged -= LocationChanged;
+    }
     private readonly object _sync = new();
     private readonly Dictionary<Guid, GXNotificationItem> _notifications = new();
     private int _maxVisibleNotifications;
@@ -176,6 +210,7 @@ public sealed class GXNotificationService : IGXNotificationService
                 return;
             }
             _notifications.Clear();
+            _notificationPages.Clear();
         }
         Changed?.Invoke();
     }
@@ -189,6 +224,8 @@ public sealed class GXNotificationService : IGXNotificationService
         lock (_sync)
         {
             _notifications[item.Id] = item;
+            if (_navigation != null && item.Scope != NotificationScope.Global) _notificationPages[item.Id] = _navigation.Uri;
+            else _notificationPages.Remove(item.Id);
         }
 
         Changed?.Invoke();
@@ -202,6 +239,7 @@ public sealed class GXNotificationService : IGXNotificationService
     {
         lock (_sync)
         {
+            _notificationPages.Remove(id);
             if (!_notifications.Remove(id))
             {
                 return;
@@ -223,6 +261,7 @@ public sealed class GXNotificationService : IGXNotificationService
             foreach (Guid id in ids)
             {
                 _notifications.Remove(id);
+                _notificationPages.Remove(id);
             }
         }
         Changed?.Invoke();

@@ -57,6 +57,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="TemplateToken\" />
       <Folder Include="wwwroot\" />
     </ItemGroup>
 </Project>

@@ -73,7 +73,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
             </div>
         }
     }
-    @if (Filter && FilterContent != null)
+    @if (!Immediate && Filter && FilterContent != null)
     {
         <MenuControl>
             <ChildContent>
@@ -84,9 +84,9 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     }
     @if (showColumnConfiguration && _showColumnEditor)
     {
-            var editorContext = CreateColumnEditorContext();
-            <Dialog Id="@(Id + "-columns")" Title="@ColumnSelectorText" Save="false" ManageFocus="true" OkButtonTitle="Save" CancelButtonTitle="Cancel"
-                    OnOk="SaveColumnEditorAsync" OnCancel="CloseColumnEditorAsync" aria-modal="true" aria-labelledby="@(Id + "-columns-title")">
+        var editorContext = CreateColumnEditorContext();
+        <Dialog Id="@(Id + "-columns")" Title="@ColumnSelectorText" Save="false" ManageFocus="true" OkButtonTitle="Save" CancelButtonTitle="Cancel"
+                OnOk="SaveColumnEditorAsync" OnCancel="CloseColumnEditorAsync" aria-modal="true" aria-labelledby="@(Id + "-columns-title")">
             <FooterContent>
                 @if (ColumnEditorFooterContent != null)
                 {
@@ -94,57 +94,61 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 }
             </FooterContent>
             <ChildContent>
-            <div class="gx-table-columns">
-            @if (ColumnEditorContent != null)
-            {
-                @ColumnEditorContent(editorContext)
-            }
-            else
-            {
-            <GXTable TItem="GXTableColumn" @ref="_columnEditor" ItemsProvider="@GetColumnItems"
-                     Save="false" Filter="false" Total="false" ShowAllData="true" ShowAllUsers="false" ShowRemoved="false"
-                     RearrangeRows="@(!_savingColumns)" OnItemMoved="@OnColumnMoved" ItemKey="@(column => column.Name)">
-                <HeaderContent>
-                    <th>@ColumnSelectorText</th>
-                    <th>Visibility</th>
-                </HeaderContent>
-                <ItemContent Context="column">
-                    <td><label class="form-check mb-0">
-                        <input class="form-check-input" type="checkbox" @bind:get="@IsDraftColumnVisible(column.Name)"
-                               disabled="@_savingColumns"
-                               @bind:set="@((bool visible) => ToggleDraftColumnAsync(column.Name, visible))" />
-                        <span class="form-check-label">
-                            @if (ColumnOptions == null && _registeredColumns.TryGetValue(column.Name, out var header) && header.Content != null)
-                            {
-                                @header.Content
-                            }
-                            else
-                            {
-                                @column.Text
-                            }
-                        </span>
-                    </label></td>
-                    <td><select class="form-select form-select-sm w-auto" aria-label="@(column.Text + " visibility")"
-                            @bind:get="@GetDraftVisibility(column.Name)" disabled="@_savingColumns"
-                            @bind:set="@((Visibility visibility) => SetDraftVisibilityAsync(column.Name, visibility))">
-                        @foreach (var visibility in Enum.GetValues<Visibility>())
-                        {
-                            <option value="@visibility">@visibility</option>
-                        }
-                    </select></td>
-                </ItemContent>
-            </GXTable>
-            }
-            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@_savingColumns" @onclick="ResetColumnDraftAsync">Reset</button>
-            @if (_columnError != null)
-            {
-                <div role="alert" class="text-danger">@_columnError</div>
-            }
-            </div>
+                <div class="gx-table-columns">
+                    @if (ColumnEditorContent != null)
+                    {
+                        @ColumnEditorContent(editorContext)
+                    }
+                    else
+                    {
+                        <GXTable TItem="GXTableColumn" @ref="_columnEditor" ItemsProvider="@GetColumnItems"
+                                 Save="false" Filter="false" Total="false" ShowAllData="true" ShowAllUsers="false" ShowRemoved="false"
+                                 RearrangeRows="@(!_savingColumns)" OnItemMoved="@OnColumnMoved" ItemKey="@(column => column.Name)">
+                            <HeaderContent>
+                                <th>@ColumnSelectorText</th>
+                                <th>Visibility</th>
+                            </HeaderContent>
+                            <ItemContent Context="column">
+                                <td>
+                                    <label class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" @bind:get="@IsDraftColumnVisible(column.Name)"
+                                               disabled="@_savingColumns"
+                                               @bind:set="@((bool visible) => ToggleDraftColumnAsync(column.Name, visible))" />
+                                        <span class="form-check-label">
+                                            @if (ColumnOptions == null && _registeredColumns.TryGetValue(column.Name, out var header) && header.Content != null)
+                                            {
+                                                @header.Content
+                                            }
+                                            else
+                                            {
+                                                @column.Text
+                                            }
+                                        </span>
+                                    </label>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm w-auto" aria-label="@(column.Text + " visibility")"
+                                            @bind:get="@GetDraftVisibility(column.Name)" disabled="@_savingColumns"
+                                            @bind:set="@((Visibility visibility) => SetDraftVisibilityAsync(column.Name, visibility))">
+                                        @foreach (var visibility in Enum.GetValues<Visibility>())
+                                        {
+                                            <option value="@visibility">@visibility</option>
+                                        }
+                                    </select>
+                                </td>
+                            </ItemContent>
+                        </GXTable>
+                    }
+                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@_savingColumns" @onclick="ResetColumnDraftAsync">Reset</button>
+                    @if (_columnError != null)
+                    {
+                        <div role="alert" class="text-danger">@_columnError</div>
+                    }
+                </div>
             </ChildContent>
-            </Dialog>
+        </Dialog>
     }
-    <table id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GetCssClass()" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
+    <table id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, RearrangeRows ? "table table-striped table-responsive table-rearrange-rows" : "table table-striped table-responsive")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
         <thead>
             @if (Filter && FilterContent != null)
             {
@@ -501,6 +505,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// </summary>
     [Parameter]
     public bool Filter { get; set; } = true;
+
+    /// <summary>
+    /// Search button is not shown in immediate mode.
+    /// </summary>
+    [Parameter]
+    public bool Immediate { get; set; }
 
     /// <summary>
     /// Gets or sets whether the table menu is displayed.
@@ -1434,23 +1444,6 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
 
     /// <summary>
-    /// Gets the CSS classes obtained by combining component defaults with captured attributes.
-    /// </summary>
-    private string? CssClass => GXComponentAttributes.GetClass(AdditionalAttributes, "table table-striped table-responsive");
-
-    /// <summary>
-    /// Adds the row-reordering CSS class when dragging is enabled.
-    /// </summary>
-    private string? GetCssClass()
-    {
-        if (RearrangeRows)
-        {
-            return GXComponentAttributes.CombineClasses(CssClass, "table-rearrange-rows");
-        }
-        return CssClass;
-    }
-
-    /// <summary>
     /// Gets or sets custom content displayed in the table's filter area.
     /// </summary>
     [Parameter]
@@ -1881,12 +1874,13 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_disposed) return;
         if (ColumnWidthsKey != null && Services.GetService<IJSRuntime>() is IJSRuntime js)
         {
             _widthInitialization ??= InitializeColumnResizingAsync(js);
             await _widthInitialization;
         }
-        if (firstRender)
+        if (firstRender && !_disposed)
         {
             await RefreshDataAsync(true);
         }
@@ -1908,6 +1902,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     private async Task InitializeColumnResizingAsync(IJSRuntime js)
     {
         _widthModule = await js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Table/widths.js");
+        if (_disposed) return;
         _widthReference = DotNetObjectReference.Create(this);
         _widthHandler = await _widthModule.InvokeAsync<IJSObjectReference>("initialize", Id, _widthReference);
     }
