@@ -1,0 +1,110 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@*
+<summary>
+Renders a telephone form input with optional restoration and persistence of its value.
+</summary>
+*@
+
+@using Microsoft.Extensions.Logging
+
+@inject IGXLocalStorage localStorage
+@inject ILogger<GXInputPhone> Logger
+
+@inherits Microsoft.AspNetCore.Components.Forms.InputText
+<input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" id="@Id" type="tel" value="@CurrentValue"
+       class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))"
+       onchange="@((ChangeEventArgs e) => UpdateValue(e.Value))" />
+
+@code {
+
+    /// <summary>
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
+    /// </summary>
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
+
+    /// <summary>
+    /// Gets or sets whether the component value is restored from and saved to browser local storage using its id.
+    /// </summary>
+    /// <seealso cref="Id" />
+    [Parameter]
+    public bool Save { get; set; } = false;
+
+    /// <summary>
+    /// Publishes the current value and saves it when persistence is enabled.
+    /// </summary>
+    private async Task UpdateValue(object? value)
+    {
+        string? str = Convert.ToString(value);
+        if (Value != str)
+        {
+            Value = str;
+            if (ValueChanged.HasDelegate)
+            {
+                await ValueChanged.InvokeAsync(Value);
+            }
+            try
+            {
+                if (Save && !string.IsNullOrEmpty(Id))
+                {
+                    await localStorage.SetValueAsync(Id, Convert.ToString(Value));
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Restores a saved telephone value when persistence is enabled.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (Save && !string.IsNullOrEmpty(Id))
+            {
+                string? value = await localStorage.GetValueAsync(Id);
+                await UpdateValue(value);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex.Message);
+        }
+    }
+}

@@ -1,0 +1,282 @@
+@using System.Globalization
+@using Microsoft.JSInterop
+@using Gurux.UI.Components.Tab
+@using Gurux.UI.Components.Table
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Gurux.UI.Components.Enums
+@namespace Gurux.UI.Components.TemplateToken
+
+@inherits InputBase<string?>
+@inject ITemplateTokenEditorService Tokens
+@inject IGXProgress Progress
+@inject IGXNotificationService Notifications
+@inject IJSRuntime JS
+
+<div class="template-token-editor">
+    <GXTabControl @ref="_tokenTabs" NavigateOnSelection="false" StickyHeader="false">
+        <TabTextTemplate Context="tab"><GXLocalizedText Value="@tab.Text" /></TabTextTemplate>
+        <ChildContent>
+            <GXTabPage Path="Editor" Text="Editor">
+                <textarea @ref="_textArea" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-control", EditContext?.FieldCssClass(FieldIdentifier)))" rows="@Rows"
+                          value="@CurrentValueAsString" @oninput="TextChanged" disabled="@(Disabled || Progress.IsBusy)"></textarea>
+                <details class="mt-2">
+                    <summary><GXLocalizedText Value="Template tokens" /></summary>
+                    <label class="form-label mt-2" for="@_tokenSelectorId"><GXLocalizedText Value="Template tokens" /></label>
+                    <GXDropdownSearch TValue="string" @ref="_tokenSelector" Id="@_tokenSelectorId" class="form-control"
+                                    Value="@_selectedToken" ValueExpression="@(() => _selectedToken)"
+                                    Items="@_tokens.Select(token => token.Name)" Formatter="@FormatToken"
+                                    OnSelected="@SelectToken" Immediate="true" ShowItemsWhenEmpty="true" RememberValue="false"
+                                    disabled="@(Disabled || Progress.IsBusy)">
+                        <Template Context="name">
+                            <code>[@name]</code>
+                            <span class="ms-2"><GXLocalizedText Value="@TokenDescription(name)" /></span>
+                        </Template>
+                    </GXDropdownSearch>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                            disabled="@(Disabled || Progress.IsBusy || !_tokens.Any(token => token.Name == _selectedToken))"
+                            @onclick="AddTokenAsync">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+                            <path d="M7 1h2v6h6v2H9v6H7V9H1V7h6z" />
+                        </svg>
+                        <GXLocalizedText Value="Add token" />
+                    </button>
+                </details>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" disabled="@(Disabled || Progress.IsBusy)"
+                        @onclick="ViewAsync">
+                    <GXLocalizedText Value="View" />
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" disabled="@(Disabled || Progress.IsBusy)"
+                        @onclick="ValidateAsync">
+                    <GXLocalizedText Value="Validate" />
+                </button>
+            </GXTabPage>
+            <GXTabPage Path="Tokens" Text="Tokens">
+                <GXTable TItem="TemplateTokenDefinition" @ref="_tokenTable" @key="_tokens" ItemsProvider="GetTokenItems"
+                         Save="false" Filter="true"
+                         ShowAllUsers="false" ShowRemoved="false" ItemKey="@(token => token.Name)">
+                    <FilterContent>
+                        <GXFh Id="Name">
+                            <GXSearch Id="@(_tokenSelectorId + "-filter")" Immediate="true" RememberValue="false"
+                                    @bind-Value="_tokenFilter" @bind-Value:after="RefreshTokenTableAsync" />
+                        </GXFh>
+                        <GXFh Id="Description">
+                            <GXSearch Id="@(_tokenSelectorId + "-description-filter")" Immediate="true" RememberValue="false"
+                                    @bind-Value="_tokenDescriptionFilter" @bind-Value:after="RefreshTokenTableAsync" />
+                        </GXFh>
+                        <GXFh Id="ExampleValue" />
+                    </FilterContent>
+                    <HeaderContent>
+                        <GXTh TItem="TemplateTokenDefinition" Id="Name"><GXLocalizedText Value="Name" /></GXTh>
+                        <GXTh TItem="TemplateTokenDefinition" Id="Description"><GXLocalizedText Value="Description" /></GXTh>
+                        <GXTh TItem="TemplateTokenDefinition" Id="ExampleValue"><GXLocalizedText Value="Example value" /></GXTh>
+                    </HeaderContent>
+                    <ItemContent Context="token">
+                        <GXTd Id="Name"><code>[@token.Name]</code></GXTd>
+                        <GXTd Id="Description"><GXLocalizedText Value="@token.Description" /></GXTd>
+                        <GXTd Id="ExampleValue">@token.ExampleValue</GXTd>
+                    </ItemContent>
+                </GXTable>
+            </GXTabPage>
+        </ChildContent>
+    </GXTabControl>
+    @if (_preview != null)
+    {
+        <GXDialog Title="@(_usesExamples ? "Example text" : "View")" Save="false" ManageFocus="true"
+                OkButtonTitle="" CancelButtonTitle="Close" OnCancel="CloseView">
+            <div style="white-space:pre-wrap">@_preview</div>
+        </GXDialog>
+    }
+</div>
+
+@code {
+    /// <summary>Optional page scope used to discover and resolve page-specific tokens.</summary>
+    [Parameter] public string? Page { get; set; }
+    /// <summary>Current draft page values; providers decide which values they accept.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string?>? Values { get; set; }
+    /// <summary>Optional target category supplied to token providers.</summary>
+    [Parameter] public string? TargetType { get; set; }
+    /// <summary>Optional target identifier supplied to token providers.</summary>
+    [Parameter] public string? TargetId { get; set; }
+    /// <summary>Number of visible text rows.</summary>
+    [Parameter] public int Rows { get; set; } = 4;
+    /// <summary>Whether editing is disabled.</summary>
+    [Parameter] public bool Disabled { get; set; }
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly string _notificationKey = "TemplateTokenEditor." + Guid.NewGuid().ToString("N");
+    private IReadOnlyList<TemplateTokenDefinition> _tokens = [];
+    private GXTabControl? _tokenTabs;
+    private GXTable<TemplateTokenDefinition>? _tokenTable;
+    private string? _tokenFilter;
+    private string? _tokenDescriptionFilter;
+    private GXDropdownSearch<string>? _tokenSelector;
+    private ElementReference _textArea;
+    private readonly string _tokenSelectorId = "template-token-selector-" + Guid.NewGuid().ToString("N");
+    private string _selectedToken = string.Empty;
+    private string? _preview, _loadedKey;
+    private long _revision;
+    private bool _disposed, _usesExamples;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Progress.Changed += ProgressChanged;
+    }
+
+    private void ProgressChanged()
+    {
+        if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        var key = $"{Page}\n{TargetType}\n{TargetId}\n{CultureInfo.CurrentCulture.Name}\n" +
+            System.Text.Json.JsonSerializer.Serialize(Values?.OrderBy(pair => pair.Key, StringComparer.Ordinal));
+        if (_loadedKey == key) return;
+        _loadedKey = key;
+        var revision = ++_revision;
+        _tokens = [];
+        _preview = null;
+        Notifications.RemoveByKey(_notificationKey);
+        using var progress = Progress.ProgressStart("Retrieving template tokens...");
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, progress.CancellationToken);
+        try
+        {
+            var tokens = await Tokens.GetDefinitionsAsync(CreateContext(), cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (!_disposed && revision == _revision) _tokens = tokens;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception ex) { if (!_disposed && revision == _revision) Notifications.ReportError(ex, _notificationKey); }
+    }
+
+    private TemplateTokenEditorContext CreateContext() => new()
+    {
+        Page = Page,
+        Values = Values == null ? null : new Dictionary<string, string?>(Values),
+        TargetType = TargetType,
+        TargetId = TargetId,
+        Culture = CultureInfo.CurrentCulture
+    };
+
+    private void TextChanged(ChangeEventArgs args)
+    {
+        CurrentValueAsString = args.Value?.ToString();
+        _preview = null;
+        Notifications.RemoveByKey(_notificationKey);
+    }
+
+    private Task RefreshTokenTableAsync() => _tokenTable?.RefreshDataAsync(true) ?? Task.CompletedTask;
+
+    private ValueTask<ItemsProviderResult<TemplateTokenDefinition>> GetTokenItems(GXItemsProviderRequest request)
+    {
+        request.CancellationToken.ThrowIfCancellationRequested();
+        var filter = _tokenFilter?.Trim();
+        var descriptionFilter = _tokenDescriptionFilter?.Trim();
+        var matches = _tokens.Where(token => (string.IsNullOrEmpty(filter) ||
+            token.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+            token.Description.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+            token.ExampleValue?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true) &&
+            (string.IsNullOrEmpty(descriptionFilter) || token.Description.Contains(descriptionFilter, StringComparison.OrdinalIgnoreCase))).ToArray();
+        Func<TemplateTokenDefinition, string?> key = request.OrderBy switch
+        {
+            nameof(TemplateTokenDefinition.Description) => token => token.Description,
+            nameof(TemplateTokenDefinition.ExampleValue) => token => token.ExampleValue,
+            _ => token => token.Name
+        };
+        IEnumerable<TemplateTokenDefinition> rows = request.Descending
+            ? matches.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
+            : matches.OrderBy(key, StringComparer.OrdinalIgnoreCase);
+        rows = rows.Skip(request.StartIndex);
+        if (request.Count > 0) rows = rows.Take(request.Count);
+        return ValueTask.FromResult(new ItemsProviderResult<TemplateTokenDefinition>(rows.ToArray(), matches.Length));
+    }
+    private string? TokenDescription(string? name) => _tokens.FirstOrDefault(token => token.Name == name)?.Description;
+    private string FormatToken(string? name) => string.IsNullOrEmpty(name) ? string.Empty : $"[{name}] {TokenDescription(name)}";
+
+    private void SelectToken(string? name)
+    {
+        if (Disabled || Progress.IsBusy || string.IsNullOrEmpty(name) || !_tokens.Any(token => token.Name == name)) return;
+        _selectedToken = name;
+    }
+    private async Task AddTokenAsync()
+    {
+        if (Disabled || Progress.IsBusy || _disposed || !_tokens.Any(token => token.Name == _selectedToken)) return;
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import",
+                "./_content/Gurux.UI.Components/TemplateToken/GXTemplateTokenEditor.razor.js");
+            var text = await module.InvokeAsync<string>("insertToken", _textArea, "[" + _selectedToken + "]");
+            if (!_disposed) TextChanged(new ChangeEventArgs { Value = text });
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex) { if (!_disposed) Notifications.ReportError(ex, _notificationKey); }
+    }
+
+    private void CloseView() { _preview = null; _usesExamples = false; }
+
+    private async Task ViewAsync()
+    {
+        if (Disabled || Progress.IsBusy || _disposed) return;
+        var text = CurrentValueAsString ?? "";
+        var revision = _revision;
+        Notifications.RemoveByKey(_notificationKey);
+        using var progress = Progress.ProgressStart("Resolving template tokens...");
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, progress.CancellationToken);
+        try
+        {
+            var context = CreateContext();
+            var definitions = await Tokens.GetDefinitionsAsync(context, cancellation.Token);
+            var preview = await TemplateTokenView.CreateAsync(text, definitions,
+                (token, ct) => Tokens.ResolveAsync(token, context, ct),
+                allowExamples: string.IsNullOrWhiteSpace(context.TargetId), cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (!_disposed && revision == _revision && text == (CurrentValueAsString ?? ""))
+            {
+                _preview = preview.Text;
+                _usesExamples = preview.UsesExamples;
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception ex) { if (!_disposed && revision == _revision) Notifications.ReportError(ex, _notificationKey); }
+    }
+
+    private async Task ValidateAsync()
+    {
+        if (Disabled || Progress.IsBusy || _disposed) return;
+        var text = CurrentValueAsString ?? "";
+        var revision = _revision;
+        Notifications.RemoveByKey(_notificationKey);
+        using var progress = Progress.ProgressStart("Validating template tokens...");
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, progress.CancellationToken);
+        try
+        {
+            var tokens = await Tokens.GetDefinitionsAsync(CreateContext(), cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (_disposed || revision != _revision || text != (CurrentValueAsString ?? "")) return;
+            _tokens = tokens;
+            var errors = TemplateTokenValidator.Validate(text, tokens);
+            if (errors.Count != 0) Notifications.ReportError(new ArgumentException(string.Join(Environment.NewLine, errors)), _notificationKey);
+            else Notifications.Add(new GXNotificationItem(NotificationLevel.Success, "Template tokens are valid.", "", _notificationKey, true));
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception ex) { if (!_disposed && revision == _revision) Notifications.ReportError(ex, _notificationKey); }
+    }
+
+    protected override bool TryParseValueFromString(string? value, out string? result, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? validationErrorMessage)
+    { result = value; validationErrorMessage = null; return true; }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && !_disposed)
+        {
+            _disposed = true;
+            Progress.Changed -= ProgressChanged;
+            _lifetime.Cancel();
+            _lifetime.Dispose();
+            Notifications.RemoveByKey(_notificationKey);
+        }
+        base.Dispose(disposing);
+    }
+}

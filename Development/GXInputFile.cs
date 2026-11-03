@@ -32,6 +32,9 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Rendering;
+using System;
+using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Gurux.UI.Components
 {
@@ -40,6 +43,45 @@ namespace Gurux.UI.Components
     /// </summary>
     public class GXInputFile : InputFile
     {
+        private EventCallback<InputFileChangeEventArgs> _selectionCallback;
+        private EventCallback<InputFileChangeEventArgs> _consumerCallback;
+
+        [CascadingParameter]
+        private EditContext? EditContext { get; set; }
+
+        /// <summary>
+        /// Optional model field to notify after OnChange completes, for example
+        /// ValueExpression="@(() => model.File)". OnChange remains responsible
+        /// for assigning the selected file to the model.
+        /// </summary>
+        [Parameter]
+        public Expression<Func<object?>>? ValueExpression { get; set; }
+
+        /// <inheritdoc />
+        protected override void OnParametersSet()
+        {
+            base.OnParametersSet();
+            // Parameters can be supplied again or omitted on a later render.
+            // Never capture our own wrapper as the consumer callback.
+            if (!OnChange.Equals(_selectionCallback))
+            {
+                _consumerCallback = OnChange;
+            }
+            _selectionCallback = EventCallback.Factory.Create<InputFileChangeEventArgs>(this, OnSelectionChangedAsync);
+            OnChange = _selectionCallback;
+        }
+
+        private async Task OnSelectionChangedAsync(InputFileChangeEventArgs args)
+        {
+            var context = EditContext;
+            FieldIdentifier? field = ValueExpression is null ? null : FieldIdentifier.Create(ValueExpression);
+            await _consumerCallback.InvokeAsync(args);
+            if (context is not null && field.HasValue)
+            {
+                context.NotifyFieldChanged(field.Value);
+            }
+        }
+
         /// <summary>
         /// Gets or sets the accepted file types passed to the file input.
         /// </summary>

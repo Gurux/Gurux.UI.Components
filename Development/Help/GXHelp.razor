@@ -1,0 +1,114 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@*
+<summary>
+Displays a help link for the active topic unless the current URL is configured as hidden.
+</summary>
+*@
+
+@using Gurux.UI.Components.Enums
+
+@inject NavigationManager NavigationManager
+@implements IDisposable
+@inject IServiceProvider Services
+
+@if (_helpService?.IsHidden(NavigationManager.Uri) == false)
+{
+    <a class="help-link"
+       href="@_helpService.HelpUrl"
+       target="_blank"
+       rel="noopener noreferrer"
+       aria-label="Help"
+       title="Help">
+        @if (!string.IsNullOrEmpty(_helpService.Image))
+        {
+            <GXImage Value="@_helpService.Image" id="help"></GXImage>
+        }
+        else
+        {
+            <svg class="help-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+                <path d="M8 7a4 4 0 0 1 8 0c0 3-4 3-4 6" />
+                <circle cx="12" cy="18" r="1" fill="currentColor" stroke="none" />
+            </svg>
+        }
+    </a>
+}
+
+@code {
+    private GXHelpService? _helpService;
+
+
+    /// <summary>
+    /// Subscribes to help topic and navigation changes that affect the help link.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        _helpService = Services.GetService<GXHelpService>();
+        if (_helpService is not null)
+        {
+            _helpService.Changed += OnHelpChanged;
+        }
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    /// <summary>
+    /// Schedules rendering when the active help topic changes.
+    /// </summary>
+    private void OnHelpChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Schedules a render so help visibility reflects the new navigation URL.
+    /// </summary>
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Detaches help topic and navigation change handlers.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_helpService is not null)
+        {
+            _helpService.Changed -= OnHelpChanged;
+        }
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
+
+

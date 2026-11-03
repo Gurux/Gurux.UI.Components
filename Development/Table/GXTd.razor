@@ -1,0 +1,183 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@*
+<summary>
+Renders a responsive table cell with editable content or guarded link navigation.
+</summary>
+*@
+
+@namespace Gurux.UI.Components.Table
+@using Gurux.UI.Components.Enums
+
+@inherits ComponentBase
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+
+@if (!_hidden)
+{
+    <td style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXFh.GetCssClass(Parent?.GetColumnVisibility(Id, Visibility) ?? Visibility, null))" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)">
+        @if (Parent != null && Parent.CanEdit && !string.IsNullOrEmpty(EffectiveLink))
+        {
+            <a href="@EffectiveLink" @onclick="OnSelect" @onclick:preventDefault="true">
+                @ChildContent
+            </a>
+        }
+        else
+        {
+            @ChildContent
+        }
+    </td>
+}
+
+@code
+{
+    /// <summary>
+    /// Gets or sets the identifier associated with the table cell.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the containing component supplied through a cascading parameter.
+    /// </summary>
+    [CascadingParameter]
+    private IGXTable? Parent { get; set; }
+
+
+    /// <summary>
+    /// Gets whether the parent table permits editing of this cell.
+    /// </summary>
+    private bool CanEdit
+    {
+        get
+        {
+            if (Parent == null)
+            {
+                return true;
+            }
+            return Parent.CanEdit;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the destination URL opened when the cell is selected.
+    /// </summary>
+    [Parameter]
+    public string? Link { get; set; }
+
+    /// <summary>Gets or sets whether this cell uses the containing row's edit link. An explicit Link takes precedence.</summary>
+    [Parameter]
+    public bool EditLink { get; set; }
+
+    [CascadingParameter]
+    private GXTableRowContext? Row { get; set; }
+
+    private string? EffectiveLink => Link ?? (EditLink ? Row?.EditLink : null);
+
+    /// <summary>
+    /// Gets or sets the value passed to the parent table's cell selection callback.
+    /// </summary>
+    [Parameter]
+    public object? Target { get; set; }
+
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets the responsive breakpoints and print settings at which the cell is displayed.
+    /// </summary>
+    [Parameter]
+    public Visibility Visibility { get; set; } = Visibility.All;
+
+
+    /// <summary>
+    /// Gets or sets the service provider used to resolve optional component services.
+    /// </summary>
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    /// <summary>
+    /// Gets the optional service used to approve cell link navigation.
+    /// </summary>
+    public IGXNavigationGuardService? NavigationGuardService { get; private set; }
+
+    /// <summary>
+    /// Is hidden.
+    /// </summary>
+    bool _hidden => Parent?.IsHidden(Id) == true;
+
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Selects the table cell or follows its link after the navigation guard permits navigation.
+    /// </summary>
+    private async Task OnSelect()
+    {
+        var target = Target ?? (EditLink ? Row?.Item : null);
+        if (target != null)
+        {
+            if (Parent != null)
+            {
+                await Parent.SelectCell(target);
+            }
+        }
+        var link = EffectiveLink;
+        if (CanEdit && !string.IsNullOrEmpty(link))
+        {
+            if (NavigationGuardService == null || await NavigationGuardService.CanNavigateAsync(NavigationManager.Uri))
+            {
+                NavigationManager.NavigateTo(link);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the cell belongs to a table and initializes its parent-dependent state.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        if (Parent == null)
+        {
+            throw new ArgumentNullException(nameof(Parent), "Th must exist within a GXTable");
+        }
+        base.OnInitialized();
+        NavigationGuardService = Services.GetService<IGXNavigationGuardService>();
+    }
+}

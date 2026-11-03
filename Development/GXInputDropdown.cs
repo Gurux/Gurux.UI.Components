@@ -44,6 +44,19 @@ namespace Gurux.UI.Components
     /// </summary>
     public class GXInputDropdown<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TValue> : InputBase<TValue>
     {
+        /// <summary>Gets or sets whether user interaction is disabled.</summary>
+        [Parameter]
+        public bool Disabled { get; set; }
+
+        /// <summary>Allows standalone selection callbacks without a bound field expression.</summary>
+        public override Task SetParametersAsync(ParameterView parameters)
+        {
+            if (!parameters.TryGetValue<System.Linq.Expressions.Expression<Func<TValue>>>(nameof(ValueExpression), out var expression) && ValueExpression == null)
+            {
+                ValueExpression = () => Value!;
+            }
+            return base.SetParametersAsync(parameters);
+        }
         /// <summary>
         /// Cancellation token.
         /// </summary>
@@ -82,7 +95,7 @@ namespace Gurux.UI.Components
         /// </summary>
         /// <seealso cref="Id" />
         [Parameter]
-        public bool LastValue { get; set; } = true;
+        public bool RememberValue { get; set; } = true;
 
         /// <summary>
         /// Gets or sets the injected browser local storage service used for value persistence.
@@ -135,15 +148,20 @@ namespace Gurux.UI.Components
                 }
                 //Get the default value from the cookies
                 // if it's not set.
-                if (localStorage != null && LastValue && !string.IsNullOrEmpty(Id))
+                if (localStorage != null && RememberValue && !string.IsNullOrEmpty(Id))
                 {
                     string? value = await localStorage.GetValueAsync(Id);
-                    if (!string.IsNullOrEmpty(value))
+                    if (value != null)
                     {
                         Logger?.LogWarning("Default value for {0} is loaded from local storage '{1}'.", Id, value);
                         if (TryParseValueFromString(value, out TValue? value2, out var _))
                         {
-                            Value = value2;
+                            bool changed = !EqualityComparer<TValue>.Default.Equals(CurrentValue, value2);
+                            CurrentValue = value2;
+                            if (changed)
+                            {
+                                await OnSelected.InvokeAsync(CurrentValue);
+                            }
                         }
                     }
                 }
@@ -176,6 +194,10 @@ namespace Gurux.UI.Components
                 throw new Exception("ItemsProvider not set.");
             }
             var result = await ItemsProvider(req);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
             _items.Clear();
             if (result.Items != null)
             {
@@ -183,7 +205,7 @@ namespace Gurux.UI.Components
             }
             if ((Value == null || !_items.Contains(Value)) && _items.Any())
             {
-                Value = _items.First();
+                CurrentValue = _items.First();
             }
             // Only apply result if the task was not canceled.
             if (!cancellationToken.IsCancellationRequested && renderOnSuccess)
@@ -224,10 +246,7 @@ namespace Gurux.UI.Components
                 _items.Clear();
                 _items.AddRange(Items);
             }
-            if (Value == null && Items?.Any() == true)
-            {
-                CurrentValue = Items.FirstOrDefault();
-            }
+
             builder.OpenElement(0, "select");
             builder.AddAttribute(1, "id", Id);
             builder.AddMultipleAttributes(2, AdditionalAttributes);
@@ -238,6 +257,7 @@ namespace Gurux.UI.Components
             string? cssClass = GXComponentAttributes.CombineClasses("form-select", CssClass);
             builder.AddAttribute(4, "class", cssClass);
             builder.AddAttribute(5, "multiple", _isMultipleSelect);
+            builder.AddAttribute(5, "disabled", Disabled);
             if (_isMultipleSelect)
             {
                 builder.AddAttribute(6, "value", BindConverter.FormatValue(CurrentValue)?.ToString());
@@ -275,7 +295,7 @@ namespace Gurux.UI.Components
                 {
                     builder.AddAttribute(index++, "id", pos.ToString());
                     builder.AddAttribute(index++, "value", pos.ToString());
-                    builder.AddContent(index++, value);
+                    builder.AddContent(index++, Formatter != null ? Formatter(value) : value?.ToString());
                 }
                 ++pos;
                 builder.CloseElement();
@@ -283,16 +303,19 @@ namespace Gurux.UI.Components
             builder.CloseElement();
         }
         private TValue? _original;
+        private bool _hasOriginal;
 
         /// <summary>
         /// Tracks the original selection during keyboard navigation and handles selection or cancellation keys.
         /// </summary>
         protected void OnKeyDown(KeyboardEventArgs e)
         {
-            if (_original == null)
+            if (Disabled) return;
+            if (!_hasOriginal)
             {
                 //Remember the selected item.
                 _original = Value;
+                _hasOriginal = true;
             }
             if (e.Key == "ArrowUp")
             {
@@ -300,7 +323,7 @@ namespace Gurux.UI.Components
                 int index = _items.IndexOf(Value!);
                 if (index > 0 && index < _items.Count)
                 {
-                    Value = _items[index - 1];
+                    CurrentValue = _items[index - 1];
                 }
             }
             else if (e.Key == "ArrowDown")
@@ -309,18 +332,15 @@ namespace Gurux.UI.Components
                 int index = _items.IndexOf(Value!);
                 if (index != -1 && index < _items.Count - 1)
                 {
-                    Value = _items[index + 1];
+                    CurrentValue = _items[index + 1];
                 }
             }
             else if (e.Key == "Enter")
             {
                 _original = default!;
-                if (ValueChanged.HasDelegate)
-                {
-                    ValueChanged.InvokeAsync(Value);
-                }
+                _hasOriginal = false;
                 OnSelected.InvokeAsync(Value);
-                if (localStorage != null && LastValue && !string.IsNullOrEmpty(Id))
+                if (localStorage != null && RememberValue && !string.IsNullOrEmpty(Id))
                 {
                     localStorage.SetValueAsync(Id, Value?.ToString());
                 }
@@ -330,9 +350,9 @@ namespace Gurux.UI.Components
             {
                 //Reset to original value.
                 Filter = null;
-                Value = _original;
+                CurrentValue = _original;
                 _original = default!;
-                ValueChanged.InvokeAsync(Value);
+                _hasOriginal = false;
                 OnSelected.InvokeAsync(Value);
                 StateHasChanged();
             }
@@ -344,35 +364,44 @@ namespace Gurux.UI.Components
         protected void SetCurrentValueAsStringArray(string?[]? value)
         {
             _original = default!;
-            CurrentValue = BindConverter.TryConvertTo<TValue>(value, CultureInfo.CurrentCulture, out var result)
-                ? result
-                : default;
+            _hasOriginal = false;
+            if (Disabled) return;
+            if (BindConverter.TryConvertTo<TValue>(value, CultureInfo.CurrentCulture, out var result))
+            {
+                // Conversion creates a new array even when the selected values are unchanged.
+                if (CurrentValue is Array previous && result is Array next &&
+                    previous.Cast<object?>().SequenceEqual(next.Cast<object?>()))
+                {
+                    return;
+                }
+                CurrentValue = result;
+            }
         }
 
         /// <summary>
         /// Resolves a selected option index, updates the bound item, and invokes the selection callback.
         /// </summary>
-        protected void SetCurrentValueAsString(object? value)
+        protected async Task SetCurrentValueAsString(object? value)
         {
             _original = default!;
+            _hasOriginal = false;
+            if (Disabled) return;
             int index = value is string text && text.Length == 0
                 ? _items.FindIndex(item => item == null)
-                : Convert.ToInt32(value);
-            if (index < 0 || index >= _items.Count)
-            {
-                return;
-            }
+                : int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : -1;
+            if (index < 0 || index >= _items.Count) return;
+            if (EqualityComparer<TValue>.Default.Equals(CurrentValue, _items[index])) return;
             CurrentValue = _items[index];
-            OnSelected.InvokeAsync(Value);
+            await OnSelected.InvokeAsync(Value);
         }
-
         /// <summary>
         /// Applies the selected option and persists the resulting value when enabled.
         /// </summary>
         private async Task SetCurrentValueAsStringAsync(object? value)
         {
-            SetCurrentValueAsString(value);
-            if (localStorage != null && LastValue && !string.IsNullOrEmpty(Id))
+            if (Disabled) return;
+            await SetCurrentValueAsString(value);
+            if (localStorage != null && RememberValue && !string.IsNullOrEmpty(Id))
             {
                 if (Value != null)
                 {
@@ -386,41 +415,40 @@ namespace Gurux.UI.Components
         }
 
         /// <summary>
-        /// Converts text to the bound type, applies changed values, and notifies selection callbacks; throws when conversion fails.
+        /// Converts persisted text to the bound type without modifying the current selection.
         /// </summary>
         protected override bool TryParseValueFromString(string? value, [MaybeNullWhen(false)] out TValue result, [NotNullWhen(false)] out string? validationErrorMessage)
         {
-            validationErrorMessage = null;
-            result = default;
-            bool ret = false;
-            if (!BindConverter.TryConvertTo<TValue>(value, CultureInfo.InvariantCulture, out result))
+            foreach (var item in _items)
             {
-                throw new Exception("Invalid value.");
-            }
-            if (Value?.GetHashCode() != result?.GetHashCode())
-            {
-                Value = result;
-                if (ValueChanged.HasDelegate)
+                if (string.Equals(item?.ToString(), value, StringComparison.Ordinal))
                 {
-                    ValueChanged.InvokeAsync(result);
-                }
-                if (OnSelected.HasDelegate)
-                {
-                    OnSelected.InvokeAsync(result);
-                }
-                try
-                {
-                    if (localStorage != null && LastValue && !string.IsNullOrEmpty(Id))
-                    {
-                        localStorage.SetValueAsync(Id, result?.ToString());
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex.Message);
+                    result = item;
+                    validationErrorMessage = null;
+                    return true;
                 }
             }
-            return ret;
+            if (string.IsNullOrEmpty(value) && default(TValue) == null)
+            {
+                result = default!;
+                validationErrorMessage = null;
+                return true;
+            }
+            try
+            {
+                if (BindConverter.TryConvertTo<TValue>(value, CultureInfo.InvariantCulture, out result))
+                {
+                    validationErrorMessage = null;
+                    return true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Items without a TypeConverter are restored by their stored display text.
+            }
+            result = default!;
+            validationErrorMessage = "Invalid value.";
+            return false;
         }
 
         /// <summary>
@@ -437,3 +465,4 @@ namespace Gurux.UI.Components
 
     }
 }
+

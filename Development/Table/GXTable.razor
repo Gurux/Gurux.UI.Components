@@ -75,17 +75,17 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     }
     @if (!Immediate && Filter && FilterContent != null)
     {
-        <MenuControl>
+        <GXMenuControl>
             <ChildContent>
-                <MenuItem Text="Search" Id="Search" OnClick="@Search" />
+                <GXMenuEntry Text="Search" Id="Search" OnClick="@Search" />
             </ChildContent>
-        </MenuControl>
+        </GXMenuControl>
         <br />
     }
     @if (showColumnConfiguration && _showColumnEditor)
     {
         var editorContext = CreateColumnEditorContext();
-        <Dialog Id="@(Id + "-columns")" Title="@ColumnSelectorText" Save="false" ManageFocus="true" OkButtonTitle="Save" CancelButtonTitle="Cancel"
+        <GXDialog Id="@(Id + "-columns")" Title="@ColumnSelectorText" Save="false" ManageFocus="true" OkButtonTitle="Save" CancelButtonTitle="Cancel"
                 OnOk="SaveColumnEditorAsync" OnCancel="CloseColumnEditorAsync" aria-modal="true" aria-labelledby="@(Id + "-columns-title")">
             <FooterContent>
                 @if (ColumnEditorFooterContent != null)
@@ -146,7 +146,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                     }
                 </div>
             </ChildContent>
-        </Dialog>
+        </GXDialog>
     }
     <table id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, RearrangeRows ? "table table-striped table-responsive table-rearrange-rows" : "table table-striped table-responsive")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
         <thead>
@@ -204,7 +204,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                         {
                             @if (!((IGXTable)this).IsHidden(column.Name))
                             {
-                                <th class="@Fh.GetCssClass(GetColumnVisibility(column.Name, GetDefaultColumnVisibility(column.Name)), null)"></th>
+                                <th class="@GXFh.GetCssClass(GetColumnVisibility(column.Name, GetDefaultColumnVisibility(column.Name)), null)"></th>
                             }
                         }
                     }
@@ -267,9 +267,9 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                             @if (it != null && (Compare(it, Active) || it.Equals(Active)))
                             {
                                 <td class="gx-table-menu-cell">
-                                    <ContextMenuController>
+                                    <GXContextMenuController>
                                         @MenuContent
-                                    </ContextMenuController>
+                                    </GXContextMenuController>
                                 </td>
                             }
                             else

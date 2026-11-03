@@ -58,7 +58,7 @@ namespace Gurux.UI.Components
         /// </summary>
         /// <seealso cref="Id" />
         [Parameter]
-        public bool LastValue { get; set; } = true;
+        public bool RememberValue { get; set; } = true;
 
         /// <summary>
         /// Gets or sets the minimum value accepted by the numeric input.
@@ -174,7 +174,7 @@ namespace Gurux.UI.Components
             }
             try
             {
-                if (LastValue && !string.IsNullOrEmpty(Id) && localStorage != null)
+                if (RememberValue && !string.IsNullOrEmpty(Id) && localStorage != null)
                 {
                     TValue? result;
                     string? value = await localStorage.GetValueAsync(Id);
@@ -182,7 +182,7 @@ namespace Gurux.UI.Components
                     {
                         if (BindConverter.TryConvertTo<TValue>(value, CultureInfo.InvariantCulture, out result))
                         {
-                            Value = result;
+                            CurrentValue = result;
                         }
                     }
                 }
@@ -237,7 +237,7 @@ namespace Gurux.UI.Components
                 {
                     try
                     {
-                        if (localStorage != null && LastValue && !string.IsNullOrEmpty(Id))
+                        if (localStorage != null && RememberValue && !string.IsNullOrEmpty(Id))
                         {
                             localStorage.SetValueAsync(Id, result?.ToString());
                         }

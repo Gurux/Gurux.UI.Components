@@ -1,0 +1,230 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@*
+<summary>
+Binds a switch to a form value with callbacks, localized labels, and optional persistence.
+</summary>
+*@
+
+@using System.Linq.Expressions
+@using Microsoft.Extensions.Logging
+@inject IGXLocalStorage localStorage
+@inject ILogger<GXInputSwitch<TValue>> Logger
+@typeparam TValue
+@implements IDisposable
+
+<CascadingValue Value="this">
+    @if (Inline)
+    {
+        <div class="form-inline">
+            @if (!string.IsNullOrEmpty(PreText))
+            {
+                <label>@PreText</label>
+            }
+            @SwitchContent
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(PreText))
+        {
+            <label>@PreText</label>
+        }
+        <label class="form-check-label"><GXLocalizedText Value="@Text" /></label>
+        @ChildContent
+        @SwitchContent
+    }
+</CascadingValue>
+
+@code {
+    private RenderFragment SwitchContent => @<div class="form-check form-switch">
+        <input @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)"
+               style="@GXComponentAttributes.GetStyle(AdditionalAttributes)"
+               id="@Id" type="checkbox" checked="@(Value is true)"
+               class="@GXComponentAttributes.GetClass(AdditionalAttributes, GXComponentAttributes.CombineClasses("form-check-input", FieldCssClass))"
+               aria-invalid="@AriaInvalid"
+               disabled="@Disabled"
+               onchange="@(async (ChangeEventArgs e) => await UpdateCheck(Convert.ToBoolean(e.Value)))" />
+        @if (Inline)
+        {
+            @if (!string.IsNullOrEmpty(Text))
+            {
+                <label>@Text</label>
+            }
+            @ChildContent
+        }
+    </div>;
+
+    /// <summary>Creates a switch for bool or nullable bool values.</summary>
+    public GXInputSwitch()
+    {
+        if ((Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue)) != typeof(bool))
+        {
+            throw new InvalidOperationException("InputSwitch supports only bool and bool?.");
+        }
+    }
+
+    /// <summary>Additional attributes forwarded to the native checkbox.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string? _generatedId;
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    /// <summary>Services used to resolve optional localization.</summary>
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    /// <summary>The optional resource service used to localize the switch label.</summary>
+    public IGXResourceStorage? ResourceStorage => Services.GetService<IGXResourceStorage>();
+
+    /// <summary>Restores and persists the switch using its HTML id.</summary>
+    [Parameter]
+    public bool Save { get; set; }
+
+    /// <summary>Content displayed with the switch label.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Text displayed before the switch.</summary>
+    [Parameter]
+    public string? PreText { get; set; }
+
+    /// <summary>The switch label.</summary>
+    [Parameter]
+    public string? Text { get; set; }
+
+    /// <summary>Renders labels and content in the legacy inline layout.</summary>
+    [Parameter]
+    public bool Inline { get; set; }
+
+    /// <summary>Disables user interaction with the switch.</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>The boolean value represented by the switch.</summary>
+    [Parameter]
+    public TValue Value { get; set; } = default!;
+
+    /// <summary>Callback used for two-way value binding.</summary>
+    [Parameter]
+    public EventCallback<TValue> ValueChanged { get; set; }
+
+    /// <summary>Callback invoked after the switch value changes.</summary>
+    [Parameter]
+    public EventCallback<TValue> OnChange { get; set; }
+
+    /// <summary>The optional bound field, supplied automatically by @bind-Value.</summary>
+    [Parameter]
+    public Expression<Func<TValue>>? ValueExpression { get; set; }
+
+    [CascadingParameter]
+    private EditContext? EditContext { get; set; }
+
+    private string? FieldCssClass => EditContext is not null && ValueExpression is not null
+        ? EditContext.FieldCssClass(FieldIdentifier.Create(ValueExpression)) : null;
+
+    private string? AriaInvalid => AdditionalAttributes?.TryGetValue("aria-invalid", out var supplied) == true
+        ? Convert.ToString(supplied)
+        : EditContext is not null && ValueExpression is not null && EditContext.GetValidationMessages(FieldIdentifier.Create(ValueExpression)).Any()
+            ? "true" : null;
+
+    private EditContext? _subscribedEditContext;
+
+    /// <summary>Refreshes validation styling when the containing form changes.</summary>
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (!ReferenceEquals(EditContext, _subscribedEditContext))
+        {
+            if (_subscribedEditContext is not null) _subscribedEditContext.OnValidationStateChanged -= ValidationStateChanged;
+            _subscribedEditContext = EditContext;
+            if (_subscribedEditContext is not null) _subscribedEditContext.OnValidationStateChanged += ValidationStateChanged;
+        }
+    }
+
+    private void ValidationStateChanged(object? sender, ValidationStateChangedEventArgs args) => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>Releases the form validation subscription.</summary>
+    public void Dispose()
+    {
+        if (_subscribedEditContext is not null) _subscribedEditContext.OnValidationStateChanged -= ValidationStateChanged;
+    }
+
+    private Task UpdateCheck(bool value) => ApplyValueAsync((TValue)(object)value, persist: true);
+
+    private async Task ApplyValueAsync(TValue value, bool persist)
+    {
+        if (EqualityComparer<TValue>.Default.Equals(Value, value)) return;
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+        await OnChange.InvokeAsync(value);
+        if (EditContext is not null && ValueExpression is not null)
+        {
+            EditContext.NotifyFieldChanged(FieldIdentifier.Create(ValueExpression));
+        }
+        if (persist && Save)
+        {
+            try
+            {
+                await localStorage.SetValueAsync(Id, Convert.ToString(Value));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
+            }
+        }
+    }
+
+    /// <summary>Restores the saved value after the first interactive render.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender && Save)
+        {
+            try
+            {
+                var value = await localStorage.GetValueAsync(Id);
+                if (bool.TryParse(value, out var restored) && !EqualityComparer<TValue>.Default.Equals(Value, (TValue)(object)restored))
+                {
+                    await ApplyValueAsync((TValue)(object)restored, persist: false);
+                    StateHasChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
+            }
+        }
+    }
+}

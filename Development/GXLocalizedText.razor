@@ -1,0 +1,167 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@*
+<summary>
+Displays a translated resource string and refreshes it when the resource changes.
+</summary>
+*@
+
+@using Microsoft.Extensions.Logging
+
+<span @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)">
+    @GetValue()
+    @ChildContent
+</span>
+
+@implements IDisposable
+
+@code {
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _disposed;
+    private IGXResourceStorage? _subscribedStorage;
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets the resource key to translate and display.
+    /// </summary>
+    [Parameter]
+    public string? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the localization change should be propagated through the update callback.
+    /// </summary>
+    [Parameter]
+    public bool Update { get; set; }
+
+    /// <summary>
+    /// Gets or sets the injected logger used to report component activity and errors.
+    /// </summary>
+    [Inject]
+    ILogger<GXImage> Logger { get; set; } = default!;
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the localization refresh flag changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> UpdateChanged { get; set; }
+
+    private string? _localizedValue;
+    /// <summary>
+    /// Returns the translated text when available, falling back to the supplied resource key.
+    /// </summary>
+    private string? GetValue()
+    {
+        if (_localizedValue != null)
+        {
+            return _localizedValue;
+        }
+        return Value;
+    }
+
+    /// <summary>
+    /// Gets or sets the service provider used to resolve optional component services.
+    /// </summary>
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    /// <summary>
+    /// Gets the optional service used to retrieve localized resources.
+    /// </summary>
+    public IGXResourceStorage? ResourceStorage => Services.GetService<IGXResourceStorage>();
+
+    /// <summary>
+    /// Loads the translation for the supplied resource key, falling back to that key when no service is available.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ResourceStorage != null && !string.IsNullOrEmpty(Value))
+        {
+            _localizedValue = await ResourceStorage.GetLocalizedTextAsync(Value);
+            // Logger.LogInformation($"Loading localized text with Id: {Value}: {_localizedValue}");
+        }
+        else
+        {
+            _localizedValue = Value;
+        }
+    }
+
+    /// <summary>
+    /// Subscribes to localized text change notifications when a resource service is available.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        _subscribedStorage = ResourceStorage;
+        if (_subscribedStorage != null)
+        {
+            _subscribedStorage.OnTextChanged += Updated;
+        }
+        base.OnInitialized();
+    }
+
+    /// <summary>
+    /// Refreshes the displayed localization when the changed text matches this component's resource.
+    /// </summary>
+    private void Updated(object? sender, GXTextChangedEventArgs arg)
+    {
+        _ = InvokeAsync(() =>
+        {
+            if (!_disposed && _localizedValue == arg.PreviousText)
+            {
+                _localizedValue = arg.CurrentText;
+                StateHasChanged();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Stops handling localized text changes and marks the component as disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        _disposed = true;
+        if (_subscribedStorage != null)
+        {
+            _subscribedStorage.OnTextChanged -= Updated;
+            _subscribedStorage = null;
+        }
+    }
+}

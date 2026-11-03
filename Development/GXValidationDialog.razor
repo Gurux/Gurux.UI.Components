@@ -37,7 +37,7 @@ Combines a dialog with an edit form, validation, and optional contextual help.
 *@
 
 @using Gurux.UI.Components.Help
-<Dialog Id="@Id" Save="@Save" Resizable="@Resizable" Title="@Title" OkButtonTitle="@OkButtonTitle" CancelButtonTitle="@CancelButtonTitle" OnOk="OnOk" OnCancel="OnCancel"
+<GXDialog Id="@Id" Save="@Save" Resizable="@Resizable" Title="@Title" OkButtonTitle="@OkButtonTitle" CancelButtonTitle="@CancelButtonTitle" OnOk="OnOk" OnCancel="OnCancel"
         HeaderContent="@(string.IsNullOrWhiteSpace(HelpTopic) ? null : RenderHelp)">
     <ChildContent>
         <CascadingValue Value="_context">
@@ -46,15 +46,15 @@ Combines a dialog with an edit form, validation, and optional contextual help.
             @ChildContent
         </CascadingValue>
     </ChildContent>
-</Dialog>
+</GXDialog>
 
 @code {
     /// <summary>
     /// Gets or sets whether contextual help is rendered inside the validation dialog.
     /// </summary>
     private RenderFragment RenderHelp => @<div>
-        <HelpContext Topic="@(HelpTopic!)" />
-        <Help />
+        <GXHelpContext Topic="@(HelpTopic!)" />
+        <GXHelp />
     </div>;
 
     /// <summary>

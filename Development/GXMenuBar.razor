@@ -56,7 +56,7 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         }
         else if (it.Children.Count != 0)
         {
-            <MenuControl @key="it" Dropdown="true" Text="@it.Text" Icon="@it.Icon"
+            <GXMenuControl @key="it" Dropdown="true" Text="@it.Text" Icon="@it.Icon"
                          ReadOnly="@IsDisabled(it)" MenuItems="@GetDropdownItems(it)"
                          ParentCanExecute="@(() => CanExecuteAsync(it))" />
         }
@@ -66,10 +66,10 @@ Displays shared commands and dropdowns and updates their enabled state from prog
                     disabled="@IsDisabled(it)">
                 @if (it.Icon != null)
                 {
-                    <Image Id="@it.Icon"></Image>
+                    <GXImage Id="@it.Icon"></GXImage>
                 }
                 &nbsp;
-                <LocalizedText Value="@it.Text" />
+                <GXLocalizedText Value="@it.Text" />
             </button>
         }
     }
@@ -81,11 +81,11 @@ Displays shared commands and dropdowns and updates their enabled state from prog
 }
 @if (_pendingConfirmation != null)
 {
-    <Dialog Title="@UnsavedChangesTitle" Save="false" ManageFocus="true"
+    <GXDialog Title="@UnsavedChangesTitle" Save="false" ManageFocus="true"
             OkButtonTitle="@DiscardChangesText" CancelButtonTitle="@StayText"
             OnOk="@(() => CompleteDiscard(true))" OnCancel="@(() => CompleteDiscard(false))">
-        <LocalizedText Value="@UnsavedChangesMessage" />
-    </Dialog>
+        <GXLocalizedText Value="@UnsavedChangesMessage" />
+    </GXDialog>
 }
 @code {
     /// <summary>Optional GXMenu.Id identifying a menu within the same location and kind.</summary>
@@ -144,9 +144,9 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         }
     }
 
-    private List<MenuItem> GetDropdownItems(GXMenuItem parent) => parent.Children.Select(child =>
+    private List<GXMenuEntry> GetDropdownItems(GXMenuItem parent) => parent.Children.Select(child =>
     {
-        return MenuItem.Create(child.Icon ?? string.Empty, child.Text,
+        return GXMenuEntry.Create(child.Icon ?? string.Empty, child.Text,
             EventCallback.Factory.Create(this, () => InvokeCommandAsync(child)), IsDisabled(child),
             child.Children.Count == 0 ? null : GetDropdownItems(child), child.IsSeparator, child.Policy);
     }).ToList();

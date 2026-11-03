@@ -1,0 +1,400 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@*
+<summary>
+Displays selectable, paged search results from static items or an asynchronous provider.
+</summary>
+*@
+
+@using Microsoft.AspNetCore.Components.Web;
+
+@typeparam TItem
+
+@if (Items != null)
+{
+    <CascadingValue name="search" Value="@this">
+        <div class="search">
+            <input @attributes="AdditionalAttributes" id="@(GXComponentAttributes.GetValue(AdditionalAttributes, "id") ?? Id)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")" disabled="@(Disabled || _loading)"
+                   data-toggle="dropdown"
+                   type="search"
+                   value="@Value"
+                   onsearch="@(() => RefreshDataAsync())"
+                   oninput="@((ChangeEventArgs e) => UpdateFilter(e.Value))"
+                   placeholder="@Placeholder"
+                   aria-haspopup="true" aria-expanded="false" />
+            <div class="dropdown-menu @(Show ? "show" : "")">
+                @foreach (TItem it in @GetItems())
+                {
+                    @if (ItemContent != null)
+                    {
+                        <a class=@(EqualityComparer<TItem>.Default.Equals(it, Value) ? "dropdown-item active" : "dropdown-item") Item="@it"
+                           onclick="@(() => HandleSelect(it))">
+                            @ItemContent(it)
+                        </a>
+                    }
+                }
+                @*Show pagination.*@
+                @if (Pages.Count > 1 && !ShowAllData)
+                {
+                    <ul class="pagination justify-content-center">
+                        @if (CurrentPage != 0)
+                        {
+                            <li onclick="@(() => SelectPage(0))"
+                                style="cursor: pointer;"
+                                class="page-link" href="#">&laquo;</li>
+                        }
+                        @foreach (int pos in Pages)
+                        {
+                            @if (pos >= CurrentPage - Spread && pos <= CurrentPage + Spread)
+                            {
+                                <li onclick="@(() => SelectPage(pos))"
+                                    style="cursor: pointer;"
+                                    class="page-item @(CurrentPage == pos ? "active" : null)">
+                                    <span class="page-link" href="#">@(1 + pos)</span>
+                                </li>
+                            }
+
+                        }
+                        @if (CurrentPage != TotalPages - 1)
+                        {
+                            <li onclick="@(() => SelectPage(TotalPages - 1))"
+                                style="cursor: pointer;"
+                                class="page-link" href="#">&raquo;</li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </CascadingValue>
+    @ChildContent
+}
+@code {
+    private bool _loading = true;
+    /// <summary>
+    /// Gets or sets the identifier of the search component.
+    /// </summary>
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets whether input changes immediately refresh search results.
+    /// </summary>
+    [Parameter]
+    public bool Immediate { get; set; }
+
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+
+    /// <summary>
+    /// Gets or sets whether user interaction with the input is disabled.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private List<int> Pages = new List<int>();
+
+    /// <summary>
+    /// Stores an optional item value associated with the search component.
+    /// </summary>
+    public TItem? _value;
+
+    /// <summary>
+    /// Requests rendering of the component's current state.
+    /// </summary>
+    public void Update()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Gets or sets the currently selected search result.
+    /// </summary>
+    [Parameter]
+    public TItem? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default selection option.
+    /// </summary>
+    [Parameter]
+    public TItem? DefaultValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the bound value changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<TItem?> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Is dropdown shown.
+    /// </summary>
+    private bool Show = false;
+
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+    /// <summary>
+    /// Gets or sets the template used to render an item.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<TItem?>? ItemContent { get; set; }
+
+    /// <summary>
+    /// Updates the search filter, resets pagination, and refreshes results when immediate filtering is enabled.
+    /// </summary>
+    private async Task UpdateFilter(object? value)
+    {
+        Filter = Convert.ToString(value);
+        if (Filter == "" && Value != null)
+        {
+            //If the user closes the search dialog.
+            Show = false;
+            StateHasChanged();
+            return;
+        }
+        Show = true;
+        Pages.Clear();
+        CurrentPage = 0;
+        if (Immediate)
+        {
+            await RefreshDataAsync();
+        }
+    }
+
+    private string? Filter;
+    /// <summary>
+    /// Gets or sets the callback invoked when the user selects an item.
+    /// </summary>
+    [Parameter]
+    public EventCallback<TItem> OnSelected { get; set; }
+
+    /// <summary>
+    /// Applies a search result selection, invokes callbacks, and closes the results list.
+    /// </summary>
+    private async Task HandleSelect(TItem? item)
+    {
+        Value = item;
+        if (ValueChanged.HasDelegate)
+        {
+            await ValueChanged.InvokeAsync(item);
+        }
+        Show = false;
+        if (OnSelected.HasDelegate)
+        {
+            await OnSelected.InvokeAsync(item);
+        }
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets or sets the number of items requested for each page.
+    /// </summary>
+    [Parameter]
+    public int PageSize { get; set; } = 5;
+
+    /// <summary>
+    /// Creates the search component with a default page size of five items.
+    /// </summary>
+    public GXInputSearch()
+    {
+        PageSize = 5;
+    }
+
+    /// <summary>
+    /// Gets or sets the hint displayed when the input has no value.
+    /// </summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
+    /// <summary>
+    /// Returns the display name of an item shown in search results.
+    /// </summary>
+    public delegate string? GetNameEventHandler(TItem target);
+    private CancellationTokenSource? _cts;
+    /// <summary>
+    /// Gets or sets the option to display an all-users control.
+    /// </summary>
+    [Parameter]
+    public bool ShowAllUsers { get; set; } = true;
+    /// <summary>
+    /// Gets or sets whether requests include data belonging to all users.
+    /// </summary>
+    protected bool ShowAllUserData { get; set; } = false;
+    /// <summary>
+    /// Gets or sets whether all items are displayed without pagination.
+    /// </summary>
+    [Parameter]
+    public bool ShowAllData { get; set; }
+    /// <summary>
+    /// Gets or sets the option to display the total item count.
+    /// </summary>
+    [Parameter]
+    public bool Total { get; set; } = true;
+    /// <summary>
+    /// Gets or sets the number of page links displayed before and after the current page.
+    /// </summary>
+    [Parameter]
+    public int Spread { get; set; } = 2;
+    /// <summary>
+    /// Gets or sets the zero-based index of the current page.
+    /// </summary>
+    [Parameter]
+    public int CurrentPage { get; set; }
+    /// <summary>
+    /// Selects the requested zero-based page and refreshes the displayed items.
+    /// </summary>
+    /// <param name="index">Page index</param>
+    internal async Task SelectPage(int index)
+    {
+        CurrentPage = Math.Clamp(index, 0, Math.Max(0, TotalPages - 1));
+        await RefreshDataAsync(true);
+    }
+    /// <summary>
+    /// Gets the total number of items reported by the provider.
+    /// </summary>
+    public int TotalCount { get; private set; }
+
+    /// <summary>
+    /// Gets the number of pages calculated from the total count and page size.
+    /// </summary>
+    public int TotalPages
+    {
+        get
+        {
+            return (int)Math.Ceiling(TotalCount / (double)PageSize);
+        }
+    }
+    /// <summary>
+    /// Gets or sets the asynchronous provider used to retrieve items and their total count.
+    /// </summary>
+    [Parameter]
+    public GXItemsProviderDelegate<TItem>? ItemsProvider { get; set; }
+    /// <summary>
+    /// Returns available search results excluding items in the hidden-item collection.
+    /// </summary>
+    public List<TItem> GetItems()
+    {
+        if (Items == null)
+        {
+            return new List<TItem>();
+        }
+        return Items.Except(HiddenItems).ToList();
+    }
+    /// <summary>
+    /// Gets or sets the items available for display or selection.
+    /// </summary>
+    public List<TItem>? Items { get; set; } = new List<TItem>();
+    /// <summary>
+    /// Gets or sets the items excluded from search results.
+    /// </summary>
+    public List<TItem> HiddenItems { get; set; } = new List<TItem>();
+    /// <summary>
+    /// Retrieves items from the provider and optionally requests rendering after a successful load.
+    /// </summary>
+    /// <param name="renderOnSuccess">Is UI render after success operation.</param>
+    public async Task RefreshDataAsync(bool renderOnSuccess = true)
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        CancellationToken cancellationToken = _cts.Token;
+        GXItemsProviderRequest req = new GXItemsProviderRequest(ShowAllData ? 0 : CurrentPage * PageSize,
+        ShowAllData ? 0 : PageSize,
+        ShowAllUserData,
+        false,
+        null,
+        false,
+        Filter,
+        cancellationToken);
+        if (ItemsProvider == null)
+        {
+            throw new Exception("ItemsProvider not set.");
+        }
+        var result = await ItemsProvider(req);
+        Items?.Clear();
+        Items?.AddRange(result.Items);
+        //If pages count has changed.
+        if (TotalCount != result.TotalItemCount)
+        {
+            TotalCount = result.TotalItemCount;
+            Pages.Clear();
+            if (!ShowAllData)
+            {
+                for (int pos = 0; pos != TotalPages; ++pos)
+                {
+                    Pages.Add(pos);
+                }
+            }
+        }
+        if (Items == null || !Items.Any())
+        {
+            Show = false;
+        }
+        // Only apply result if the task was not canceled.
+        if (!cancellationToken.IsCancellationRequested && renderOnSuccess)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    /// <summary>
+    /// Initializes the base component and loads the initial search results.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        try
+        {
+            await RefreshDataAsync(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Clears the initial loading state after the first render and requests a UI update.
+    /// </summary>
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _loading = false;
+            InvokeAsync(StateHasChanged);
+        }
+        base.OnAfterRender(firstRender);
+    }
+}

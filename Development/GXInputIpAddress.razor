@@ -37,7 +37,8 @@ Edits supported IP address representations and can persist the bound value.
 *@
 
 @using System.Diagnostics.CodeAnalysis
-@using System.Globalization
+@using System.Linq.Expressions
+@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
 @using System.Net
 
@@ -54,7 +55,6 @@ Edits supported IP address representations and can persist the bound value.
            onreset="@(() => Reset())"
            onchange="@((ChangeEventArgs e) => UpdateIpAddress(e.Value))"
            required="@Required"
-           readonly="readonly"
            aria-required="@Required" />
 </CascadingValue>
 
@@ -107,9 +107,9 @@ Edits supported IP address representations and can persist the bound value.
     /// <summary>
     /// Clears the selected IP address value and requests rendering.
     /// </summary>
-    private void Reset()
+    private Task Reset()
     {
-        UpdateIpAddress(null);
+        return UpdateIpAddress(null);
     }
 
     /// <summary>
@@ -171,51 +171,50 @@ Edits supported IP address representations and can persist the bound value.
     public string? Placeholder { get; set; }
 
     /// <summary>
-    /// Processes an edited IP address value, notifies changes, and saves it when persistence is enabled.
+    /// Identifies the optional bound model field for form change notifications.
     /// </summary>
-    private void UpdateIpAddress(object? value, bool init = false)
+    [Parameter]
+    public Expression<Func<TItem?>>? ValueExpression { get; set; }
+
+    /// <summary>The optional containing form.</summary>
+    [CascadingParameter]
+    protected EditContext? EditContext { get; set; }
+
+    /// <summary>Applies valid edits and notifies the bound model and form once per change.</summary>
+    private async Task UpdateIpAddress(object? value, bool init = false)
     {
-        bool change = false;
-        if (value is string str &&
-        !string.IsNullOrEmpty(str))
+        TItem? result = default;
+        if (value is string str && !string.IsNullOrEmpty(str))
         {
-            Value = default;
-            if (System.Net.IPAddress.TryParse(str, out var ip))
+            if (!IPAddress.TryParse(str, out var ip)) return;
+            Type type = Nullable.GetUnderlyingType(typeof(TItem)) ?? typeof(TItem);
+            object converted;
+            if (type == typeof(string)) converted = str;
+            else if (type == typeof(IPAddress)) converted = ip;
+            else
             {
-                throw new Exception("Invalid IP address.");
+                // Numeric representations use the IPv4 byte order of IPAddress(long).
+                byte[] bytes = ip.GetAddressBytes();
+                if (bytes.Length != 4) return;
+                uint address = (uint)bytes[0] | ((uint)bytes[1] << 8) |
+                    ((uint)bytes[2] << 16) | ((uint)bytes[3] << 24);
+                if (type == typeof(UInt32)) converted = address;
+                else converted = (ulong)address;
             }
-            TItem? result;
-            if (!BindConverter.TryConvertTo<TItem>(value, CultureInfo.InvariantCulture, out result))
-            {
-                throw new Exception("Invalid date time.");
-            }
-            change = Value?.ToString() != result?.ToString();
-            Value = result;
-            if (change)
-            {
-                if (ValueChanged.HasDelegate)
-                {
-                    ValueChanged.InvokeAsync(Value);
-                }
-            }
+            result = (TItem)converted;
         }
-        else
+        if (EqualityComparer<TItem?>.Default.Equals(Value, result)) return;
+        Value = result;
+        await ValueChanged.InvokeAsync(Value);
+        if (EditContext != null && ValueExpression != null)
         {
-            change = Value != null;
-            Value = default;
-            if (change)
-            {
-                if (ValueChanged.HasDelegate)
-                {
-                    ValueChanged.InvokeAsync(Value);
-                }
-            }
+            EditContext.NotifyFieldChanged(FieldIdentifier.Create(ValueExpression));
         }
         try
         {
             if (!init && Save && !string.IsNullOrEmpty(Id))
             {
-                localStorage.SetValueAsync(string.Empty, Id, ValueToString());
+                await localStorage.SetValueAsync(Id, ValueToString());
             }
         }
         catch (Exception ex)
@@ -223,7 +222,6 @@ Edits supported IP address representations and can persist the bound value.
             Logger.LogError(ex.Message);
         }
     }
-
     /// <summary>
     /// Restores a saved IP address value after the first render when persistence is enabled.
     /// </summary>
@@ -237,7 +235,7 @@ Edits supported IP address representations and can persist the bound value.
                 if (Save && !string.IsNullOrEmpty(Id))
                 {
                     string? str = await localStorage.GetValueAsync(Id);
-                    UpdateIpAddress(str, true);
+                    if (str != null) await UpdateIpAddress(str, true);
                 }
             }
             catch (Exception ex)
@@ -247,3 +245,4 @@ Edits supported IP address representations and can persist the bound value.
         }
     }
 }
+

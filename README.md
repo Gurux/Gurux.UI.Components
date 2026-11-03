@@ -88,12 +88,12 @@ Add the component namespace to `_Imports.razor`:
 
 ### Render Markdown content
 
-Use `MarkdownView` to display Markdown stored in your application or received from an API.
+Use `GXMarkdownView` to display Markdown stored in your application or received from an API.
 
 ```razor
 @page "/help"
 
-<MarkdownView Content="@markdown" />
+<GXMarkdownView Content="@markdown" />
 
 @code {
     private const string markdown = """
@@ -106,7 +106,7 @@ Use `MarkdownView` to display Markdown stored in your application or received fr
 
 ### Select table columns at runtime
 
-Set `GXTable<TItem>.AllowColumnCustomization="true"` to let users choose displayed columns and their responsive or print `Visibility`. The selector automatically discovers `Th` headers, using `Th.Id` as the stable identifier and falling back to `Th.Name`. Use the same identifier in `Fh.Id` and `Td.Id`. The header content supplies the selector label; optionally provide `ColumnOptions` with explicit identifiers and localized labels. These components update their visibility together without reloading the rows.
+Set `GXTable<TItem>.AllowColumnCustomization="true"` to let users choose displayed columns and their responsive or print `Visibility`. The selector automatically discovers `GXTh` headers, using `GXTh.Id` as the stable identifier and falling back to `GXTh.Name`. Use the same identifier in `GXFh.Id` and `GXTd.Id`. The header content supplies the selector label; optionally provide `ColumnOptions` with explicit identifiers and localized labels. These components update their visibility together without reloading the rows.
 
 Open the column editor using the configuration icon in the last cell of the table header. Its dialog contains column selection, visibility, drag ordering, and Reset. Save applies and persists the draft settings. Cancel, the close icon, or Escape discards the draft. Reset restores default selection, visibility, order, and widths only when followed by Save. A failed Save keeps the dialog open for retry.
 
@@ -136,12 +136,12 @@ Keep the table `Id` stable for the component's lifetime. When switching between 
 ```razor
 <GXTable TItem="Device" Id="devices" Save="true" AllowColumnCustomization="true" ItemsProvider="GetDevices">
     <HeaderContent>
-        <Th TItem="Device" Id="name" Name="Name">Name</Th>
-        <Th TItem="Device" Id="serial" Name="SerialNumber">Serial number</Th>
+        <GXTh TItem="Device" Id="name" Name="Name">Name</GXTh>
+        <GXTh TItem="Device" Id="serial" Name="SerialNumber">Serial number</GXTh>
     </HeaderContent>
     <ItemContent Context="device">
-        <Td Id="name">@device.Name</Td>
-        <Td Id="serial">@device.SerialNumber</Td>
+        <GXTd Id="name">@device.Name</GXTd>
+        <GXTd Id="serial">@device.SerialNumber</GXTd>
     </ItemContent>
 </GXTable>
 ```
@@ -161,7 +161,7 @@ dotnet run --project Tests/TableCustomization/TableCustomization.Checks.csproj
 
 ### Persist table column widths
 
-Give `GXTable` an explicit HTML `Id` and set `Save="true"` (the default) to persist column widths through the registered `IGXLocalStorage` service. Drag the right edge of a named `Th` header to resize it. Widths use `Th.Id`, falling back to `Th.Name`, and are restored during `OnInitializedAsync`. Tables without an explicit ID, or with `Save="false"`, do not read or write column widths.
+Give `GXTable` an explicit HTML `Id` and set `Save="true"` (the default) to persist column widths through the registered `IGXLocalStorage` service. Drag the right edge of a named `GXTh` header to resize it. Widths use `GXTh.Id`, falling back to `GXTh.Name`, and are restored during `OnInitializedAsync`. Tables without an explicit ID, or with `Save="false"`, do not read or write column widths.
 
 ```powershell
 dotnet run --project Tests/TableWidths/TableWidths.Checks.csproj
@@ -177,14 +177,14 @@ Set `ItemKey` to select a stable row identifier and `EditLink` to build the edit
          ItemKey="@(view => view.Id)"
          EditLink="@(view => NavigationManager.GetCurrentPagePath($"/Config/View/Edit/{view.Id}"))">
     <ItemContent Context="view">
-        <Td EditLink="true">@view.Name</Td>
+        <GXTd EditLink="true">@view.Name</GXTd>
     </ItemContent>
 </GXTable>
 ```
 
 Without `ItemKey`, the table continues to use the item's `Id` property. Custom identifiers are used for row selection, provider refreshes, removal and render keys. Identifier values must be stable and unique within the table; they do not need to implement `IComparable`.
 
-`Td.EditLink` uses the containing row, so it does not depend on which row is currently selected. An explicit `Td.Link` takes precedence. `CanEdit="false"` renders plain content, and the optional navigation guard is consulted before following a link.
+`GXTd.EditLink` uses the containing row, so it does not depend on which row is currently selected. An explicit `GXTd.Link` takes precedence. `CanEdit="false"` renders plain content, and the optional navigation guard is consulted before following a link.
 
 ```powershell
 dotnet run --project Tests/TableRows/TableRows.Checks.csproj
@@ -244,7 +244,7 @@ Applications place the appropriate renderer where needed.
 ### Dropdown commands
 
 `GXMenuBar` renders a command with nonempty `GXMenuItem.Children` as a labelled
-`MenuControl` dropdown. Its children are command buttons; the parent callback is
+`GXMenuControl` dropdown. Its children are command buttons; the parent callback is
 not invoked when opening the dropdown. Items without children remain direct
 commands. Children can contain further child commands for nested submenus.
 Use `new GXMenuItem { IsSeparator = true }` to separate command groups.
@@ -270,9 +270,9 @@ Both the parent and child commands respect the menu's edit context and progress
 state. Starting a progress operation closes and disables the dropdown. Register
 `IGXProgress` with `GXProgressService` as well as the menu service.
 
-Commands in `MenuControl`, `ContextMenuController`, and `GXMenuBar` enforce their
+Commands in `GXMenuControl`, `GXContextMenuController`, and `GXMenuBar` enforce their
 named `Policy` both when rendering and immediately before invoking a callback.
-Use `MenuItem.Policy`, `ContextMenuItem.Policy`, or `GXMenuItem.Policy` respectively.
+Use `GXMenuEntry.Policy`, `GXContextMenuItem.Policy`, or `GXMenuItem.Policy` respectively.
 Commands without a policy retain their existing behavior. A protected command is
 hidden when authorization services are unavailable or the policy is unknown.
 Nested commands require their ancestor policies as well. Authentication changes
@@ -283,16 +283,16 @@ The `Tests/MenuAuthorization` and `Tests/ContextMenuAuthorization` executable ch
 use the Blazor renderer and named authorization policies to cover visibility,
 invocation, permission changes, nested commands, and asynchronous invalidation.
 
-`MenuControl` also supports standalone declarative dropdowns:
+`GXMenuControl` also supports standalone declarative dropdowns:
 
 ```razor
-<MenuControl Dropdown="true" Text="File">
-    <MenuItem Text="Open" OnClick="OpenAsync" />
-    <MenuItem Text="Save" OnClick="SaveAsync" ReadOnly="@(!canSave)" />
-</MenuControl>
+<GXMenuControl Dropdown="true" Text="File">
+    <GXMenuEntry Text="Open" OnClick="OpenAsync" />
+    <GXMenuEntry Text="Save" OnClick="SaveAsync" ReadOnly="@(!canSave)" />
+</GXMenuControl>
 ```
 
-Alternatively, supply `MenuItems` as a `List<MenuItem>`; replacing the list updates
+Alternatively, supply `MenuItems` as a `List<GXMenuEntry>`; replacing the list updates
 the commands. `Icon` sets the toggle's resource icon, `ReadOnly` disables the whole
 control, and `RightCorner` / `Bottom` align the popup. Without `Dropdown="true"`,
 the existing row of buttons is preserved. A dropdown closes when a command is
@@ -343,16 +343,16 @@ form tracking and navigation rollback.
 URL persistence is optional:
 
 ```razor
-<TabControl PersistSelectionInUrl="true">
-    <TabPage Path="General" Text="General">General settings</TabPage>
-    <TabPage Path="Advanced" Text="Advanced">Advanced settings</TabPage>
-</TabControl>
+<GXTabControl PersistSelectionInUrl="true">
+    <GXTabPage Path="General" Text="General">General settings</GXTabPage>
+    <GXTabPage Path="Advanced" Text="Advanced">Advanced settings</GXTabPage>
+</GXTabControl>
 ```
 
 Selection uses `?tab=Advanced`, with `tab2`, `tab3`, etc. for nested controls.
 Reload and browser history restore the selection. Changing a parent clears deeper
 selection parameters while retaining other query parameters and the fragment.
-Set stable, unique `TabPage.Path` values for bookmarks; a missing Path falls back
+Set stable, unique `GXTabPage.Path` values for bookmarks; a missing Path falls back
 to Text. Removing the query key restores Active or InitialTab.
 
 Ordinary controls keep direct Path navigation. With persistence enabled, Path
@@ -371,7 +371,7 @@ current page's query string; the UI library has no application-specific route ma
 ```razor
 @using Gurux.UI.Components.TemplateToken
 
-<TemplateTokenEditor @bind-Value="Model.Message" />
+<GXTemplateTokenEditor @bind-Value="Model.Message" />
 ```
 
 Use inside an EditForm. The component lists available tokens, appends selected
@@ -455,7 +455,7 @@ names, descriptions and example values, ignoring case. Table filtering does not
 modify the template or persist search settings in browser storage.
 
 URL tags can be displayed using the reusable UI component
-`TemplateTokenText`: `[url:config/Manufacturer]Manufacturers[/url]`.
+`GXTemplateTokenText`: `[url:config/Manufacturer]Manufacturers[/url]`.
 NotificationsTile supports these tags in both titles and descriptions.
 HTTP, HTTPS and application-relative links are supported. Labels and ordinary HTML
 are displayed as escaped text; unsafe URLs and incomplete tags remain text.

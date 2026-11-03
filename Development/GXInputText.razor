@@ -38,6 +38,7 @@ Edits a string value and optionally restores and saves it in browser local stora
 
 @using System.Diagnostics.CodeAnalysis
 @using System.Globalization
+@using System.Linq.Expressions
 @using Microsoft.Extensions.Logging
 
 @inject IGXLocalStorage localStorage
@@ -46,7 +47,7 @@ Edits a string value and optionally restores and saves it in browser local stora
     <input id="@Id"
            type="text"
            value="@Value"
-           placeholder="@Placeholder"
+           placeholder="@Placeholder" required="@Required"
            @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")"
            onchange="@(async (ChangeEventArgs e) => await UpdateString(e.Value))" />
 </CascadingValue>
@@ -62,7 +63,7 @@ Edits a string value and optionally restores and saves it in browser local stora
     /// <summary>
     /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
     /// </summary>
-    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+    protected string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
     private string? _generatedId;
 
@@ -99,6 +100,21 @@ Edits a string value and optionally restores and saves it in browser local stora
     [Parameter]
     public EventCallback<string?> ValueChanged { get; set; }
 
+    /// <summary>The bound model field, used to notify the containing form of edits.</summary>
+    [Parameter]
+    public Expression<Func<string?>>? ValueExpression { get; set; }
+
+    /// <summary>The optional containing form; standalone filters do not require one.</summary>
+    [CascadingParameter]
+    protected EditContext? EditContext { get; set; }
+
+    private void NotifyFieldChanged()
+    {
+        if (EditContext != null && ValueExpression != null)
+        {
+            EditContext.NotifyFieldChanged(FieldIdentifier.Create(ValueExpression));
+        }
+    }
     /// <summary>
     /// Gets or sets the hint displayed when the input has no value.
     /// </summary>
@@ -108,7 +124,7 @@ Edits a string value and optionally restores and saves it in browser local stora
     /// <summary>
     /// Applies the edited input value, notifies the bound value callback, and saves it when persistence is enabled.
     /// </summary>
-    private async Task UpdateString(object? value)
+    protected async Task UpdateString(object? value)
     {
         string? tmp = Convert.ToString(value);
         bool change = Value != tmp;
@@ -119,6 +135,7 @@ Edits a string value and optionally restores and saves it in browser local stora
             {
                 await ValueChanged.InvokeAsync(Value);
             }
+            NotifyFieldChanged();
             try
             {
                 if (Save && !string.IsNullOrEmpty(Id))
@@ -144,13 +161,16 @@ Edits a string value and optionally restores and saves it in browser local stora
         {
             try
             {
-                Value = await localStorage.GetValueAsync(Id);
-                if (!string.IsNullOrEmpty(Value))
+                var restored = await localStorage.GetValueAsync(Id);
+                // A missing entry is not a change; an explicitly saved empty string is.
+                if (restored != null && Value != restored)
                 {
+                    Value = restored;
                     if (ValueChanged.HasDelegate)
                     {
                         await ValueChanged.InvokeAsync(Value);
                     }
+                    NotifyFieldChanged();
                 }
             }
             catch (Exception ex)

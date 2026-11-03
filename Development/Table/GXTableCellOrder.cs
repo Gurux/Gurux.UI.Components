@@ -103,7 +103,7 @@ internal sealed class GXTableCellOrder
         if (frame.FrameType == RenderTreeFrameType.Element) return frame.ElementName is "td" or "th";
         if (frame.FrameType != RenderTreeFrameType.Component) return false;
         var type = frame.ComponentType;
-        return type == typeof(Td) || type == typeof(Fh) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Th<>);
+        return type == typeof(GXTd) || type == typeof(GXFh) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(GXTh<>);
     }
 
     private string? Name(int index)

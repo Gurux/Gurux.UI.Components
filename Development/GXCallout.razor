@@ -1,0 +1,205 @@
+@*
+// --------------------------------------------------------------------------
+//  Gurux Ltd
+//
+//
+//
+// Filename:        $HeadURL$
+//
+// Version:         $Revision$,
+//                  $Date$
+//                  $Author$
+//
+// Copyright (c) Gurux Ltd
+//
+//---------------------------------------------------------------------------
+//
+//  DESCRIPTION
+//
+// This file is a part of Gurux Device Framework.
+//
+// Gurux Device Framework is Open Source software; you can redistribute it
+// and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; version 2 of the License.
+// Gurux Device Framework is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// This code is licensed under the GNU General Public License v2.
+// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
+//---------------------------------------------------------------------------
+*@
+@*
+<summary>
+Displays a severity-styled callout with optional content and a close button.
+</summary>
+*@
+
+@using Gurux.UI.Components.Enums
+@using Microsoft.Extensions.Logging
+@using System.Diagnostics
+
+@inject IGXLocalStorage localStorage
+@inject ILogger<GXCallout> Logger
+
+<div id="@Id" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, "position: relative; display: inline-block;")">
+    @if (Visible && !string.IsNullOrEmpty(Text))
+    {
+        <div  class="@GetDivClass()" role="@GetRole()">
+            @Text
+            @if (Closable)
+            {
+                <button class="close-btn markup" onclick="@(() => ToggleCallout())">@GetCloseText()</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+
+    /// <summary>
+    /// Gets or sets the content rendered inside the component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets captured HTML attributes forwarded to the underlying element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets the supplied HTML id or a Guid identifier generated once for this component instance.
+    /// </summary>
+    private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+
+    private string? _generatedId;
+
+    /// <summary>
+    /// Gets or sets the severity used to choose the callout's appearance.
+    /// </summary>
+    [Parameter]
+    public TraceLevel Mode { get; set; }
+
+    /// <summary>
+    /// Gets or sets the markup shown on the close button; an empty value uses the default cross symbol.
+    /// </summary>
+    [Parameter]
+    public string? CloseText { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the component is displayed.
+    /// </summary>
+    [Parameter]
+    public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether a close button is displayed.
+    /// </summary>
+    [Parameter]
+    public bool Closable { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the text displayed by the component.
+    /// </summary>
+    [Parameter]
+    public string? Text { get; set; }
+
+    /// <summary>
+    /// Toggles the callout's visible state.
+    /// </summary>
+    private void ToggleCallout()
+    {
+        Visible = !Visible;
+    }
+
+    /// <summary>
+    /// Returns the contextual alert classes for the configured severity.
+    /// </summary>
+    string GetDivClass()
+    {
+        string str;
+        switch (Mode)
+        {
+            case TraceLevel.Info:
+                str = "alert alert-info alert-dismissible fade show";
+                break;
+            case TraceLevel.Warning:
+                str = "alert alert-warning alert-dismissible fade show";
+                break;
+            case TraceLevel.Error:
+                str = "alert alert-danger";
+                str = "alert alert-danger alert-dismissible fade show";
+                break;
+            default:
+                throw new ArgumentException(nameof(GetDivClass));
+        }
+        return str;
+    }
+
+    /// <summary>
+    /// Returns the accessibility role associated with the alert severity.
+    /// </summary>
+    string GetRole()
+    {
+        string str;
+        switch (Mode)
+        {
+            case TraceLevel.Info:
+                str = "alert-info";
+                break;
+            case TraceLevel.Warning:
+                str = "alert";
+                break;
+            case TraceLevel.Error:
+                str = "alert-danger";
+                break;
+            default:
+                throw new ArgumentException(nameof(GetRole));
+        }
+        return str;
+    }
+
+    /// <summary>
+    /// Combines callout heading classes with the captured class attribute.
+    /// </summary>
+    string GetClass()
+    {
+        string str = "callout; ";
+        switch (Mode)
+        {
+            case TraceLevel.Info:
+                str += "alert-heading";
+                break;
+            case TraceLevel.Warning:
+                str += "alert-heading";
+                break;
+            case TraceLevel.Error:
+                str += "alert-heading";
+                break;
+            default:
+                throw new ArgumentException(nameof(GetClass));
+        }
+        if (!string.IsNullOrEmpty(GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")))
+        {
+            str += "; " + GXComponentAttributes.GetClass(AdditionalAttributes, "form-control");
+        }
+        return str;
+    }
+
+    /// <summary>
+    /// Returns the close button markup, using a cross symbol when no custom text is supplied.
+    /// </summary>
+    private MarkupString GetCloseText()
+    {
+        if (string.IsNullOrEmpty(CloseText))
+        {
+            return (MarkupString)"&#10006;"; //X = &#10006;
+                                             //V = &#x2714;
+        }
+        return (MarkupString)CloseText;
+    }
+
+}
