@@ -17,7 +17,7 @@
 .gx-table-configuration-cell {
     width: 1%;
     white-space: nowrap;
-    text-align: right;
+    text-align: center;
 }
 
 .gx-table-configuration-button svg {

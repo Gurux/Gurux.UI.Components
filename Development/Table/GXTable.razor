@@ -53,6 +53,8 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     @{
         var header = PrepareColumnHeader();
         bool showColumnConfiguration = AllowColumnCustomization && AvailableColumns.Count != 0;
+        bool showRowMenu = Menu && MenuContent != null;
+        bool showActionsColumn = showRowMenu || showColumnConfiguration;
     }
     @if (Filter && FilterContent != null)
     {
@@ -172,17 +174,13 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                         <th width="1%"></th>
                     }
                     @OrderedCells(FilterContent)
-                    @if (Menu && MenuContent != null)
-                    {
-                        <th width="1%"></th>
-                    }
-                    @if (showColumnConfiguration)
+                    @if (showActionsColumn)
                     {
                         <th class="gx-table-configuration-cell" aria-hidden="true"></th>
                     }
                 </tr>
             }
-            @if (HeaderContent != null || showColumnConfiguration)
+            @if (HeaderContent != null || showActionsColumn)
             {
                 <tr>
                     @if (RearrangeRows)
@@ -208,13 +206,11 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                             }
                         }
                     }
-                    @if (Menu && MenuContent != null)
-                    {
-                        <th width="1%"></th>
-                    }
-                    @if (showColumnConfiguration)
+                    @if (showActionsColumn)
                     {
                         <th class="gx-table-configuration-cell" scope="col">
+                            @if (showColumnConfiguration)
+                            {
                             <button type="button" class="gx-table-configuration-button btn btn-outline-secondary btn-sm"
                                     title="@ColumnSelectorText" aria-label="@ColumnSelectorText" aria-haspopup="dialog"
                                     aria-expanded="@(_showColumnEditor ? "true" : "false")" aria-controls="@(Id + "-columns")" @onclick="OpenColumnEditorAsync">
@@ -223,6 +219,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                                     <circle cx="12" cy="12" r="3" />
                                 </svg>
                             </button>
+                            }
                         </th>
                     }
                 </tr>
@@ -262,24 +259,16 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                         <CascadingValue Value="@(new GXTableRowContext(it, EditLink?.Invoke(it)))">
                             @OrderedCells(ItemContent(it))
                         </CascadingValue>
-                        @if (Menu && MenuContent != null)
+                        @if (showActionsColumn)
                         {
-                            @if (it != null && (Compare(it, Active) || it.Equals(Active)))
-                            {
-                                <td class="gx-table-menu-cell">
+                            <td class="gx-table-menu-cell gx-table-configuration-cell">
+                                @if (showRowMenu && it != null && (Compare(it, Active) || it.Equals(Active)))
+                                {
                                     <GXContextMenuController>
                                         @MenuContent
                                     </GXContextMenuController>
-                                </td>
-                            }
-                            else
-                            {
-                                <td>&nbsp;</td>
-                            }
-                        }
-                        @if (showColumnConfiguration)
-                        {
-                            <td class="gx-table-configuration-cell" aria-hidden="true"></td>
+                                }
+                            </td>
                         }
                     </tr>
                 }
