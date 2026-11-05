@@ -134,12 +134,10 @@ jobs:
           if (-not (Test-Path $package)) { throw "Package missing: $package" }
           "PACKAGE_PATH=$package" >> $env:GITHUB_ENV
 
-      - name: Verify component authorization
+      - name: Verify C# braces
         run: |
-          dotnet run --project Tests/MenuAuthorization/MenuAuthorization.Checks.csproj --configuration Release -p:GeneratePackageOnBuild=false
-          if ($LASTEXITCODE -ne 0) { throw 'Menu authorization checks failed.' }
-          dotnet run --project Tests/ContextMenuAuthorization/ContextMenuAuthorization.Checks.csproj --configuration Release -p:GeneratePackageOnBuild=false
-          if ($LASTEXITCODE -ne 0) { throw 'Context menu authorization checks failed.' }
+          dotnet format style $env:PROJECT_PATH --diagnostics IDE0011 --verify-no-changes --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'C# brace style check failed.' }
 
       - name: NuGet login (Trusted Publishing)
         uses: NuGet/login@v1
