@@ -200,7 +200,7 @@ namespace Gurux.UI.Components
                 _items.Clear();
                 if (!string.IsNullOrEmpty(Filter))
                 {
-                    _items.AddRange(Items.Where(s => (Formatter != null ? Formatter(s) : s?.ToString())?.Contains(Filter, StringComparison.OrdinalIgnoreCase) != false).Take(MaxItems));
+                    _items.AddRange(Items.Where(s => FormatItem(s)?.Contains(Filter, StringComparison.OrdinalIgnoreCase) != false).Take(MaxItems));
                 }
                 else
                 {
@@ -235,10 +235,10 @@ namespace Gurux.UI.Components
             builder.AddAttribute(seq++, "aria-expanded", showMenu && _items.Count > 0 ? "true" : "false");
             builder.AddAttribute(seq++, "aria-controls", _listId);
             builder.AddAttribute(seq++, "aria-autocomplete", "list");
-            if (showMenu && _highlightedIndex >= 0)
-            {
-                builder.AddAttribute(seq++, "aria-activedescendant", $"{_listId}-{_highlightedIndex}");
-            }
+            // Reserve the attribute sequence even when no option is highlighted.
+            // Otherwise keyboard navigation shifts the input's element-reference frame.
+            builder.AddAttribute(seq++, "aria-activedescendant", showMenu && _highlightedIndex >= 0
+                ? $"{_listId}-{_highlightedIndex}" : null);
             if (!string.IsNullOrEmpty(NameAttributeValue))
             {
                 builder.AddAttribute(seq++, "name", NameAttributeValue);
@@ -255,13 +255,9 @@ namespace Gurux.UI.Components
                 {
                     builder.AddAttribute(seq++, "value", NullText);
                 }
-                else if (Formatter != null && Value is not null)
-                {
-                    builder.AddAttribute(seq++, "value", Formatter(Value));
-                }
                 else
                 {
-                    builder.AddAttribute(seq++, "value", Value);
+                    builder.AddAttribute(seq++, "value", FormatItem(Value));
                 }
             }
             else
@@ -348,7 +344,7 @@ namespace Gurux.UI.Components
                         }
                         else
                         {
-                            builder.AddContent(seq++, item is null && NullText is not null ? NullText : (object?)item);
+                            builder.AddContent(seq++, item is null && NullText is not null ? NullText : FormatItem(item));
                         }
                         builder.CloseElement(); // </dropdown-item>
                         ++pos;

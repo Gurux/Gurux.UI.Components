@@ -294,7 +294,7 @@ namespace Gurux.UI.Components
                 {
                     builder.AddAttribute(index++, "id", pos.ToString());
                     builder.AddAttribute(index++, "value", pos.ToString());
-                    builder.AddContent(index++, Formatter != null ? Formatter(value) : value?.ToString());
+                    builder.AddContent(index++, FormatItem(value));
                 }
                 ++pos;
                 builder.CloseElement();
@@ -468,8 +468,18 @@ namespace Gurux.UI.Components
             return false;
         }
 
+        /// <summary>Formats display text while leaving selection and persisted values unchanged.</summary>
+        protected string? FormatItem(TValue? value)
+        {
+            if (value is null)
+            {
+                return null;
+            }
+            return Formatter?.Invoke(value) ?? value.ToString();
+        }
+
         /// <summary>
-        /// Gets or sets the function used to convert an item to display text.
+        /// Gets or sets the function used to convert an item to display text. Returning null uses the item's own text; an empty string is displayed as supplied.
         /// </summary>
         [Parameter]
         public FormatEventHandler? Formatter { get; set; }
