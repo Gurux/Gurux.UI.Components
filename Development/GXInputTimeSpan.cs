@@ -1,33 +1,29 @@
 // --------------------------------------------------------------------------
-//  Gurux Ltd
+// Gurux Ltd
 //
+// Copyright (c) Gurux Ltd.
 //
+// This file is part of Gurux Device Framework.
 //
-// Filename:        $HeadURL$
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
 //
-// Version:         $Revision$,
-//                  $Date$
-//                  $Author$
+// This software is available under either of the following licenses:
 //
-// Copyright (c) Gurux Ltd
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
 //
-//---------------------------------------------------------------------------
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
 //
-//  DESCRIPTION
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
 //
-// This file is a part of Gurux Device Framework.
+// Commercial licensing: https://www.gurux.fi/
 //
-// Gurux Device Framework is Open Source software; you can redistribute it
-// and/or modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2 of the License.
-// Gurux Device Framework is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU General Public License for more details.
-//
-// This code is licensed under the GNU General Public License v2.
-// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
-//---------------------------------------------------------------------------
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
 
 using Gurux.UI.Components.Enums;
 using Microsoft.AspNetCore.Components;
@@ -190,14 +186,26 @@ namespace Gurux.UI.Components
             builder.SetUpdatesAttributeName("value");
             builder.AddElementReferenceCapture(29, reference => Element = reference);
             builder.CloseElement();
-            if (Days == true) builder.CloseElement();
+            if (Days == true)
+            {
+                builder.CloseElement();
+            }
         }
 
         private TimeSpan GetDuration(TValue? value)
         {
-            if (value is null) return TimeSpan.Zero;
-            if (value is TimeSpan duration) return duration;
-            if (value is TimeOnly clock) return clock.ToTimeSpan();
+            if (value is null)
+            {
+                return TimeSpan.Zero;
+            }
+            if (value is TimeSpan duration)
+            {
+                return duration;
+            }
+            if (value is TimeOnly clock)
+            {
+                return clock.ToTimeSpan();
+            }
             long integer = Convert.ToInt64(value, CultureInfo.InvariantCulture);
             return TimeSpan.FromTicks(checked(integer * UnitTicks));
         }
@@ -250,7 +258,10 @@ namespace Gurux.UI.Components
         {
             string? text = Convert.ToString(args.Value, CultureInfo.InvariantCulture);
             _invalidDays = null;
-            if (string.IsNullOrWhiteSpace(text)) return ApplyTextAsync(null);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return ApplyTextAsync(null);
+            }
             if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int days) && days >= 0 && days <= 365)
             {
                 var current = GetDuration(CurrentValue);
@@ -263,7 +274,10 @@ namespace Gurux.UI.Components
         /// <inheritdoc />
         protected override string? FormatValueAsString(TValue? value)
         {
-            if (value is null) return null;
+            if (value is null)
+            {
+                return null;
+            }
             TimeSpan duration = GetDuration(value);
             // Native time inputs accept clock text only; whole days have a separate editor.
             return duration.ToString(TimeSpanUnit == TimeSpanUnit.Minute ? @"hh\:mm" : @"hh\:mm\:ss", CultureInfo.InvariantCulture);

@@ -1,16 +1,49 @@
+// --------------------------------------------------------------------------
+// Gurux Ltd
+//
+// Copyright (c) Gurux Ltd.
+//
+// This file is part of Gurux Device Framework.
+//
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
+//
+// This software is available under either of the following licenses:
+//
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
+//
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
+//
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
+//
+// Commercial licensing: https://www.gurux.fi/
+//
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
+
 const observers = new WeakMap();
 const dialogs = new Map();
 
 export function openDialog(element, key) {
     const root = element?.closest('[role="dialog"]');
-    if (!root || dialogs.has(key)) return;
+    if (!root || dialogs.has(key))
+    {
+        return;
+    }
     const previous = document.activeElement;
     const topmost = () => [...dialogs.keys()].at(-1) === key;
     const focusable = () => [...root.querySelectorAll('button, [href], input, select, textarea, [tabindex]')]
         .filter(node => !node.disabled && node.tabIndex >= 0 && node.getClientRects().length);
     const focusFirst = () => (focusable()[0] ?? root).focus();
     const onKeyDown = event => {
-        if (event.key !== 'Tab' || !topmost()) return;
+        if (event.key !== 'Tab' || !topmost())
+        {
+            return;
+        }
         const items = focusable();
         const first = items[0];
         const last = items.at(-1);
@@ -22,7 +55,10 @@ export function openDialog(element, key) {
         }
     };
     const onFocus = event => {
-        if (topmost() && !root.contains(event.target)) focusFirst();
+        if (topmost() && !root.contains(event.target))
+        {
+            focusFirst();
+        }
     };
     root.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusin', onFocus);
@@ -32,12 +68,18 @@ export function openDialog(element, key) {
 
 export function closeDialog(key) {
     const state = dialogs.get(key);
-    if (!state) return;
+    if (!state)
+    {
+        return;
+    }
     const wasTopmost = [...dialogs.keys()].at(-1) === key;
     dialogs.delete(key);
     state.root.removeEventListener('keydown', state.onKeyDown);
     document.removeEventListener('focusin', state.onFocus);
-    if (wasTopmost && state.previous?.isConnected) state.previous.focus();
+    if (wasTopmost && state.previous?.isConnected)
+    {
+        state.previous.focus();
+    }
 }
 
 export function measure(element) {
@@ -47,7 +89,10 @@ export function measure(element) {
 
 export function disconnect(element) {
     const state = observers.get(element);
-    if (!state) return;
+    if (!state)
+    {
+        return;
+    }
     state.observer.disconnect();
     clearTimeout(state.timer);
     observers.delete(element);
@@ -65,7 +110,10 @@ export function observe(element, reference, key, width, height) {
     const state = { width: rect.width, height: rect.height, timer: null, observer: null };
     state.observer = new ResizeObserver(() => {
         const rect = element.getBoundingClientRect();
-        if (rect.width === state.width && rect.height === state.height) return;
+        if (rect.width === state.width && rect.height === state.height)
+        {
+            return;
+        }
         state.width = rect.width;
         state.height = rect.height;
         clearTimeout(state.timer);

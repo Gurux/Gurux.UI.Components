@@ -1,35 +1,32 @@
 @*
-// --------------------------------------------------------------------------
-//  Gurux Ltd
-//
-//
-//
-// Filename:        $HeadURL$
-//
-// Version:         $Revision$,
-//                  $Date$
-//                  $Author$
-//
-// Copyright (c) Gurux Ltd
-//
-//---------------------------------------------------------------------------
-//
-//  DESCRIPTION
-//
-// This file is a part of Gurux Device Framework.
-//
-// Gurux Device Framework is Open Source software; you can redistribute it
-// and/or modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2 of the License.
-// Gurux Device Framework is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU General Public License for more details.
-//
-// This code is licensed under the GNU General Public License v2.
-// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
-//---------------------------------------------------------------------------
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
 *@
+
 @*
 <summary>
 Renders command buttons or a dropdown with configurable right and bottom alignment.
@@ -148,7 +145,10 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     {
         _authorization = new GXCommandAuthorization(Services, () =>
         {
-            if (!_disposed) _ = InvokeAsync(RefreshAuthorizationAsync);
+            if (!_disposed)
+            {
+                _ = InvokeAsync(RefreshAuthorizationAsync);
+            }
         });
     }
 
@@ -157,14 +157,23 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     internal async Task RefreshAuthorizationAsync()
     {
         await EvaluateAuthorizationAsync();
-        if (!_disposed) await InvokeAsync(StateHasChanged);
+        if (!_disposed)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task EvaluateAuthorizationAsync()
     {
-        if (_disposed || _authorization == null) return;
+        if (_disposed || _authorization == null)
+        {
+            return;
+        }
         await _authorization.RefreshAsync(Policies(Items).ToArray(), AuthenticationState);
-        if (!_disposed && !Items.Any(IsVisible)) Close();
+        if (!_disposed && !Items.Any(IsVisible))
+        {
+            Close();
+        }
     }
 
     private static IEnumerable<string?> Policies(IEnumerable<GXMenuEntry> items)
@@ -173,7 +182,12 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
         {
             yield return item.Policy;
             if (item.Children != null)
-                foreach (var policy in Policies(item.Children)) yield return policy;
+            {
+                foreach (var policy in Policies(item.Children))
+                    {
+                        yield return policy;
+                    }
+            }
         }
     }
 
@@ -182,24 +196,48 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 
     private async Task<bool> CanExecuteAsync(GXMenuEntry item)
     {
-        if (_disposed || ReadOnly || item.ReadOnly || item.IsSeparator || !Items.Contains(item) || _authorization == null) return false;
+        if (_disposed || ReadOnly || item.ReadOnly || item.IsSeparator || !Items.Contains(item) || _authorization == null)
+        {
+            return false;
+        }
         var policy = item.Policy;
         var authorizationVersion = _authorization.Version;
-        if (ParentCanExecute != null && !await ParentCanExecute()) return false;
-        if (!await _authorization.CanExecuteAsync(policy, AuthenticationState)) return false;
-        if (ParentCanExecute != null && !await ParentCanExecute()) return false;
+        if (ParentCanExecute != null && !await ParentCanExecute())
+        {
+            return false;
+        }
+        if (!await _authorization.CanExecuteAsync(policy, AuthenticationState))
+        {
+            return false;
+        }
+        if (ParentCanExecute != null && !await ParentCanExecute())
+        {
+            return false;
+        }
         return !_disposed && authorizationVersion == _authorization.Version && !ReadOnly && !item.ReadOnly &&
             !item.IsSeparator && Items.Contains(item) && policy == item.Policy;
     }
 
     private async Task Toggle()
     {
-        if (_disposed || ReadOnly) return;
+        if (_disposed || ReadOnly)
+        {
+            return;
+        }
         if (_isOpen) { Close(); return; }
-        if (ParentCanExecute != null && !await ParentCanExecute()) return;
+        if (ParentCanExecute != null && !await ParentCanExecute())
+        {
+            return;
+        }
         await RefreshAuthorizationAsync();
-        if (ParentCanExecute != null && !await ParentCanExecute()) return;
-        if (!_disposed && !ReadOnly && Items.Any(IsVisible)) _isOpen = true;
+        if (ParentCanExecute != null && !await ParentCanExecute())
+        {
+            return;
+        }
+        if (!_disposed && !ReadOnly && Items.Any(IsVisible))
+        {
+            _isOpen = true;
+        }
     }
 
     private void Close() => _isOpen = false;
@@ -229,7 +267,10 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
         // must not change policy/registration between authorization and the command callback.
         Close();
         try { await item.OnClick.InvokeAsync(); }
-        finally { if (!_disposed) await CloseBranchAsync(); }
+        finally { if (!_disposed)
+        {
+            await CloseBranchAsync();
+        } }
     }
 
     /// <summary>

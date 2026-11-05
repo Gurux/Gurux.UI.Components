@@ -1,34 +1,29 @@
-//
 // --------------------------------------------------------------------------
-//  Gurux Ltd
+// Gurux Ltd
 //
+// Copyright (c) Gurux Ltd.
 //
+// This file is part of Gurux Device Framework.
 //
-// Filename:        $HeadURL$
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
 //
-// Version:         $Revision$,
-//                  $Date$
-//                  $Author$
+// This software is available under either of the following licenses:
 //
-// Copyright (c) Gurux Ltd
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
 //
-//---------------------------------------------------------------------------
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
 //
-//  DESCRIPTION
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
 //
-// This file is a part of Gurux Device Framework.
+// Commercial licensing: https://www.gurux.fi/
 //
-// Gurux Device Framework is Open Source software; you can redistribute it
-// and/or modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2 of the License.
-// Gurux Device Framework is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU General Public License for more details.
-//
-// This code is licensed under the GNU General Public License v2.
-// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
-//---------------------------------------------------------------------------
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
 
 using Gurux.UI.Components.Enums;
 using Gurux.UI.Components.Tab;
@@ -51,7 +46,10 @@ public sealed class GXNotificationService : IGXNotificationService, IDisposable
     {
         _navigation = navigation;
         _tabRoutes = tabRoutes;
-        if (_navigation != null) _navigation.LocationChanged += LocationChanged;
+        if (_navigation != null)
+        {
+            _navigation.LocationChanged += LocationChanged;
+        }
     }
 
     private void LocationChanged(object? sender, LocationChangedEventArgs args)
@@ -65,13 +63,19 @@ public sealed class GXNotificationService : IGXNotificationService, IDisposable
                 .Select(item => item.Id).ToArray();
             foreach (var id in ids) { _notifications.Remove(id); _notificationPages.Remove(id); changed = true; }
         }
-        if (changed) Changed?.Invoke();
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
     }
 
     /// <summary>Releases the navigation subscription owned by this service scope.</summary>
     public void Dispose()
     {
-        if (_navigation != null) _navigation.LocationChanged -= LocationChanged;
+        if (_navigation != null)
+        {
+            _navigation.LocationChanged -= LocationChanged;
+        }
     }
     private readonly object _sync = new();
     private readonly Dictionary<Guid, GXNotificationItem> _notifications = new();
@@ -224,8 +228,14 @@ public sealed class GXNotificationService : IGXNotificationService, IDisposable
         lock (_sync)
         {
             _notifications[item.Id] = item;
-            if (_navigation != null && item.Scope != NotificationScope.Global) _notificationPages[item.Id] = _navigation.Uri;
-            else _notificationPages.Remove(item.Id);
+            if (_navigation != null && item.Scope != NotificationScope.Global)
+            {
+                _notificationPages[item.Id] = _navigation.Uri;
+            }
+            else
+            {
+                _notificationPages.Remove(item.Id);
+            }
         }
 
         Changed?.Invoke();

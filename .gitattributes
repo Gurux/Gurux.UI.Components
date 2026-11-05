@@ -1,2 +1,8 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Expand release commit metadata in source archives.
+*.cs export-subst
+*.razor export-subst
+*.js export-subst
+*.css export-subst

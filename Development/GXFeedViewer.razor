@@ -1,3 +1,32 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
 @namespace Gurux.UI.Components
 @using System.Net
 @using System.ServiceModel.Syndication
@@ -76,7 +105,9 @@
     protected override async Task OnParametersSetAsync()
     {
         if (string.Equals(_loadedUrl, Url, StringComparison.Ordinal) && string.Equals(_loadedProxyUrl, ProxyUrl, StringComparison.Ordinal))
+        {
             return;
+        }
         _loadedUrl = Url;
         _loadedProxyUrl = ProxyUrl;
         _request?.Cancel();
@@ -87,7 +118,9 @@
         _error = false;
         _loading = false;
         if (string.IsNullOrWhiteSpace(Url))
+        {
             return;
+        }
         if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri) || !IsHttp(uri))
         {
             _error = true;
@@ -116,19 +149,25 @@
                 _baseUri = string.IsNullOrWhiteSpace(ProxyUrl) ? response.RequestMessage?.RequestUri ?? uri : uri;
                 if (!string.IsNullOrWhiteSpace(ProxyUrl) && response.Headers.TryGetValues("X-Gurux-Source-Url", out var sources) &&
                     Uri.TryCreate(sources.FirstOrDefault(), UriKind.Absolute, out var source) && IsHttp(source))
+                {
                     _baseUri = source;
+                }
                 _items = items;
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or XmlException or FormatException or InvalidOperationException or ArgumentException or OperationCanceledException or IOException)
         {
             if (!request.IsCancellationRequested)
+            {
                 _error = true;
+            }
         }
         finally
         {
             if (!request.IsCancellationRequested)
+            {
                 _loading = false;
+            }
         }
     }
 
@@ -140,10 +179,14 @@
     private string? SafeUrl(string? value, Uri? baseUri = null)
     {
         if (string.IsNullOrWhiteSpace(value))
+        {
             return null;
+        }
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
             !Uri.TryCreate(baseUri ?? _baseUri, value, out uri))
+        {
             return null;
+        }
         return uri is not null && IsHttp(uri) ? uri.AbsoluteUri : null;
     }
 
@@ -159,11 +202,15 @@
             .Select(link => SafeUrl(link.Uri?.ToString(), item.BaseUri))
             .FirstOrDefault(link => link is not null);
         if (enclosure is not null)
+        {
             return enclosure;
+        }
         foreach (var extension in item.ElementExtensions)
         {
             if (extension.OuterNamespace != "http://search.yahoo.com/mrss/")
+            {
                 continue;
+            }
             using var reader = extension.GetReader();
             var element = XElement.Load(reader);
             foreach (var media in element.DescendantsAndSelf())
@@ -175,7 +222,9 @@
                 {
                     var url = SafeUrl((string?)media.Attribute("url"), item.BaseUri);
                     if (url is not null)
+                    {
                         return url;
+                    }
                 }
             }
         }
@@ -186,7 +235,9 @@
     {
         var content = item.Summary ?? item.Content as TextSyndicationContent;
         if (content is null || content.Type == "text")
+        {
             return content?.Text;
+        }
         return WebUtility.HtmlDecode(Regex.Replace(content.Text ?? string.Empty, "<[^>]*>", string.Empty,
             RegexOptions.None, TimeSpan.FromSeconds(1)));
     }

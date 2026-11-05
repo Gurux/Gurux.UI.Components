@@ -1,35 +1,32 @@
 @*
-// --------------------------------------------------------------------------
-//  Gurux Ltd
-//
-//
-//
-// Filename:        $HeadURL$
-//
-// Version:         $Revision$,
-//                  $Date$
-//                  $Author$
-//
-// Copyright (c) Gurux Ltd
-//
-//---------------------------------------------------------------------------
-//
-//  DESCRIPTION
-//
-// This file is a part of Gurux Device Framework.
-//
-// Gurux Device Framework is Open Source software; you can redistribute it
-// and/or modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2 of the License.
-// Gurux Device Framework is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU General Public License for more details.
-//
-// This code is licensed under the GNU General Public License v2.
-// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
-//---------------------------------------------------------------------------
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
 *@
+
 @*
 <summary>
 Displays typed rows with paging, sorting, selection, filtering, and optional row reordering.
@@ -898,7 +895,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
     private async Task OpenColumnEditorAsync()
     {
-        if (!AllowColumnCustomization || AvailableColumns.Count == 0 || _showColumnEditor) return;
+        if (!AllowColumnCustomization || AvailableColumns.Count == 0 || _showColumnEditor)
+        {
+            return;
+        }
         _columnDraft = new ColumnPreferences
         {
             VisibleColumns = _visibleColumns?.ToArray(),
@@ -909,12 +909,18 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         _columnError = null;
         _showColumnEditor = true;
         await InvokeAsync(StateHasChanged);
-        if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+        if (_columnEditor != null)
+        {
+            await _columnEditor.RefreshDataAsync(true);
+        }
     }
 
     private Task CloseColumnEditorAsync()
     {
-        if (_savingColumns) return Task.CompletedTask;
+        if (_savingColumns)
+        {
+            return Task.CompletedTask;
+        }
         _showColumnEditor = false;
         _columnEditor = null;
         _columnDraft = null;
@@ -932,7 +938,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
     private Task ToggleDraftColumnAsync(string name, bool visible)
     {
-        if (_savingColumns || _columnDraft == null || !AvailableColumns.Any(column => column.Name == name)) return Task.CompletedTask;
+        if (_savingColumns || _columnDraft == null || !AvailableColumns.Any(column => column.Name == name))
+        {
+            return Task.CompletedTask;
+        }
         _columnDraft.VisibleColumns = AvailableColumns.Where(column => column.Name == name ? visible : IsDraftColumnVisible(column.Name))
             .Select(column => column.Name).ToArray();
         return InvokeAsync(StateHasChanged);
@@ -941,16 +950,24 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     private Task SetDraftVisibilityAsync(string name, Visibility visibility)
     {
         if (_savingColumns || _columnDraft == null || !Enum.IsDefined(visibility) || !AvailableColumns.Any(column => column.Name == name))
+        {
             return Task.CompletedTask;
+        }
         (_columnDraft.Visibility ??= new(StringComparer.Ordinal))[name] = visibility;
         return InvokeAsync(StateHasChanged);
     }
 
     private Task MoveDraftColumnAsync(string name, int index)
     {
-        if (_savingColumns || _columnDraft == null) return Task.CompletedTask;
+        if (_savingColumns || _columnDraft == null)
+        {
+            return Task.CompletedTask;
+        }
         var order = OrderColumns(_columnDraft.Order ?? DefaultColumnOrder).Select(column => column.Name).ToList();
-        if (index < 0 || index >= order.Count || !order.Remove(name)) return Task.CompletedTask;
+        if (index < 0 || index >= order.Count || !order.Remove(name))
+        {
+            return Task.CompletedTask;
+        }
         order.Insert(index, name);
         _columnDraft.Order = order.ToArray();
         return RefreshColumnEditorAsync();
@@ -958,19 +975,27 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
     private async Task ResetColumnDraftAsync()
     {
-        if (_savingColumns || _columnDraft == null) return;
+        if (_savingColumns || _columnDraft == null)
+        {
+            return;
+        }
         _columnDraft.VisibleColumns = _defaultColumns?.ToArray() ?? AvailableColumns.Select(column => column.Name).ToArray();
         _columnDraft.Visibility = new(StringComparer.Ordinal);
         _columnDraft.Order = null;
         _draftResetWidths = true;
         if (OnColumnEditorReset.HasDelegate)
+        {
             await OnColumnEditorReset.InvokeAsync(CreateColumnEditorContext());
+        }
         await RefreshColumnEditorAsync();
     }
 
     private async Task SaveColumnEditorAsync()
     {
-        if (_savingColumns || _columnDraft == null) return;
+        if (_savingColumns || _columnDraft == null)
+        {
+            return;
+        }
         var draft = _columnDraft;
         _savingColumns = true;
         _columnError = null;
@@ -987,7 +1012,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         try
         {
             var visibility = draft.Visibility ?? new(StringComparer.Ordinal);
-            if (settingsKey != null && storage != null) previousSettings = await storage.GetValueAsync(settingsKey);
+            if (settingsKey != null && storage != null)
+            {
+                previousSettings = await storage.GetValueAsync(settingsKey);
+            }
             if (resetWidths && widthsKey != null && storage != null)
             {
                 previousWidths = await storage.GetValueAsync(widthsKey);
@@ -1000,8 +1028,14 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
             _visibleColumns = draft.VisibleColumns?.ToArray();
             _columnOrder = draft.Order?.ToArray();
             _columnVisibility.Clear();
-            foreach (var column in visibility) _columnVisibility[column.Key] = column.Value;
-            if (resetWidths) _columnWidths.Clear();
+            foreach (var column in visibility)
+            {
+                _columnVisibility[column.Key] = column.Value;
+            }
+            if (resetWidths)
+            {
+                _columnWidths.Clear();
+            }
             saved = true;
         }
         catch (Exception ex)
@@ -1023,8 +1057,14 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         finally
         {
             _savingColumns = false;
-            if (saved) await CloseColumnEditorAsync();
-            else await InvokeAsync(StateHasChanged);
+            if (saved)
+            {
+                await CloseColumnEditorAsync();
+            }
+            else
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
     private bool _columnsInitialized;
@@ -1048,9 +1088,15 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
     private RenderFragment? PrepareColumnHeader()
     {
-        if (HeaderContent == null) return null;
+        if (HeaderContent == null)
+        {
+            return null;
+        }
         var content = HeaderContent(default!);
-        if (!AllowColumnCustomization && EffectiveColumnOrder == null) return content;
+        if (!AllowColumnCustomization && EffectiveColumnOrder == null)
+        {
+            return content;
+        }
         var cells = new GXTableCellOrder(content);
         _sourceColumnNames = cells.Names;
         return cells.Render(EffectiveColumnOrder);
@@ -1077,9 +1123,15 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>Moves a column to a zero-based position and persists its order when Save and an explicit table id are set.</summary>
     public async Task MoveColumnAsync(string name, int index)
     {
-        if (_savingColumns) return;
+        if (_savingColumns)
+        {
+            return;
+        }
         var order = OrderedColumns.Select(column => column.Name).ToList();
-        if (index < 0 || index >= order.Count || !order.Remove(name)) return;
+        if (index < 0 || index >= order.Count || !order.Remove(name))
+        {
+            return;
+        }
         order.Insert(index, name);
         _savingColumns = true;
         _columnError = null;
@@ -1093,7 +1145,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         finally
         {
             _savingColumns = false;
-            if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+            if (_columnEditor != null)
+            {
+                await _columnEditor.RefreshDataAsync(true);
+            }
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -1101,7 +1156,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>Restores configured column selection, order, responsive visibility and widths.</summary>
     public async Task ResetColumnsAsync()
     {
-        if (_savingColumns) return;
+        if (_savingColumns)
+        {
+            return;
+        }
         _savingColumns = true;
         _columnError = null;
         bool widthsWritten = false;
@@ -1133,7 +1191,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         finally
         {
             _savingColumns = false;
-            if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+            if (_columnEditor != null)
+            {
+                await _columnEditor.RefreshDataAsync(true);
+            }
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -1147,22 +1208,37 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>Registers a header using its stable Id or Name, including hidden headers.</summary>
     public void RegisterColumn(string name, RenderFragment? content, Visibility visibility)
     {
-        if (_disposed || string.IsNullOrWhiteSpace(name)) return;
+        if (_disposed || string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
         bool changed = !_registeredColumns.TryGetValue(name, out var previous) || previous.Visibility != visibility;
         _registeredColumns[name] = new(content, visibility);
-        if (changed && AllowColumnCustomization) _ = RefreshColumnEditorAsync();
+        if (changed && AllowColumnCustomization)
+        {
+            _ = RefreshColumnEditorAsync();
+        }
     }
 
     /// <summary>Removes the customization entry when a header is removed.</summary>
     public void UnregisterColumn(string name)
     {
-        if (!_disposed && _registeredColumns.Remove(name) && AllowColumnCustomization) _ = RefreshColumnEditorAsync();
+        if (!_disposed && _registeredColumns.Remove(name) && AllowColumnCustomization)
+        {
+            _ = RefreshColumnEditorAsync();
+        }
     }
 
     private Task RefreshColumnEditorAsync() => InvokeAsync(async () =>
     {
-        if (_disposed) return;
-        if (_columnEditor != null) await _columnEditor.RefreshDataAsync(true);
+        if (_disposed)
+        {
+            return;
+        }
+        if (_columnEditor != null)
+        {
+            await _columnEditor.RefreshDataAsync(true);
+        }
         StateHasChanged();
     });
 
@@ -1186,7 +1262,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>Changes responsive visibility for every cell with the matching column identifier.</summary>
     public async Task SetColumnVisibilityAsync(string name, Visibility visibility)
     {
-        if (_savingColumns || !Enum.IsDefined(visibility) || !AvailableColumns.Any(c => c.Name == name)) return;
+        if (_savingColumns || !Enum.IsDefined(visibility) || !AvailableColumns.Any(c => c.Name == name))
+        {
+            return;
+        }
         _savingColumns = true;
         _columnError = null;
         try
@@ -1279,13 +1358,18 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                     if (preferences != null)
                     {
                         _columnOrder = preferences.Order?.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.Ordinal).ToArray();
-                        if (preferences.VisibleColumns != null) _visibleColumns = preferences.VisibleColumns;
+                        if (preferences.VisibleColumns != null)
+                        {
+                            _visibleColumns = preferences.VisibleColumns;
+                        }
                         if (preferences.Visibility != null)
                         {
                             foreach (var column in preferences.Visibility)
                             {
                                 if (!string.IsNullOrWhiteSpace(column.Key) && Enum.IsDefined(column.Value))
+                                {
                                     _columnVisibility[column.Key] = column.Value;
+                                }
                             }
                         }
                     }
@@ -1319,7 +1403,9 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         {
             // Personal selections loaded from storage or committed by the editor have their own array.
             if (Columns == null && ReferenceEquals(_visibleColumns, _parameterDefaultColumns))
+            {
                 _visibleColumns = DefaultColumns;
+            }
             _parameterDefaultColumns = DefaultColumns;
             _defaultColumns = (Columns ?? DefaultColumns)?.ToArray();
         }
@@ -1329,7 +1415,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     public async Task ToggleColumnAsync(string name, bool visible)
     {
         var available = AvailableColumns;
-        if (_savingColumns || !available.Any(c => c.Name == name)) return;
+        if (_savingColumns || !available.Any(c => c.Name == name))
+        {
+            return;
+        }
         var selected = available.Where(c => c.Name == name ? visible : !((IGXTable)this).IsHidden(c.Name))
             .Select(c => c.Name).ToArray();
         _savingColumns = true;
@@ -1484,7 +1573,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                             --TotalCount;
                             _selectedItems.Remove(value);
                             AnyChecked = _selectedItems.Any();
-                            if (Compare(Active, it)) Active = default;
+                            if (Compare(Active, it))
+                            {
+                                Active = default;
+                            }
                             tmp.Remove(it);
                             updated = true;
                             break;
@@ -1863,7 +1955,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         if (ColumnWidthsKey != null && Services.GetService<IJSRuntime>() is IJSRuntime js)
         {
             _widthInitialization ??= InitializeColumnResizingAsync(js);
@@ -1891,7 +1986,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     private async Task InitializeColumnResizingAsync(IJSRuntime js)
     {
         _widthModule = await js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Table/widths.js");
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _widthReference = DotNetObjectReference.Create(this);
         _widthHandler = await _widthModule.InvokeAsync<IJSObjectReference>("initialize", Id, _widthReference);
     }
@@ -1902,13 +2000,19 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         Dispose();
         try
         {
-            if (_widthInitialization != null) await _widthInitialization;
+            if (_widthInitialization != null)
+            {
+                await _widthInitialization;
+            }
             if (_widthHandler != null)
             {
                 await _widthHandler.InvokeVoidAsync("dispose");
                 await _widthHandler.DisposeAsync();
             }
-            if (_widthModule != null) await _widthModule.DisposeAsync();
+            if (_widthModule != null)
+            {
+                await _widthModule.DisposeAsync();
+            }
         }
         catch (JSDisconnectedException) { }
         finally { _widthReference?.Dispose(); }

@@ -134,6 +134,13 @@ jobs:
           if (-not (Test-Path $package)) { throw "Package missing: $package" }
           "PACKAGE_PATH=$package" >> $env:GITHUB_ENV
 
+      - name: Verify component authorization
+        run: |
+          dotnet run --project Tests/MenuAuthorization/MenuAuthorization.Checks.csproj --configuration Release -p:GeneratePackageOnBuild=false
+          if ($LASTEXITCODE -ne 0) { throw 'Menu authorization checks failed.' }
+          dotnet run --project Tests/ContextMenuAuthorization/ContextMenuAuthorization.Checks.csproj --configuration Release -p:GeneratePackageOnBuild=false
+          if ($LASTEXITCODE -ne 0) { throw 'Context menu authorization checks failed.' }
+
       - name: NuGet login (Trusted Publishing)
         uses: NuGet/login@v1
         id: login
@@ -157,9 +164,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tag = "$env:PROJECT_ID/v$env:BUILD_BUILDNUMBER"
 
-          $existing = @(git tag --list $tag)
-          if ($LASTEXITCODE -ne 0) { throw 'Could not read tags.' }
-          if ($existing.Count -gt 0) {
+          $existing = @(git ls-remote --exit-code --tags origin "refs/tags/$tag")
+          $status = $LASTEXITCODE
+          if ($status -notin @(0, 2)) { throw 'Could not read remote tags.' }
+          if ($status -eq 0) {
+            git fetch origin "refs/tags/${tag}:refs/tags/${tag}"
+            if ($LASTEXITCODE -ne 0) { throw "Tag fetch failed: $tag" }
             $target = git rev-list -n 1 $tag
             if ($LASTEXITCODE -ne 0 -or $target -ne $env:GITHUB_SHA) {
               throw "Tag points to a different commit: $tag"
@@ -171,4 +181,36 @@ jobs:
 
           git push origin "refs/tags/$tag"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Create source archive and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = "$env:PROJECT_ID/v$env:BUILD_BUILDNUMBER"
+          $asset = "$env:PROJECT_ID.$env:BUILD_BUILDNUMBER-source.zip"
+          $archive = Join-Path $env:RUNNER_TEMP $asset
+          git archive --format=zip "--output=$archive" $tag
+          if ($LASTEXITCODE -ne 0) { throw "Source archive failed: $tag" }
+          # Authentication/network failures must not look like an absent release.
+          $releases = gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list releases.' }
+          if ($tag -notin @($releases)) {
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --verify-tag --title $tag --notes "Source for $env:PROJECT_ID $env:BUILD_BUILDNUMBER. Archive Commit and Date fields identify the release commit."
+            if ($LASTEXITCODE -ne 0) { throw "Release creation failed: $tag" }
+          }
+          $assets = gh release view $tag --repo $env:GITHUB_REPOSITORY --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw "Could not read release assets: $tag" }
+          if ($asset -in @($assets)) {
+            $download = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
+            New-Item -ItemType Directory $download | Out-Null
+            gh release download $tag --repo $env:GITHUB_REPOSITORY --pattern $asset --dir $download
+            if ($LASTEXITCODE -ne 0) { throw "Asset download failed: $asset" }
+            if ((Get-FileHash $archive).Hash -ne (Get-FileHash (Join-Path $download $asset)).Hash) {
+              throw "Existing source asset differs: $asset"
+            }
+          } else {
+            gh release upload $tag $archive --repo $env:GITHUB_REPOSITORY
+            if ($LASTEXITCODE -ne 0) { throw "Asset upload failed: $asset" }
+          }
 

@@ -1,3 +1,30 @@
+// --------------------------------------------------------------------------
+// Gurux Ltd
+//
+// Copyright (c) Gurux Ltd.
+//
+// This file is part of Gurux Device Framework.
+//
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
+//
+// This software is available under either of the following licenses:
+//
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
+//
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
+//
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
+//
+// Commercial licensing: https://www.gurux.fi/
+//
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
+
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.RenderTree;
@@ -40,7 +67,9 @@ internal sealed class GXTableCellOrder
                 ReadRoots(index + 1, index + frames[index].RegionSubtreeLength, scope + "/" + sequence + ":" + occurrence);
             }
             else if (frames[index].FrameType == RenderTreeFrameType.Markup)
+            {
                 ReadMarkup(frames[index].MarkupContent);
+            }
             else
             {
                 roots.Add(index);
@@ -57,7 +86,10 @@ internal sealed class GXTableCellOrder
         string? cellTag = null, name = null;
         void Add(string value, bool cell, string? id = null)
         {
-            if (value.Length == 0) return;
+            if (value.Length == 0)
+            {
+                return;
+            }
             int key = -markup.Count - 1;
             markup[key] = (value, cell, id);
             roots.Add(key);
@@ -68,7 +100,10 @@ internal sealed class GXTableCellOrder
             bool closing = tag.Value.StartsWith("</", StringComparison.Ordinal);
             if (start < 0)
             {
-                if (closing || tagName is not ("td" or "th")) continue;
+                if (closing || tagName is not ("td" or "th"))
+                {
+                    continue;
+                }
                 Add(content[position..tag.Index], false);
                 start = tag.Index;
                 cellTag = tagName;
@@ -79,7 +114,10 @@ internal sealed class GXTableCellOrder
             else if (tagName == cellTag)
             {
                 depth += closing ? -1 : 1;
-                if (depth != 0) continue;
+                if (depth != 0)
+                {
+                    continue;
+                }
                 position = tag.Index + tag.Length;
                 Add(content[start..position], true, name);
                 start = -1;
@@ -98,25 +136,45 @@ internal sealed class GXTableCellOrder
 
     private bool IsCell(int index)
     {
-        if (index < 0) return markup[index].Cell;
+        if (index < 0)
+        {
+            return markup[index].Cell;
+        }
         var frame = frames[index];
-        if (frame.FrameType == RenderTreeFrameType.Element) return frame.ElementName is "td" or "th";
-        if (frame.FrameType != RenderTreeFrameType.Component) return false;
+        if (frame.FrameType == RenderTreeFrameType.Element)
+        {
+            return frame.ElementName is "td" or "th";
+        }
+        if (frame.FrameType != RenderTreeFrameType.Component)
+        {
+            return false;
+        }
         var type = frame.ComponentType;
         return type == typeof(GXTd) || type == typeof(GXFh) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(GXTh<>);
     }
 
     private string? Name(int index)
     {
-        if (index < 0) return markup[index].Name;
+        if (index < 0)
+        {
+            return markup[index].Name;
+        }
         string? id = null, name = null;
         for (var position = index + 1; position < index + Length(frames[index]) && frames[position].FrameType == RenderTreeFrameType.Attribute; ++position)
         {
             var attribute = frames[position];
-            if (attribute.AttributeName.Equals("Id", StringComparison.OrdinalIgnoreCase)) id = attribute.AttributeValue as string;
-            if (attribute.AttributeName == "Name") name = attribute.AttributeValue as string;
+            if (attribute.AttributeName.Equals("Id", StringComparison.OrdinalIgnoreCase))
+            {
+                id = attribute.AttributeValue as string;
+            }
+            if (attribute.AttributeName == "Name")
+            {
+                name = attribute.AttributeValue as string;
+            }
             if (attribute.AttributeName == "AdditionalAttributes" && attribute.AttributeValue is IEnumerable<KeyValuePair<string, object>> attributes)
+            {
                 id ??= attributes.FirstOrDefault(a => a.Key.Equals("id", StringComparison.OrdinalIgnoreCase)).Value as string;
+            }
         }
         return string.IsNullOrWhiteSpace(id) ? name : id;
     }
@@ -130,7 +188,10 @@ internal sealed class GXTableCellOrder
         foreach (var root in roots.Where(IsCell))
         {
             var name = Name(root) ?? (headerNames != null && cell < headerNames.Length ? headerNames[cell] : null);
-            if (!string.IsNullOrWhiteSpace(name)) names[root] = name;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                names[root] = name;
+            }
             ++cell;
         }
         var positions = (order ?? []).Select((name, index) => (name, index))
@@ -159,25 +220,41 @@ internal sealed class GXTableCellOrder
             case RenderTreeFrameType.Element:
                 builder.OpenElement(seq, frame.ElementName);
                 if (columnKey != null || frame.ElementKey != null)
+                {
                     builder.SetKey(sequence.HasValue ? new CellKey(scopes[index], columnKey, frame.ElementKey) : frame.ElementKey);
-                for (int child = index + 1; child < end;) child = Replay(builder, child);
+                }
+                for (int child = index + 1; child < end;)
+                {
+                    child = Replay(builder, child);
+                }
                 builder.CloseElement();
                 break;
             case RenderTreeFrameType.Component:
                 builder.OpenComponent(seq, frame.ComponentType);
                 if (columnKey != null || frame.ComponentKey != null)
+                {
                     builder.SetKey(sequence.HasValue ? new CellKey(scopes[index], columnKey, frame.ComponentKey) : frame.ComponentKey);
-                for (int child = index + 1; child < end;) child = Replay(builder, child);
+                }
+                for (int child = index + 1; child < end;)
+                {
+                    child = Replay(builder, child);
+                }
                 builder.CloseComponent();
                 break;
             case RenderTreeFrameType.Region:
                 builder.OpenRegion(seq);
-                for (int child = index + 1; child < end;) child = Replay(builder, child);
+                for (int child = index + 1; child < end;)
+                {
+                    child = Replay(builder, child);
+                }
                 builder.CloseRegion();
                 break;
             case RenderTreeFrameType.Attribute:
                 builder.AddAttribute(seq, frame.AttributeName, frame.AttributeValue);
-                if (frame.AttributeEventUpdatesAttributeName != null) builder.SetUpdatesAttributeName(frame.AttributeEventUpdatesAttributeName);
+                if (frame.AttributeEventUpdatesAttributeName != null)
+                {
+                    builder.SetUpdatesAttributeName(frame.AttributeEventUpdatesAttributeName);
+                }
                 break;
             case RenderTreeFrameType.Text: builder.AddContent(seq, frame.TextContent); break;
             case RenderTreeFrameType.Markup: builder.AddMarkupContent(seq, frame.MarkupContent); break;

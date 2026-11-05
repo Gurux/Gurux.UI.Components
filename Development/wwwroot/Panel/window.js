@@ -1,3 +1,30 @@
+// --------------------------------------------------------------------------
+// Gurux Ltd
+//
+// Copyright (c) Gurux Ltd.
+//
+// This file is part of Gurux Device Framework.
+//
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
+//
+// This software is available under either of the following licenses:
+//
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
+//
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
+//
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
+//
+// Commercial licensing: https://www.gurux.fi/
+//
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
+
 export function resize(component) {
     window.addEventListener("resize", function () {
         setTimeout(raiseEvent, 1, component, "OnWindowResized", window.innerWidth, window.innerHeight);
@@ -35,20 +62,31 @@ export function height() {
 export function initializeSplitter(panel, component) {
     const left = panel.querySelector("#leftDiv");
     const divider = panel.querySelector("#verticalDivider");
-    if (!left || !divider) throw new Error("Panel splitter elements were not found.");
+    if (!left || !divider)
+    {
+        throw new Error("Panel splitter elements were not found.");
+    }
     let pointer = null, startX = 0, startWidth = 0, maxWidth = 0, width = 0, frame = 0;
     let previousSelection = "";
     function fitHeight() {
-        if (panel.dataset.fillViewport !== "true" || !panel.getClientRects().length) return;
+        if (panel.dataset.fillViewport !== "true" || !panel.getClientRects().length)
+        {
+            return;
+        }
         const viewport = window.visualViewport;
         const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
         const height = Math.max(0, Math.floor(bottom - panel.getBoundingClientRect().top));
         const value = height + "px";
-        if (panel.style.height !== value) panel.style.height = value;
+        if (panel.style.height !== value)
+        {
+            panel.style.height = value;
+        }
     }
     const heightObserver = new ResizeObserver(fitHeight);
     for (let ancestor = panel.parentElement; ancestor; ancestor = ancestor.parentElement)
+    {
         heightObserver.observe(ancestor);
+    }
     window.addEventListener("resize", fitHeight);
     window.visualViewport?.addEventListener("resize", fitHeight);
     fitHeight();
@@ -82,19 +120,34 @@ export function initializeSplitter(panel, component) {
         left.style.flexBasis = width + "px";
     }
     function move(event) {
-        if (event.pointerId !== pointer) return;
+        if (event.pointerId !== pointer)
+        {
+            return;
+        }
         updateLimits();
         width = clamp(startWidth + event.clientX - startX);
-        if (!frame) frame = requestAnimationFrame(paint);
+        if (!frame)
+        {
+            frame = requestAnimationFrame(paint);
+        }
     }
     function finish(event) {
-        if (pointer === null || (event && event.pointerId !== pointer)) return;
-        if (event?.type === "pointerup") move(event);
+        if (pointer === null || (event && event.pointerId !== pointer))
+        {
+            return;
+        }
+        if (event?.type === "pointerup")
+        {
+            move(event);
+        }
         if (frame) { cancelAnimationFrame(frame); paint(); }
         const released = pointer;
         pointer = null;
         panel.style.userSelect = previousSelection;
-        if (divider.hasPointerCapture(released)) divider.releasePointerCapture(released);
+        if (divider.hasPointerCapture(released))
+        {
+            divider.releasePointerCapture(released);
+        }
         if (event?.type === "pointerup" && component) {
             const leftSize = left.getBoundingClientRect();
             const rightSize = panel.querySelector("#rightDiv").getBoundingClientRect();
@@ -103,7 +156,10 @@ export function initializeSplitter(panel, component) {
         }
     }
     function down(event) {
-        if (pointer !== null || event.button !== 0) return;
+        if (pointer !== null || event.button !== 0)
+        {
+            return;
+        }
         event.preventDefault();
         pointer = event.pointerId;
         startX = event.clientX;
@@ -124,7 +180,10 @@ export function initializeSplitter(panel, component) {
         heightObserver.disconnect();
         window.removeEventListener("resize", fitHeight);
         window.visualViewport?.removeEventListener("resize", fitHeight);
-        if (frame) cancelAnimationFrame(frame);
+        if (frame)
+        {
+            cancelAnimationFrame(frame);
+        }
         divider.removeEventListener("pointerdown", down);
         divider.removeEventListener("pointermove", move);
         divider.removeEventListener("pointerup", finish);

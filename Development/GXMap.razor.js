@@ -1,3 +1,30 @@
+// --------------------------------------------------------------------------
+// Gurux Ltd
+//
+// Copyright (c) Gurux Ltd.
+//
+// This file is part of Gurux Device Framework.
+//
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
+//
+// This software is available under either of the following licenses:
+//
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
+//
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
+//
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
+//
+// Commercial licensing: https://www.gurux.fi/
+//
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
+
 const maps = new WeakMap();
 const disposed = new WeakSet();
 let leaflet;
@@ -36,9 +63,15 @@ function externalUrl(value) {
 
 function tileUrl(proxyUrl) {
     const source = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-    if (!proxyUrl?.trim()) return source;
+    if (!proxyUrl?.trim())
+    {
+        return source;
+    }
     const proxy = new URL(proxyUrl, document.baseURI);
-    if (!['https:', 'http:'].includes(proxy.protocol)) throw new Error('ProxyUrl must use HTTP or HTTPS.');
+    if (!['https:', 'http:'].includes(proxy.protocol))
+    {
+        throw new Error('ProxyUrl must use HTTP or HTTPS.');
+    }
     proxy.searchParams.set('url', source);
     // Leaflet must substitute coordinates after encoding the target URL in the proxy query.
     return proxy.href.replaceAll('%7B', '{').replaceAll('%7D', '}');
@@ -46,7 +79,10 @@ function tileUrl(proxyUrl) {
 
 export async function update(element, latitude, longitude, zoom, markers, proxyUrl) {
     const L = await loadLeaflet();
-    if (!element?.isConnected || disposed.has(element)) return;
+    if (!element?.isConnected || disposed.has(element))
+    {
+        return;
+    }
     const tilesUrl = tileUrl(proxyUrl);
     let state = maps.get(element);
     if (!state) {
@@ -59,7 +95,10 @@ export async function update(element, latitude, longitude, zoom, markers, proxyU
         state.resize = new ResizeObserver(() => map.invalidateSize());
         state.resize.observe(element);
         state.removed = new MutationObserver(() => {
-            if (!element.isConnected) dispose(element);
+            if (!element.isConnected)
+            {
+                dispose(element);
+            }
         });
         state.removed.observe(document.documentElement, { childList: true, subtree: true });
         maps.set(element, state);
@@ -78,15 +117,24 @@ export async function update(element, latitude, longitude, zoom, markers, proxyU
             title: item.title ?? '', alt: item.title || 'Map marker', keyboard: true
         }).addTo(state.layer);
         const url = externalUrl(item.url);
-        if (url) marker.on('click', () => window.open(url, '_blank', 'noopener,noreferrer'));
+        if (url)
+        {
+            marker.on('click', () => window.open(url, '_blank', 'noopener,noreferrer'));
+        }
     }
 }
 
 export function dispose(element) {
-    if (!element) return;
+    if (!element)
+    {
+        return;
+    }
     disposed.add(element);
     const state = maps.get(element);
-    if (!state) return;
+    if (!state)
+    {
+        return;
+    }
     state.resize.disconnect();
     state.removed.disconnect();
     state.map.remove();

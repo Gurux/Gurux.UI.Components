@@ -1,3 +1,32 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
 @using System.Text.RegularExpressions
 @namespace Gurux.UI.Components.TemplateToken
 
@@ -25,21 +54,39 @@
         int position = 0;
         foreach (Match match in UrlTags.Matches(text))
         {
-            if (match.Index > position) yield return new(text[position..match.Index]);
+            if (match.Index > position)
+            {
+                yield return new(text[position..match.Index]);
+            }
             var url = match.Groups[1].Value.Trim();
             yield return IsAllowedUrl(url) ? new(match.Groups[2].Value, url) : new(match.Value);
             position = match.Index + match.Length;
         }
-        if (position < text.Length) yield return new(text[position..]);
+        if (position < text.Length)
+        {
+            yield return new(text[position..]);
+        }
     }
 
     private static bool IsAllowedUrl(string url)
     {
-        if (string.IsNullOrWhiteSpace(url) || url.Any(char.IsControl) || url.Contains('\\') || url.StartsWith("//", StringComparison.Ordinal)) return false;
+        if (string.IsNullOrWhiteSpace(url) || url.Any(char.IsControl) || url.Contains('\\') || url.StartsWith("//", StringComparison.Ordinal))
+        {
+            return false;
+        }
         // Browser-root-relative paths are safe, independently of platform-specific file URI parsing.
-        if (url.StartsWith('/')) return true;
-        if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var uri)) return false;
-        if (uri.IsAbsoluteUri) return uri.Scheme is "http" or "https";
+        if (url.StartsWith('/'))
+        {
+            return true;
+        }
+        if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var uri))
+        {
+            return false;
+        }
+        if (uri.IsAbsoluteUri)
+        {
+            return uri.Scheme is "http" or "https";
+        }
         var prefix = url.Split('/', '?', '#')[0];
         return !prefix.Contains(':');
     }

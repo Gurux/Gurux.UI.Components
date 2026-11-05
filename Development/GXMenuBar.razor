@@ -1,35 +1,32 @@
 @*
-// --------------------------------------------------------------------------
-//  Gurux Ltd
-//
-//
-//
-// Filename:        $HeadURL$
-//
-// Version:         $Revision$,
-//                  $Date$
-//                  $Author$
-//
-// Copyright (c) Gurux Ltd
-//
-//---------------------------------------------------------------------------
-//
-//  DESCRIPTION
-//
-// This file is a part of Gurux Device Framework.
-//
-// Gurux Device Framework is Open Source software; you can redistribute it
-// and/or modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2 of the License.
-// Gurux Device Framework is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU General Public License for more details.
-//
-// This code is licensed under the GNU General Public License v2.
-// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
-//---------------------------------------------------------------------------
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
 *@
+
 @*
 <summary>
 Displays shared commands and dropdowns and updates their enabled state from progress and form changes.
@@ -140,7 +137,10 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         foreach (var item in items)
         {
             yield return item.Policy;
-            foreach (var policy in Policies(item.Children)) yield return policy;
+            foreach (var policy in Policies(item.Children))
+            {
+                yield return policy;
+            }
         }
     }
 
@@ -156,7 +156,10 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         foreach (var item in items)
         {
             path.Add(item);
-            if (ReferenceEquals(item, target) || FindPath(item.Children, target, path)) return true;
+            if (ReferenceEquals(item, target) || FindPath(item.Children, target, path))
+            {
+                return true;
+            }
             path.RemoveAt(path.Count - 1);
         }
         return false;
@@ -164,13 +167,24 @@ Displays shared commands and dropdowns and updates their enabled state from prog
 
     private async Task<bool> CanExecuteAsync(GXMenuItem item)
     {
-        if (_disposed || item.IsSeparator || _authorization == null) return false;
+        if (_disposed || item.IsSeparator || _authorization == null)
+        {
+            return false;
+        }
         var path = new List<GXMenuItem>();
-        if (!FindPath(Items(), item, path) || path.Any(IsDisabled)) return false;
+        if (!FindPath(Items(), item, path) || path.Any(IsDisabled))
+        {
+            return false;
+        }
         var policies = path.Select(command => command.Policy).ToArray();
         var version = _authorization.Version;
         foreach (var policy in policies)
-            if (!await _authorization.CanExecuteAsync(policy, AuthenticationState)) return false;
+        {
+            if (!await _authorization.CanExecuteAsync(policy, AuthenticationState))
+                {
+                    return false;
+                }
+        }
         var currentPath = new List<GXMenuItem>();
         return !_disposed && version == _authorization.Version && FindPath(Items(), item, currentPath) &&
             currentPath.SequenceEqual(path) && policies.SequenceEqual(path.Select(command => command.Policy)) && !path.Any(IsDisabled);
@@ -178,19 +192,27 @@ Displays shared commands and dropdowns and updates their enabled state from prog
 
     private async Task InvokeCommandAsync(GXMenuItem item)
     {
-        if (await CanExecuteAsync(item)) await item.OnClick.InvokeAsync();
+        if (await CanExecuteAsync(item))
+        {
+            await item.OnClick.InvokeAsync();
+        }
     }
 
     private async Task EvaluateAuthorizationAsync()
     {
         if (!_disposed && _authorization != null)
+        {
             await _authorization.RefreshAsync(Policies(Items()).ToArray(), AuthenticationState);
+        }
     }
 
     private async Task RefreshAuthorizationAsync()
     {
         await EvaluateAuthorizationAsync();
-        if (!_disposed) StateHasChanged();
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
     }
 
     protected override Task OnParametersSetAsync() => EvaluateAuthorizationAsync();
@@ -217,7 +239,10 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     {
         _authorization = new GXCommandAuthorization(Services, () =>
         {
-            if (!_disposed) _ = InvokeAsync(RefreshAuthorizationAsync);
+            if (!_disposed)
+            {
+                _ = InvokeAsync(RefreshAuthorizationAsync);
+            }
         });
         Menu.Changed += OnChanged;
         Progress.Changed += OnChanged;
@@ -228,7 +253,9 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     protected override void OnAfterRender(bool firstRender)
     {
         if (NavigationGuardEnabled && _navigationRegistration == null)
+        {
             _navigationRegistration = NavigationManager.RegisterLocationChangingHandler(OnLocationChanging);
+        }
         else if (!NavigationGuardEnabled && _navigationRegistration != null)
         {
             _navigationRegistration.Dispose();
@@ -247,8 +274,14 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         try { return await request.Task.WaitAsync(cancellationToken); }
         finally
         {
-            if (ReferenceEquals(_pendingConfirmation, request)) _pendingConfirmation = null;
-            if (!_disposed) await InvokeAsync(StateHasChanged);
+            if (ReferenceEquals(_pendingConfirmation, request))
+            {
+                _pendingConfirmation = null;
+            }
+            if (!_disposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
     private async ValueTask OnLocationChanging(LocationChangingContext context)
@@ -257,7 +290,9 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         _navigationCancellation = default;
         if (_disposed || !NavigationGuardEnabled || context.CancellationToken.IsCancellationRequested ||
             PreserveCommandsOnNavigation?.Invoke(NavigationManager.Uri, context.TargetLocation) == true)
+        {
             return;
+        }
         var sourceLocation = NavigationManager.Uri;
         if ((ConfirmNavigation != null || WarnOnUnsavedChanges) && ModifiedContexts().Any())
         {
@@ -281,11 +316,18 @@ Displays shared commands and dropdowns and updates their enabled state from prog
         _navigationCancellation = context.CancellationToken.Register(() =>
         {
             if (!_disposed)
+            {
                 _ = InvokeAsync(() =>
-                {
-                    if (!_disposed && NavigationManager.Uri == sourceLocation)
-                        foreach (var restore in restores) restore();
-                });
+                    {
+                        if (!_disposed && NavigationManager.Uri == sourceLocation)
+                        {
+                            foreach (var restore in restores)
+                                {
+                                    restore();
+                                }
+                        }
+                    });
+            }
         });
     }
     /// <summary>
@@ -314,7 +356,10 @@ Displays shared commands and dropdowns and updates their enabled state from prog
     /// </summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _disposed = true;
         _authorization?.Dispose();
         _lifetime.Cancel();

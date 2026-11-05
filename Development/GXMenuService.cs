@@ -1,3 +1,30 @@
+// --------------------------------------------------------------------------
+// Gurux Ltd
+//
+// Copyright (c) Gurux Ltd.
+//
+// This file is part of Gurux Device Framework.
+//
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
+//
+// This software is available under either of the following licenses:
+//
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
+//
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
+//
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
+//
+// Commercial licensing: https://www.gurux.fi/
+//
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
+
 using Gurux.UI.Components.Enums;
 using Microsoft.AspNetCore.Components.Forms;
 
@@ -31,13 +58,22 @@ public sealed class GXMenuService : IGXMenuService, IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         var restore = menus.Values.ToArray().Select(menu => menu.ClearForNavigation()).ToArray();
-        return () => { foreach (var action in restore) action(); };
+        return () => { foreach (var action in restore)
+        {
+            action();
+        } };
     }
     private GXMenuState Get(MenuLocation location, MenuKind kind, Guid? menuId)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!Enum.IsDefined(location)) throw new ArgumentOutOfRangeException(nameof(location));
-        if (!Enum.IsDefined(kind) || kind == MenuKind.All) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (!Enum.IsDefined(location))
+        {
+            throw new ArgumentOutOfRangeException(nameof(location));
+        }
+        if (!Enum.IsDefined(kind) || kind == MenuKind.All)
+        {
+            throw new ArgumentOutOfRangeException(nameof(kind));
+        }
         var key = (location, kind, menuId);
         if (!menus.TryGetValue(key, out var menu))
         {
@@ -50,9 +86,15 @@ public sealed class GXMenuService : IGXMenuService, IDisposable
     private void Notify() => Changed?.Invoke();
     public void Dispose()
     {
-        if (disposed) return;
+        if (disposed)
+        {
+            return;
+        }
         disposed = true;
-        foreach (var menu in menus.Values) menu.Dispose();
+        foreach (var menu in menus.Values)
+        {
+            menu.Dispose();
+        }
         menus.Clear();
         Changed = null;
     }

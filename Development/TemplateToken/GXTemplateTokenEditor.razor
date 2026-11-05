@@ -1,3 +1,32 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
 @using System.Globalization
 @using Microsoft.JSInterop
 @using Gurux.UI.Components.Tab
@@ -124,7 +153,13 @@
 
     private void ProgressChanged()
     {
-        if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+        if (!_disposed)
+        {
+            _ = InvokeAsync(() => { if (!_disposed)
+            {
+                StateHasChanged();
+            } });
+        }
     }
 
     protected override async Task OnParametersSetAsync()
@@ -132,7 +167,10 @@
         await base.OnParametersSetAsync();
         var key = $"{Page}\n{TargetType}\n{TargetId}\n{CultureInfo.CurrentCulture.Name}\n" +
             System.Text.Json.JsonSerializer.Serialize(Values?.OrderBy(pair => pair.Key, StringComparer.Ordinal));
-        if (_loadedKey == key) return;
+        if (_loadedKey == key)
+        {
+            return;
+        }
         _loadedKey = key;
         var revision = ++_revision;
         _tokens = [];
@@ -144,10 +182,16 @@
         {
             var tokens = await Tokens.GetDefinitionsAsync(CreateContext(), cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            if (!_disposed && revision == _revision) _tokens = tokens;
+            if (!_disposed && revision == _revision)
+            {
+                _tokens = tokens;
+            }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-        catch (Exception ex) { if (!_disposed && revision == _revision) Notifications.ReportError(ex, _notificationKey); }
+        catch (Exception ex) { if (!_disposed && revision == _revision)
+        {
+            Notifications.ReportError(ex, _notificationKey);
+        } }
     }
 
     private TemplateTokenEditorContext CreateContext() => new()
@@ -188,7 +232,10 @@
             ? matches.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
             : matches.OrderBy(key, StringComparer.OrdinalIgnoreCase);
         rows = rows.Skip(request.StartIndex);
-        if (request.Count > 0) rows = rows.Take(request.Count);
+        if (request.Count > 0)
+        {
+            rows = rows.Take(request.Count);
+        }
         return ValueTask.FromResult(new ItemsProviderResult<TemplateTokenDefinition>(rows.ToArray(), matches.Length));
     }
     private string? TokenDescription(string? name) => _tokens.FirstOrDefault(token => token.Name == name)?.Description;
@@ -196,28 +243,43 @@
 
     private void SelectToken(string? name)
     {
-        if (Disabled || Progress.IsBusy || string.IsNullOrEmpty(name) || !_tokens.Any(token => token.Name == name)) return;
+        if (Disabled || Progress.IsBusy || string.IsNullOrEmpty(name) || !_tokens.Any(token => token.Name == name))
+        {
+            return;
+        }
         _selectedToken = name;
     }
     private async Task AddTokenAsync()
     {
-        if (Disabled || Progress.IsBusy || _disposed || !_tokens.Any(token => token.Name == _selectedToken)) return;
+        if (Disabled || Progress.IsBusy || _disposed || !_tokens.Any(token => token.Name == _selectedToken))
+        {
+            return;
+        }
         try
         {
             await using var module = await JS.InvokeAsync<IJSObjectReference>("import",
                 "./_content/Gurux.UI.Components/TemplateToken/GXTemplateTokenEditor.razor.js");
             var text = await module.InvokeAsync<string>("insertToken", _textArea, "[" + _selectedToken + "]");
-            if (!_disposed) TextChanged(new ChangeEventArgs { Value = text });
+            if (!_disposed)
+            {
+                TextChanged(new ChangeEventArgs { Value = text });
+            }
         }
         catch (JSDisconnectedException) { }
-        catch (Exception ex) { if (!_disposed) Notifications.ReportError(ex, _notificationKey); }
+        catch (Exception ex) { if (!_disposed)
+        {
+            Notifications.ReportError(ex, _notificationKey);
+        } }
     }
 
     private void CloseView() { _preview = null; _usesExamples = false; }
 
     private async Task ViewAsync()
     {
-        if (Disabled || Progress.IsBusy || _disposed) return;
+        if (Disabled || Progress.IsBusy || _disposed)
+        {
+            return;
+        }
         var text = CurrentValueAsString ?? "";
         var revision = _revision;
         Notifications.RemoveByKey(_notificationKey);
@@ -238,12 +300,18 @@
             }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-        catch (Exception ex) { if (!_disposed && revision == _revision) Notifications.ReportError(ex, _notificationKey); }
+        catch (Exception ex) { if (!_disposed && revision == _revision)
+        {
+            Notifications.ReportError(ex, _notificationKey);
+        } }
     }
 
     private async Task ValidateAsync()
     {
-        if (Disabled || Progress.IsBusy || _disposed) return;
+        if (Disabled || Progress.IsBusy || _disposed)
+        {
+            return;
+        }
         var text = CurrentValueAsString ?? "";
         var revision = _revision;
         Notifications.RemoveByKey(_notificationKey);
@@ -253,14 +321,26 @@
         {
             var tokens = await Tokens.GetDefinitionsAsync(CreateContext(), cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            if (_disposed || revision != _revision || text != (CurrentValueAsString ?? "")) return;
+            if (_disposed || revision != _revision || text != (CurrentValueAsString ?? ""))
+            {
+                return;
+            }
             _tokens = tokens;
             var errors = TemplateTokenValidator.Validate(text, tokens);
-            if (errors.Count != 0) Notifications.ReportError(new ArgumentException(string.Join(Environment.NewLine, errors)), _notificationKey);
-            else Notifications.Add(new GXNotificationItem(NotificationLevel.Success, "Template tokens are valid.", "", _notificationKey, true));
+            if (errors.Count != 0)
+            {
+                Notifications.ReportError(new ArgumentException(string.Join(Environment.NewLine, errors)), _notificationKey);
+            }
+            else
+            {
+                Notifications.Add(new GXNotificationItem(NotificationLevel.Success, "Template tokens are valid.", "", _notificationKey, true));
+            }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-        catch (Exception ex) { if (!_disposed && revision == _revision) Notifications.ReportError(ex, _notificationKey); }
+        catch (Exception ex) { if (!_disposed && revision == _revision)
+        {
+            Notifications.ReportError(ex, _notificationKey);
+        } }
     }
 
     protected override bool TryParseValueFromString(string? value, out string? result, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? validationErrorMessage)

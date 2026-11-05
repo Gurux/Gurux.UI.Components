@@ -1,33 +1,29 @@
 // --------------------------------------------------------------------------
-//  Gurux Ltd
+// Gurux Ltd
 //
+// Copyright (c) Gurux Ltd.
 //
+// This file is part of Gurux Device Framework.
 //
-// Filename:        $HeadURL$
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
 //
-// Version:         $Revision$,
-//                  $Date$
-//                  $Author$
+// This software is available under either of the following licenses:
 //
-// Copyright (c) Gurux Ltd
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
 //
-//---------------------------------------------------------------------------
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
 //
-//  DESCRIPTION
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
 //
-// This file is a part of Gurux Device Framework.
+// Commercial licensing: https://www.gurux.fi/
 //
-// Gurux Device Framework is Open Source software; you can redistribute it
-// and/or modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2 of the License.
-// Gurux Device Framework is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU General Public License for more details.
-//
-// This code is licensed under the GNU General Public License v2.
-// Full text may be retrieved at http://www.gnu.org/licenses/gpl-2.0.txt
-//---------------------------------------------------------------------------
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
 
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -139,7 +135,10 @@ namespace Gurux.UI.Components
         /// </summary>
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (!firstRender) return;
+            if (!firstRender)
+            {
+                return;
+            }
             try
             {
                 if (ItemsProvider != null)
@@ -310,7 +309,10 @@ namespace Gurux.UI.Components
         /// </summary>
         protected void OnKeyDown(KeyboardEventArgs e)
         {
-            if (Disabled) return;
+            if (Disabled)
+            {
+                return;
+            }
             if (!_hasOriginal)
             {
                 //Remember the selected item.
@@ -365,7 +367,10 @@ namespace Gurux.UI.Components
         {
             _original = default!;
             _hasOriginal = false;
-            if (Disabled) return;
+            if (Disabled)
+            {
+                return;
+            }
             if (BindConverter.TryConvertTo<TValue>(value, CultureInfo.CurrentCulture, out var result))
             {
                 // Conversion creates a new array even when the selected values are unchanged.
@@ -385,12 +390,21 @@ namespace Gurux.UI.Components
         {
             _original = default!;
             _hasOriginal = false;
-            if (Disabled) return;
+            if (Disabled)
+            {
+                return;
+            }
             int index = value is string text && text.Length == 0
                 ? _items.FindIndex(item => item == null)
                 : int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : -1;
-            if (index < 0 || index >= _items.Count) return;
-            if (EqualityComparer<TValue>.Default.Equals(CurrentValue, _items[index])) return;
+            if (index < 0 || index >= _items.Count)
+            {
+                return;
+            }
+            if (EqualityComparer<TValue>.Default.Equals(CurrentValue, _items[index]))
+            {
+                return;
+            }
             CurrentValue = _items[index];
             await OnSelected.InvokeAsync(Value);
         }
@@ -399,7 +413,10 @@ namespace Gurux.UI.Components
         /// </summary>
         private async Task SetCurrentValueAsStringAsync(object? value)
         {
-            if (Disabled) return;
+            if (Disabled)
+            {
+                return;
+            }
             await SetCurrentValueAsString(value);
             if (localStorage != null && RememberValue && !string.IsNullOrEmpty(Id))
             {

@@ -1,3 +1,30 @@
+// --------------------------------------------------------------------------
+// Gurux Ltd
+//
+// Copyright (c) Gurux Ltd.
+//
+// This file is part of Gurux Device Framework.
+//
+// Commit: $Format:%H$
+// Date:   $Format:%cI$
+//
+// This software is available under either of the following licenses:
+//
+// 1. GNU General Public License, version 2 only (GPL-2.0-only).
+//    See the LICENSE file included with this distribution.
+//
+// 2. A commercial license granted by Gurux Ltd under a separate written
+//    agreement. Use under this option requires a valid commercial license
+//    and is governed by the terms of that agreement.
+//
+// If you have not obtained a commercial license from Gurux Ltd,
+// use of this software is governed by GPL-2.0-only.
+//
+// Commercial licensing: https://www.gurux.fi/
+//
+// SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+// --------------------------------------------------------------------------
+
 using System.Text.RegularExpressions;
 
 namespace Gurux.UI.Components.TemplateToken;
@@ -16,11 +43,18 @@ public static partial class TemplateTokenValidator
         {
             int end = text.IndexOf(']', start + 1);
             var candidate = end < 0 ? text[(start + 1)..] : text[(start + 1)..end];
-            if (!candidate.Contains(':')) continue;
+            if (!candidate.Contains(':'))
+            {
+                continue;
+            }
             if (end < 0 || !NamePattern().IsMatch(candidate))
+            {
                 errors.Add("Invalid template token: " + text.Substring(start, Math.Min((end < 0 ? text.Length : end + 1) - start, 160)));
+            }
             else if (!names.Contains(candidate))
+            {
                 errors.Add("Unknown template token: [" + candidate + "]");
+            }
         }
         return errors.OrderBy(e => e, StringComparer.Ordinal).ToArray();
     }

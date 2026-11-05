@@ -1,3 +1,32 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
 @namespace Gurux.UI.Components
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
@@ -37,38 +66,53 @@
     {
         ValidateCoordinates(Latitude, Longitude);
         if (Zoom is < 0 or > 19)
+        {
             throw new ArgumentOutOfRangeException(nameof(Zoom), "Zoom must be between 0 and 19.");
+        }
         _markers = Markers?.Select(marker => new GXMapMarker
         {
             Latitude = marker.Latitude, Longitude = marker.Longitude, Title = marker.Title, Url = marker.Url
         }).ToArray() ?? [];
         foreach (var marker in _markers)
+        {
             ValidateCoordinates(marker.Latitude, marker.Longitude);
+        }
     }
 
     private static void ValidateCoordinates(double latitude, double longitude)
     {
         if (!double.IsFinite(latitude) || latitude is < -90 or > 90)
+        {
             throw new ArgumentOutOfRangeException(nameof(Latitude));
+        }
         if (!double.IsFinite(longitude) || longitude is < -180 or > 180)
+        {
             throw new ArgumentOutOfRangeException(nameof(Longitude));
+        }
     }
 
     /// <summary>Initializes or updates Leaflet after the map container is rendered.</summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         try
         {
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/GXMap.razor.js");
             if (!_disposed)
+            {
                 await _module.InvokeVoidAsync("update", _element, Latitude, Longitude, Zoom, _markers, ProxyUrl);
+            }
         }
         catch (JSDisconnectedException) { }
         finally
         {
             if (_disposed && _module is not null)
+            {
                 await ReleaseModuleAsync();
+            }
         }
     }
 
@@ -76,7 +120,10 @@
     {
         var module = _module;
         _module = null;
-        if (module is null) return;
+        if (module is null)
+        {
+            return;
+        }
         try
         {
             await module.InvokeVoidAsync("dispose", _element);
