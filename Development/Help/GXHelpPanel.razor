@@ -1,0 +1,296 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
+@namespace Gurux.UI.Components.Help
+@using System.Web
+@using Microsoft.JSInterop
+@using Gurux.UI.Components.Panel
+@using Gurux.UI.Components.Enums
+@inject GXHelpService HelpService
+@inject IGXProgress Progress
+@inject IGXNotificationService NotificationService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<GXSidePanel Id="@ElementId" Open="@_open" OpenChanged="SetOpenAsync" Title="@Title"
+             Width="@Width" CloseButtonTitle="@CloseButtonTitle"
+             data-gx-help-panel="@ElementId" data-help-version="@_request?.Version" data-help-culture="@_request?.Culture">
+    @if (_request is { } request)
+    {
+        @if (ContentTemplate != null)
+        {
+            @ContentTemplate(request)
+        }
+        else if (_progress == null)
+        {
+            <GXHelpContentView Content="@_content" LinkText="@LinkText">
+                <EmptyContent>
+                    @if (EmptyContent != null)
+                    {
+                        @EmptyContent(request)
+                    }
+                    else
+                    {
+                        <p role="status">@UnavailableText</p>
+                    }
+                </EmptyContent>
+            </GXHelpContentView>
+        }
+    }
+</GXSidePanel>
+
+@code {
+    /// <summary>Optional unique panel identifier. A stable unique identifier is generated when omitted.</summary>
+    [Parameter] public string? Id { get; set; }
+    /// <summary>Documentation path to intercept. Defaults to the help service's base address.</summary>
+    [Parameter] public string? HelpPath { get; set; }
+    /// <summary>Accessible panel title.</summary>
+    [Parameter] public string Title { get; set; } = "Help";
+    /// <summary>Preferred CSS width, constrained to the viewport.</summary>
+    [Parameter] public string Width { get; set; } = "42rem";
+    /// <summary>Localized close-button label.</summary>
+    [Parameter] public string CloseButtonTitle { get; set; } = "Close";
+    /// <summary>Optional application-owned content; when supplied, the panel does not load providers itself.</summary>
+    [Parameter] public RenderFragment<GXHelpRequest>? ContentTemplate { get; set; }
+    /// <summary>Application-owned fallback when no registered provider handles the request.</summary>
+    [Parameter] public RenderFragment<GXHelpRequest>? EmptyContent { get; set; }
+    /// <summary>Localized message for the shared progress operation.</summary>
+    [Parameter] public string LoadingText { get; set; } = "Loading help...";
+    /// <summary>Localized title for provider error notifications.</summary>
+    [Parameter] public string ErrorText { get; set; } = "Unable to load help. Try again later.";
+    /// <summary>Localized message shown when content and fallback are unavailable.</summary>
+    [Parameter] public string UnavailableText { get; set; } = "Help is not available for this topic.";
+    /// <summary>Localized label for provider links.</summary>
+    [Parameter] public string LinkText { get; set; } = "Help";
+
+    private readonly string _generatedId = "gx-help-panel-" + Guid.NewGuid().ToString("N");
+    private string ElementId => string.IsNullOrWhiteSpace(Id) ? _generatedId : Id;
+    private Uri HelpUri => new(NavigationManager.ToAbsoluteUri(HelpPath ?? HelpService.BaseAddress).GetLeftPart(UriPartial.Path));
+    private bool _open;
+    private bool _disposed;
+    private bool _refreshRequested;
+    private GXProgressScope? _progress;
+    private long _loadVersion;
+    private GXHelpRequest? _request;
+    private GXHelpContent? _content;
+    private CancellationTokenSource? _loadCancellation;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<GXHelpPanel>? _reference;
+    private string? _initializedId;
+    private string? _initializedUrl;
+    private string NotificationKey => _generatedId + ":load";
+
+    protected override void OnInitialized()
+    {
+        HelpService.Changed += ContextChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Help/GXHelpPanel.razor.js");
+            if (_disposed)
+            {
+                await _module.DisposeAsync();
+                return;
+            }
+            _reference = DotNetObjectReference.Create(this);
+        }
+        if (_disposed || _module == null)
+        {
+            return;
+        }
+        var url = HelpUri.AbsoluteUri;
+        if (_initializedId != ElementId || _initializedUrl != url)
+        {
+            if (_initializedId != null)
+            {
+                await _module.InvokeVoidAsync("dispose", _initializedId);
+            }
+            _initializedId = ElementId;
+            _initializedUrl = url;
+            await _module.InvokeVoidAsync("initialize", _reference, url, ElementId);
+            _refreshRequested = _open;
+        }
+        if (_open && _refreshRequested)
+        {
+            _refreshRequested = false;
+            await _module.InvokeVoidAsync("show", ElementId, _request?.Topic);
+        }
+    }
+
+    /// <summary>Opens local documentation without navigating away from the current application.</summary>
+    /// <param name="url">Documentation URL containing the topic and optional version and culture.</param>
+    [JSInvokable]
+    public Task OpenAsync(string url)
+    {
+        if (_disposed)
+        {
+            return Task.CompletedTask;
+        }
+        var uri = NavigationManager.ToAbsoluteUri(url);
+        if (uri.GetLeftPart(UriPartial.Authority) != HelpUri.GetLeftPart(UriPartial.Authority) ||
+            !string.Equals(uri.AbsolutePath, HelpUri.AbsolutePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.CompletedTask;
+        }
+        var query = HttpUtility.ParseQueryString(uri.Query);
+        var request = new GXHelpRequest(Uri.UnescapeDataString(uri.Fragment.TrimStart('#')), query["version"], query["culture"]);
+        return InvokeAsync(async () =>
+        {
+            if (!_disposed)
+            {
+                _open = true;
+                await LoadAsync(request);
+            }
+        });
+    }
+
+    private void ContextChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            var request = HelpService.Request ?? new GXHelpRequest("");
+            if (!_disposed && _open && _request != request)
+            {
+                await LoadAsync(request);
+            }
+        });
+    }
+
+    private async Task LoadAsync(GXHelpRequest request)
+    {
+        CancelLoad();
+        var version = _loadVersion;
+        _request = request;
+        _content = null;
+        NotificationService.RemoveByKey(NotificationKey);
+        _refreshRequested = true;
+        if (ContentTemplate != null)
+        {
+            StateHasChanged();
+            return;
+        }
+        _loadCancellation = new CancellationTokenSource();
+        using var progress = Progress.ProgressStart(LoadingText);
+        _progress = progress;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_loadCancellation.Token, progress.CancellationToken);
+        var token = cancellation.Token;
+        StateHasChanged();
+        try
+        {
+            var content = await HelpService.GetHelpAsync(request, token);
+            if (!_disposed && _open && version == _loadVersion)
+            {
+                _content = content;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception error)
+        {
+            if (!_disposed && _open && version == _loadVersion && !token.IsCancellationRequested)
+            {
+                NotificationService.Add(new GXNotificationItem(NotificationLevel.Error,
+                    ErrorText, error.ToString(), NotificationKey, true));
+            }
+        }
+        finally
+        {
+            if (!_disposed && _open && version == _loadVersion)
+            {
+                _progress = null;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void CancelLoad()
+    {
+        ++_loadVersion;
+        var cancellation = _loadCancellation;
+        var progress = _progress;
+        _loadCancellation = null;
+        _progress = null;
+        try
+        {
+            cancellation?.Cancel();
+        }
+        finally
+        {
+            cancellation?.Dispose();
+            progress?.Dispose();
+        }
+    }
+
+    private async Task SetOpenAsync(bool open)
+    {
+        _open = open;
+        _refreshRequested = false;
+        if (!open)
+        {
+            CancelLoad();
+            _content = null;
+            if (_module != null && _initializedId != null)
+            {
+                await _module.InvokeVoidAsync("close", _initializedId);
+            }
+        }
+    }
+
+    /// <summary>Cancels provider loading and releases context subscriptions and browser handlers.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
+        HelpService.Changed -= ContextChanged;
+        CancelLoad();
+        if (_module != null)
+        {
+            try
+            {
+                if (_initializedId != null)
+                {
+                    await _module.InvokeVoidAsync("dispose", _initializedId);
+                }
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+        _reference?.Dispose();
+    }
+}
