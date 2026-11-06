@@ -59,8 +59,12 @@ else
     /// <summary>Accessible text for a documentation link.</summary>
     [Parameter] public string LinkText { get; set; } = "Help";
 
-    private static bool IsSafeLink(string value)
+    private static bool IsSafeLink(string? value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
         value = value.Trim();
         if (value.Length == 0 || value.Any(char.IsControl) || value.Contains('\\') || value.StartsWith("//", StringComparison.Ordinal))
         {

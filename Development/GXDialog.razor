@@ -38,7 +38,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 
-<div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "modal fade show d-block")" id="@ElementId" tabindex="-1" role="dialog" @onkeydown="OnKeyDown"
+<div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "modal fade show d-block")" id="@ElementId" tabindex="-1" role="dialog" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true"
      @onpointermove="OnPointerMove" @onpointerup="OnPointerUp" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, $"left:{LeftPx}; top:{TopPx};")">
     <div @ref="_dialog" class="modal-dialog @(Resizable ? "dialog-resizable" : null)" role="document">
         <div class="modal-content">

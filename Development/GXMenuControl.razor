@@ -41,7 +41,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 @implements IDisposable
 
 <CascadingValue Value="this">
-    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Dropdown ? (Submenu ? "btn-group gx-menu-control gx-menu-submenu" : "btn-group gx-menu-control") : "btn-group")" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(Submenu && _isOpen)">
+    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Dropdown ? (Submenu ? "btn-group gx-menu-control gx-menu-submenu" : "btn-group gx-menu-control") : "btn-group")" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(Dropdown && _isOpen)">
         @if (Dropdown)
         {
             <button @ref="_toggle" type="button" class="nav-link btn btn-link gx-menu-toggle" disabled="@(ReadOnly || !Items.Any(IsVisible))"

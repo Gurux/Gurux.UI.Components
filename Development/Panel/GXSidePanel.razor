@@ -38,12 +38,12 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
            class="@GXComponentAttributes.GetClass(AdditionalAttributes, "gx-side-panel")"
            style="@GXComponentAttributes.GetStyle(AdditionalAttributes, $"--gx-side-panel-width:{Width};")"
            role="dialog" aria-modal="false" aria-labelledby="@(ElementId + "-title")"
-           tabindex="-1" @ref="_root" @onkeydown="KeyDownAsync">
+           tabindex="-1" @ref="_root" @onkeydown="KeyDownAsync" @onkeydown:stopPropagation="true">
         <header class="gx-side-panel-header">
             <h2 id="@(ElementId + "-title")">@Title</h2>
             @HeaderContent
             <button type="button" class="btn-close" aria-label="@CloseButtonTitle"
-                    title="@CloseButtonTitle" @onclick="CloseAsync"></button>
+                    title="@CloseButtonTitle" @onclick="RequestCloseAsync"></button>
         </header>
         <div class="gx-side-panel-content">@ChildContent</div>
         @if (FooterContent != null)
@@ -115,13 +115,19 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     }
 
     private Task KeyDownAsync(KeyboardEventArgs args)
-        => args.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+        => args.Key == "Escape" ? RequestCloseAsync() : Task.CompletedTask;
 
-    private async Task CloseAsync()
+    /// <summary>Closes the panel and notifies its owner.</summary>
+    public Task RequestCloseAsync() => InvokeAsync(async () =>
     {
+        if (_disposed || !Open)
+        {
+            return;
+        }
         Open = false;
         await OpenChanged.InvokeAsync(false);
-    }
+        StateHasChanged();
+    });
 
     private async Task ReleaseFocusAsync()
     {
