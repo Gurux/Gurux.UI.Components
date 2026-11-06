@@ -1,0 +1,157 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
+@namespace Gurux.UI.Components.Panel
+@using Microsoft.JSInterop
+@inject IServiceProvider Services
+@implements IAsyncDisposable
+
+@if (Open)
+{
+    <aside @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" id="@ElementId"
+           class="@GXComponentAttributes.GetClass(AdditionalAttributes, "gx-side-panel")"
+           style="@GXComponentAttributes.GetStyle(AdditionalAttributes, $"--gx-side-panel-width:{Width};")"
+           role="dialog" aria-modal="false" aria-labelledby="@(ElementId + "-title")"
+           tabindex="-1" @ref="_root" @onkeydown="KeyDownAsync">
+        <header class="gx-side-panel-header">
+            <h2 id="@(ElementId + "-title")">@Title</h2>
+            @HeaderContent
+            <button type="button" class="btn-close" aria-label="@CloseButtonTitle"
+                    title="@CloseButtonTitle" @onclick="CloseAsync"></button>
+        </header>
+        <div class="gx-side-panel-content">@ChildContent</div>
+        @if (FooterContent != null)
+        {
+            <footer class="gx-side-panel-footer">@FooterContent</footer>
+        }
+    </aside>
+}
+
+@code {
+    /// <summary>Whether the panel is open. Use @bind-Open to keep the owner in sync when it closes.</summary>
+    [Parameter] public bool Open { get; set; }
+    /// <summary>Notifies the owner when the close button or Escape closes the panel.</summary>
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    /// <summary>Accessible title shown in the header.</summary>
+    [Parameter] public string? Title { get; set; }
+    /// <summary>Optional header actions displayed beside the title.</summary>
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
+    /// <summary>Arbitrary Blazor content, mounted only while the panel is open.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Optional actions displayed below the scrollable content.</summary>
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+    /// <summary>Preferred CSS width, constrained to the viewport width.</summary>
+    [Parameter] public string Width { get; set; } = "42rem";
+    /// <summary>Accessible close-button label, supplied by the application for localization.</summary>
+    [Parameter] public string CloseButtonTitle { get; set; } = "Close";
+    /// <summary>Optional stable element identifier; a unique identifier is generated when absent.</summary>
+    [Parameter] public string? Id { get; set; }
+    /// <summary>Additional HTML attributes, classes and styles for the panel root.</summary>
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private ElementReference _root;
+    private string? _generatedId;
+    private string ElementId => string.IsNullOrWhiteSpace(Id)
+        ? GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId) : Id;
+    private Task<IJSObjectReference>? _moduleTask;
+    private IJSObjectReference? _module;
+    private string? _focusKey;
+    private bool _disposed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        if (!Open)
+        {
+            await ReleaseFocusAsync();
+            return;
+        }
+        if (Services.GetService<IJSRuntime>() is not { } js)
+        {
+            return;
+        }
+        _moduleTask ??= js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Panel/GXSidePanel.razor.js").AsTask();
+        _module = await _moduleTask;
+        if (_disposed || !Open)
+        {
+            return;
+        }
+        var key = "SidePanel:" + ElementId;
+        if (_focusKey != key)
+        {
+            await ReleaseFocusAsync();
+            _focusKey = key;
+            await _module.InvokeVoidAsync("open", _root, key);
+        }
+    }
+
+    private Task KeyDownAsync(KeyboardEventArgs args)
+        => args.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+
+    private async Task CloseAsync()
+    {
+        Open = false;
+        await OpenChanged.InvokeAsync(false);
+    }
+
+    private async Task ReleaseFocusAsync()
+    {
+        if (_module != null && _focusKey != null)
+        {
+            var key = _focusKey;
+            _focusKey = null;
+            await _module.InvokeVoidAsync("close", key);
+        }
+    }
+
+    /// <summary>Releases browser focus management and the imported JavaScript module.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
+        if (_moduleTask != null)
+        {
+            try
+            {
+                _module = await _moduleTask;
+                await ReleaseFocusAsync();
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}
