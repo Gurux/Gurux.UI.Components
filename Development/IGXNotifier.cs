@@ -55,6 +55,29 @@ namespace Gurux.UI.Components
         /// Removes every notification handler registered by the supplied listener.
         /// </summary>
         void RemoveListener(object listener);
+        /// <summary>Defers selected parameterless refresh notifications for one listener.</summary>
+        /// <param name="listener">The same instance supplied when registering handlers.</param>
+        /// <param name="types">Exact registered notification names, not payload-specific object types.</param>
+        /// <returns>An async scope. Dispose it to deliver one pending invalidation per name after
+        /// its last overlapping scope closes. An empty interval delivers nothing.</returns>
+        /// <remarks>Other listeners and other names remain live. Typed messages require the refresh
+        /// overload. Removing the listener drops pending work and invalidates outstanding scopes.</remarks>
+        /// <exception cref="NotSupportedException">The application's notifier has not implemented deferral.</exception>
+        IAsyncDisposable DeferUpdates(object listener, IEnumerable<string> types)
+            => throw new NotSupportedException("This notifier does not implement update deferral. Use or derive from GXNotifierService.");
+
+        /// <summary>Coalesces selected notifications into a canonical refresh instead of replaying payloads.</summary>
+        /// <param name="listener">The same instance supplied when registering handlers.</param>
+        /// <param name="types">Exact registered notification names to defer.</param>
+        /// <param name="refresh">Reloads canonical state, typically through the component's InvokeAsync.
+        /// It is awaited once when all scopes for the listener close, if matching notifications arrived.</param>
+        /// <returns>An async scope supporting nested and overlapping deferrals.</returns>
+        /// <remarks>Use for typed invalidations or incremental change batches: no payload is cached or lost
+        /// by last-message replacement. Refresh callbacks must re-read the affected state. Critical events
+        /// must not be included. Callback failures propagate from DisposeAsync; remaining callbacks still run.
+        /// Existing notifier implementations remain source compatible but must opt in to this behavior.</remarks>
+        IAsyncDisposable DeferUpdates(object listener, IEnumerable<string> types, Func<Task> refresh)
+            => throw new NotSupportedException("This notifier does not implement update deferral. Use or derive from GXNotifierService.");
     }
 }
 
