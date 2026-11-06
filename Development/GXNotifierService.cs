@@ -274,7 +274,7 @@ public class GXNotifierService : IGXNotifier, IDisposable
     }
 
     /// <summary>Discards subscriptions and pending refreshes; outstanding scopes become inert.</summary>
-    public void Dispose()
+    public virtual void Dispose()
     {
         lock (_sync)
         {

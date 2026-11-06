@@ -36,6 +36,8 @@ Registers a contextual help topic for the lifetime of the component.
 @inject IServiceProvider Services
 
 @code {
+    /// <summary>Name of the cascading value containing the active tab's full help topic.</summary>
+    public const string ScopeName = "GXHelpTopic";
 
     private GXHelpService? _helpService;
 
@@ -46,13 +48,31 @@ Registers a contextual help topic for the lifetime of the component.
     [EditorRequired]
     public string Topic { get; set; } = string.Empty;
 
+    /// <summary>Optional stable tab key appended to the page topic.</summary>
+    [Parameter]
+    public string? Tab { get; set; }
+
+    /// <summary>The active containing tab supplies its topic to shared child components.</summary>
+    [CascadingParameter(Name = ScopeName)]
+    private string? InheritedTopic { get; set; }
+
+    private string EffectiveTopic
+    {
+        get
+        {
+            var topic = ((string.IsNullOrWhiteSpace(InheritedTopic) ? Topic : InheritedTopic) ?? string.Empty).Trim().Trim('.');
+            var tab = Tab?.Trim().Trim('.');
+            return string.IsNullOrEmpty(tab) ? topic : string.IsNullOrEmpty(topic) ? tab : topic + "." + tab;
+        }
+    }
+
     /// <summary>
     /// Registers or updates this component's help topic with the help service.
     /// </summary>
     protected override void OnParametersSet()
     {
         _helpService = Services.GetService<GXHelpService>();
-        _helpService?.SetContext(this, Topic);
+        _helpService?.SetContext(this, EffectiveTopic);
     }
 
     /// <summary>
