@@ -36,7 +36,7 @@ using System.Globalization;
 namespace Gurux.UI.Components
 {
     /// <summary>
-    /// Edits a numeric duration using a time input and the configured duration unit.
+    /// Edits a duration in one text field, showing whole days automatically when present.
     /// </summary>
     public class GXInputTimeSpan<TValue> : InputBase<TValue>
     {
@@ -73,7 +73,7 @@ namespace Gurux.UI.Components
         public TimeSpanUnit TimeSpanUnit { get; set; } = TimeSpanUnit.Second;
 
         /// <summary>
-        /// Gets or sets the time input element reference, available after rendering.
+        /// Gets or sets the duration input element reference, available after rendering.
         /// </summary>
         [DisallowNull]
         public ElementReference? Element { get; protected set; }
@@ -116,80 +116,27 @@ namespace Gurux.UI.Components
             await base.OnInitializedAsync();
         }
 
-        /// <summary>
-        /// Gets the HTML time input increment in seconds corresponding to the configured duration unit.
-        /// </summary>
-        private int Step
-        {
-            get
-            {
-                int value = 60;
-                switch (TimeSpanUnit)
-                {
-                    case TimeSpanUnit.Second:
-                        value = 1;
-                        break;
-                    case TimeSpanUnit.Minute:
-                        value = 60;
-                        break;
-                    case TimeSpanUnit.Hour:
-                        value = 3600;
-                        break;
-                    default:
-                        break;
-                }
-                return value;
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets whether the duration's whole days are edited separately from its clock component.
-        /// </summary>
-        [Parameter]
-        public bool? Days { get; set; }
-
-        private string? _invalidDays;
-
         /// <inheritdoc />
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
-            if (Days == true)
-            {
-                builder.OpenElement(0, "span");
-                builder.AddAttribute(1, "class", "d-inline-block");
-                builder.OpenElement(2, "input");
-                builder.AddAttribute(3, "id", Id + "-days");
-                builder.AddAttribute(4, "type", "number");
-                builder.AddAttribute(5, "step", "1");
-                builder.AddAttribute(6, "min", "0");
-                builder.AddAttribute(7, "max", "365");
-                builder.AddAttribute(8, "class", GXComponentAttributes.CombineClasses("form-control", CssClass));
-                builder.AddAttribute(9, "style", GXComponentAttributes.GetStyle(AdditionalAttributes));
-                builder.AddAttribute(10, "disabled", GXComponentAttributes.GetValue(AdditionalAttributes, "disabled"));
-                builder.AddAttribute(11, "value", _invalidDays ?? (CurrentValue is null ? null : GetDuration(CurrentValue).Days.ToString(CultureInfo.InvariantCulture)));
-                builder.AddAttribute(12, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnDaysChanged));
-                builder.SetUpdatesAttributeName("value");
-                builder.CloseElement();
-            }
-            builder.OpenElement(20, "input");
-            builder.AddAttribute(21, "id", Id);
-            builder.AddMultipleAttributes(22, AdditionalAttributes);
-            builder.AddAttribute(23, "type", "time");
+            builder.OpenElement(0, "input");
+            builder.AddAttribute(1, "id", Id);
+            builder.AddMultipleAttributes(2, AdditionalAttributes);
+            builder.AddAttribute(3, "type", "text");
             if (!string.IsNullOrEmpty(NameAttributeValue))
             {
-                builder.AddAttribute(24, "name", NameAttributeValue);
+                builder.AddAttribute(4, "name", NameAttributeValue);
             }
-            builder.AddAttribute(25, "class", GXComponentAttributes.CombineClasses("form-control", CssClass));
-            builder.AddAttribute(26, "value", _invalidDays is null ? CurrentValueAsString : FormatValueAsString(CurrentValue));
-            builder.AddAttribute(27, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnTimeChanged));
-            builder.AddAttribute(28, "step", Step.ToString(CultureInfo.InvariantCulture));
+            builder.AddAttribute(5, "class", GXComponentAttributes.CombineClasses("form-control", CssClass));
+            builder.AddAttribute(6, "value", CurrentValueAsString);
+            builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnDurationChanged));
             builder.SetUpdatesAttributeName("value");
-            builder.AddElementReferenceCapture(29, reference => Element = reference);
-            builder.CloseElement();
-            if (Days == true)
+            if (GXComponentAttributes.GetValue(AdditionalAttributes, "placeholder") == null)
             {
-                builder.CloseElement();
+                builder.AddAttribute(8, "placeholder", TimeSpanUnit == TimeSpanUnit.Minute ? "d.hh:mm" : "d.hh:mm:ss");
             }
+            builder.AddElementReferenceCapture(9, reference => Element = reference);
+            builder.CloseElement();
         }
 
         private TimeSpan GetDuration(TValue? value)
@@ -236,39 +183,9 @@ namespace Gurux.UI.Components
             }
         }
 
-        private Task OnTimeChanged(ChangeEventArgs args)
+        private Task OnDurationChanged(ChangeEventArgs args)
         {
-            _invalidDays = null;
-            string? text = Convert.ToString(args.Value, CultureInfo.InvariantCulture);
-            if (Days == true && TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out var clock))
-            {
-                try
-                {
-                    text = (TimeSpan.FromDays(GetDuration(CurrentValue).Days) + clock).ToString("c", CultureInfo.InvariantCulture);
-                }
-                catch (OverflowException)
-                {
-                    text = "Invalid time span.";
-                }
-            }
-            return ApplyTextAsync(text);
-        }
-
-        private Task OnDaysChanged(ChangeEventArgs args)
-        {
-            string? text = Convert.ToString(args.Value, CultureInfo.InvariantCulture);
-            _invalidDays = null;
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return ApplyTextAsync(null);
-            }
-            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int days) && days >= 0 && days <= 365)
-            {
-                var current = GetDuration(CurrentValue);
-                return ApplyTextAsync((TimeSpan.FromDays(days) + current - TimeSpan.FromDays(current.Days)).ToString("c", CultureInfo.InvariantCulture));
-            }
-            _invalidDays = text;
-            return ApplyTextAsync("Invalid day value.");
+            return ApplyTextAsync(Convert.ToString(args.Value, CultureInfo.InvariantCulture));
         }
 
         /// <inheritdoc />
@@ -279,8 +196,11 @@ namespace Gurux.UI.Components
                 return null;
             }
             TimeSpan duration = GetDuration(value);
-            // Native time inputs accept clock text only; whole days have a separate editor.
-            return duration.ToString(TimeSpanUnit == TimeSpanUnit.Minute ? @"hh\:mm" : @"hh\:mm\:ss", CultureInfo.InvariantCulture);
+            if (TimeSpanUnit == TimeSpanUnit.Minute && duration.Ticks % TimeSpan.TicksPerMinute == 0)
+            {
+                return duration.ToString(duration.Days > 0 ? @"d\.hh\:mm" : @"hh\:mm", CultureInfo.InvariantCulture);
+            }
+            return duration.ToString("c", CultureInfo.InvariantCulture);
         }
 
         /// <inheritdoc />
@@ -297,12 +217,13 @@ namespace Gurux.UI.Components
                     result = default!;
                     return true;
                 }
-                validationErrorMessage = "Enter a time value.";
+                validationErrorMessage = "Enter a duration.";
                 return false;
             }
-            if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var duration) || duration < TimeSpan.Zero)
+            if (!value.Contains(':') || !TimeSpan.TryParseExact(value.Trim(),
+                ["c", @"hh\:mm", @"d\.hh\:mm"], CultureInfo.InvariantCulture, out var duration) || duration < TimeSpan.Zero)
             {
-                validationErrorMessage = "Enter a valid time value.";
+                validationErrorMessage = "Enter a duration as hh:mm:ss or d.hh:mm:ss.";
                 return false;
             }
             try
@@ -317,7 +238,7 @@ namespace Gurux.UI.Components
             }
             catch (Exception ex) when (ex is OverflowException || ex is ArgumentOutOfRangeException)
             {
-                validationErrorMessage = "The time value is too large.";
+                validationErrorMessage = "The duration is too large for this value type.";
                 return false;
             }
         }
