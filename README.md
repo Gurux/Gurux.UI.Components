@@ -44,6 +44,80 @@ Add the component namespace to `_Imports.razor`:
 
 ## Examples
 
+### Provide contextual help
+
+Implement `IGXHelpProvider` to supply help from embedded resources, files or a remote
+service. The provider receives a stable topic, an optional subject version and an
+optional culture. Return null when your provider does not handle the request.
+The shared service calls providers in registration order and returns the first
+non-null result. Errors and cancellation propagate to the caller.
+
+```csharp
+using Gurux.UI.Components;
+using Gurux.UI.Components.Enums;
+using Gurux.UI.Components.Help;
+
+public sealed class ExampleHelpProvider : IGXHelpProvider
+{
+    public Task<GXHelpContent?> GetHelpAsync(
+        GXHelpRequest request, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        GXHelpContent? content = request.Topic == "module.example"
+            ? new GXHelpContent(GXHelpKind.Markdown, "# Example module\nModule instructions.")
+            : null;
+        return Task.FromResult(content);
+    }
+}
+```
+
+Register the service and each provider for the same application scope:
+
+```csharp
+builder.Services.AddScoped<IGXHelpProvider, ExampleHelpProvider>();
+builder.Services.AddScoped<GXHelpService>();
+```
+
+A component can register a topic for its lifetime, including the version of the
+object being described and the requested language:
+
+```razor
+@using Gurux.UI.Components.Help
+
+<GXHelpContext Topic="module.example" Version="2" Culture="en" />
+```
+
+Inject `GXHelpService` into the host's help presenter and load the active request on
+user demand. Alternatively, supply a request directly without changing the active
+context:
+
+```csharp
+GXHelpContent? active = await helpService.GetHelpAsync(cancellationToken);
+GXHelpContent? specific = await helpService.GetHelpAsync(
+    new GXHelpRequest("module.example", Version: "2", Culture: "en"),
+    cancellationToken);
+```
+
+`GXHelpContent.Kind` tells the presenter whether `Value` is a URL (`Link`), plain
+text (`Text`) or Markdown (`Markdown`). Render Markdown using
+`GXMarkdownView Content="@content.Value"`. Text content should be displayed as text,
+and Link content should be offered as a documentation link. Storage paths belong
+inside a provider; `Value` contains the actual text or a URL.
+
+`GXHelpService.Request` exposes the complete active request. Its `Changed` event
+also fires when only the version or culture changes. Removing a component context
+restores the previous request, including its version and culture. The existing
+`SetTopic`, `Topic`, `HelpUrl` and `GXHelp` documentation link continue to work.
+`GXHelp` constructs a link from the configured base address; provider content is
+retrieved explicitly by the host's help presenter.
+
+The version is interpreted by the provider: it can be a COSEM class version or a
+feature version, rather than the module package version. A null culture requests
+the provider's default language. The service does not cache content; a provider
+may cache immutable help using the complete `GXHelpRequest` as the cache key so
+versions and languages do not mix. The records can also be serialized for an HTTP
+adapter when help is provided by a server module.
+
 ### Bind a text value
 
 `GXInputText` is a styled text input with normal Blazor two-way binding.

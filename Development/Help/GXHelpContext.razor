@@ -52,6 +52,14 @@ Registers a contextual help topic for the lifetime of the component.
     [Parameter]
     public string? Tab { get; set; }
 
+    /// <summary>Optional version of the object or feature being described.</summary>
+    [Parameter]
+    public string? Version { get; set; }
+
+    /// <summary>Optional requested language or culture name; null uses the provider's default.</summary>
+    [Parameter]
+    public string? Culture { get; set; }
+
     /// <summary>The active containing tab supplies its topic to shared child components.</summary>
     [CascadingParameter(Name = ScopeName)]
     private string? InheritedTopic { get; set; }
@@ -72,7 +80,7 @@ Registers a contextual help topic for the lifetime of the component.
     protected override void OnParametersSet()
     {
         _helpService = Services.GetService<GXHelpService>();
-        _helpService?.SetContext(this, EffectiveTopic);
+        _helpService?.SetContext(this, new GXHelpRequest(EffectiveTopic, Version, Culture));
     }
 
     /// <summary>

@@ -28,26 +28,27 @@
 namespace Gurux.UI.Components.Help
 {
     /// <summary>
-    /// Resolves the active help topic from registered contexts and controls where the help icon is shown.
+    /// Resolves contextual help requests, loads provider content and controls where the help icon is shown.
     /// </summary>
     public sealed class GXHelpService
     {
-        private readonly List<(object Owner, string Topic)> _contexts = new();
-        private string? _defaultTopic;
+        private readonly List<(object Owner, GXHelpRequest Request)> _contexts = new();
+        private readonly IReadOnlyList<IGXHelpProvider> _providers;
+        private GXHelpRequest? _defaultRequest;
 
         /// <summary>
-        /// Registers or updates an owner's contextual help topic and resolves the active topic.
+        /// Registers or updates an owner's complete contextual request and resolves the active request.
         /// </summary>
-        internal void SetContext(object owner, string topic)
+        internal void SetContext(object owner, GXHelpRequest request)
         {
             int index = _contexts.FindIndex(context => ReferenceEquals(context.Owner, owner));
             if (index < 0)
             {
-                _contexts.Add((owner, topic));
+                _contexts.Add((owner, request));
             }
             else
             {
-                _contexts[index] = (owner, topic);
+                _contexts[index] = (owner, request);
             }
             RefreshTopic();
         }
@@ -62,24 +63,68 @@ namespace Gurux.UI.Components.Help
         }
 
         /// <summary>
-        /// Selects the most recently registered context topic or the default and notifies listeners when it changes.
+        /// Selects the most recently registered request or the default and notifies listeners when any request field changes.
         /// </summary>
         private void RefreshTopic()
         {
-            var topic = _contexts.Count == 0 ? _defaultTopic : _contexts[^1].Topic;
-            if (Topic == topic)
+            var request = _contexts.Count == 0 ? _defaultRequest : _contexts[^1].Request;
+            if (Request == request)
             {
                 return;
             }
-            Topic = topic;
+            Request = request;
             Changed?.Invoke();
         }
 
         /// <summary>
         /// Creates a help service with no registered contexts or default topic.
         /// </summary>
-        public GXHelpService()
+        public GXHelpService() : this(Array.Empty<IGXHelpProvider>())
         {
+        }
+
+        /// <summary>Creates a help service using providers in their registration order.</summary>
+        /// <param name="providers">Providers registered for the current application scope.</param>
+        public GXHelpService(IEnumerable<IGXHelpProvider> providers)
+        {
+            ArgumentNullException.ThrowIfNull(providers);
+            _providers = providers.ToArray();
+        }
+
+        /// <summary>Loads help for a snapshot of the active request, or returns null when no topic is active.</summary>
+        /// <param name="cancellationToken">Token used to cancel loading.</param>
+        /// <returns>The first matching provider's content, or null when no provider handles the request.</returns>
+        public Task<GXHelpContent?> GetHelpAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var request = Request;
+            return request is null ? Task.FromResult<GXHelpContent?>(null) : GetHelpAsync(request, cancellationToken);
+        }
+
+        /// <summary>Loads a specific help request without changing the active context.</summary>
+        /// <param name="request">The topic, subject version and culture to resolve.</param>
+        /// <param name="cancellationToken">Token used to cancel loading.</param>
+        /// <returns>The first non-null provider result, or null for an empty or unsupported topic.</returns>
+        /// <remarks>Providers run in registration order. Errors and cancellation propagate; content is not cached by this service.</remarks>
+        public async Task<GXHelpContent?> GetHelpAsync(GXHelpRequest request, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(request.Topic))
+            {
+                return null;
+            }
+            foreach (var provider in _providers)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var content = await provider.GetHelpAsync(request, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (content is not null)
+                {
+                    return content;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -140,14 +185,17 @@ namespace Gurux.UI.Components.Help
         public string BaseAddress { get; set; } = "/";
 
         /// <summary>
-        /// Occurs when resolving registered contexts or the default topic changes the active help topic.
+        /// Occurs when the active topic, subject version or culture changes.
         /// </summary>
         public event Action? Changed;
 
         /// <summary>
         /// Gets the active help topic resolved from registered contexts or the default topic.
         /// </summary>
-        public string? Topic { get; private set; }
+        public string? Topic => Request?.Topic;
+
+        /// <summary>Gets the active immutable request, including the subject version and culture.</summary>
+        public GXHelpRequest? Request { get; private set; }
 
         /// <summary>
         /// Gets the documentation URL with the current topic appended as a fragment.
@@ -163,7 +211,14 @@ namespace Gurux.UI.Components.Help
         /// <param name="topic">Help topic anchor.</param>
         public void SetTopic(string? topic)
         {
-            _defaultTopic = topic;
+            SetRequest(topic is null ? null : new GXHelpRequest(topic));
+        }
+
+        /// <summary>Sets the default request while preserving any registered component contexts.</summary>
+        /// <param name="request">Default help request, or null to clear it.</param>
+        public void SetRequest(GXHelpRequest? request)
+        {
+            _defaultRequest = request;
             RefreshTopic();
         }
 

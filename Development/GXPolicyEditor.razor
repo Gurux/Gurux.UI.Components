@@ -230,7 +230,10 @@ Loads available authorization policy names and edits a filtered selection of pol
         var token = cancellation?.Token ?? lifetime.Token;
         try
         {
-            var names = await Http.GetFromJsonAsync<string[]>("api/Policy/Available", token);
+            var provider = Services.GetService<IGXPolicyNameProvider>();
+            var names = provider != null
+                ? await provider.GetAsync(token)
+                : await Http.GetFromJsonAsync<string[]>("api/Policy/Available", token);
             if (disposed)
             {
                 return;
