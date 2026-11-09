@@ -32,39 +32,42 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 @using Microsoft.JSInterop
 @using Gurux.UI.Components.Panel
 @using Gurux.UI.Components.Enums
-@inject GXHelpService HelpService
+@inject IServiceProvider Services
 @inject IGXProgress Progress
 @inject IGXNotificationService NotificationService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
-<GXSidePanel Id="@ElementId" Open="@_open" OpenChanged="SetOpenAsync" Title="@Title"
-             Width="@Width" CloseButtonTitle="@CloseButtonTitle"
-             data-gx-help-panel="@ElementId" data-help-version="@_request?.Version" data-help-culture="@_request?.Culture">
-    @if (_request is { } request)
-    {
-        @if (ContentTemplate != null)
+@if (HelpService != null)
+{
+    <GXSidePanel Id="@ElementId" Open="@_open" OpenChanged="SetOpenAsync" Title="@Title"
+                 Width="@Width" CloseButtonTitle="@CloseButtonTitle"
+                 data-gx-help-panel="@ElementId" data-help-version="@_request?.Version" data-help-culture="@_request?.Culture">
+        @if (_request is { } request)
         {
-            @ContentTemplate(request)
+            @if (ContentTemplate != null)
+            {
+                @ContentTemplate(request)
+            }
+            else if (_progress == null)
+            {
+                <GXHelpContentView Content="@_content" LinkText="@LinkText">
+                    <EmptyContent>
+                        @if (EmptyContent != null)
+                        {
+                            @EmptyContent(request)
+                        }
+                        else
+                        {
+                            <p role="status">@UnavailableText</p>
+                        }
+                    </EmptyContent>
+                </GXHelpContentView>
+            }
         }
-        else if (_progress == null)
-        {
-            <GXHelpContentView Content="@_content" LinkText="@LinkText">
-                <EmptyContent>
-                    @if (EmptyContent != null)
-                    {
-                        @EmptyContent(request)
-                    }
-                    else
-                    {
-                        <p role="status">@UnavailableText</p>
-                    }
-                </EmptyContent>
-            </GXHelpContentView>
-        }
-    }
-</GXSidePanel>
+    </GXSidePanel>
+}
 
 @code {
     /// <summary>Optional unique panel identifier. A stable unique identifier is generated when omitted.</summary>
@@ -90,9 +93,10 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     /// <summary>Localized label for provider links.</summary>
     [Parameter] public string LinkText { get; set; } = "Help";
 
+    private GXHelpService? HelpService { get; set; }
     private readonly string _generatedId = "gx-help-panel-" + Guid.NewGuid().ToString("N");
     private string ElementId => string.IsNullOrWhiteSpace(Id) ? _generatedId : Id;
-    private Uri HelpUri => new(NavigationManager.ToAbsoluteUri(HelpPath ?? HelpService.BaseAddress).GetLeftPart(UriPartial.Path));
+    private Uri HelpUri => new(NavigationManager.ToAbsoluteUri(HelpPath ?? HelpService?.BaseAddress ?? "/help").GetLeftPart(UriPartial.Path));
     private bool _open;
     private bool _disposed;
     private bool _refreshRequested;
@@ -109,11 +113,19 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 
     protected override void OnInitialized()
     {
-        HelpService.Changed += ContextChanged;
+        HelpService = Services.GetService(typeof(GXHelpService)) as GXHelpService;
+        if (HelpService != null)
+        {
+            HelpService.Changed += ContextChanged;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_disposed || HelpService == null)
+        {
+            return;
+        }
         if (firstRender)
         {
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Help/GXHelpPanel.razor.js");
@@ -152,7 +164,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     [JSInvokable]
     public Task OpenAsync(string url)
     {
-        if (_disposed)
+        if (_disposed || HelpService == null)
         {
             return Task.CompletedTask;
         }
@@ -178,7 +190,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     {
         _ = InvokeAsync(async () =>
         {
-            var request = HelpService.Request ?? new GXHelpRequest("");
+            var request = HelpService?.Request ?? new GXHelpRequest("");
             if (!_disposed && _open && _request != request)
             {
                 await LoadAsync(request);
@@ -188,6 +200,10 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 
     private async Task LoadAsync(GXHelpRequest request)
     {
+        if (HelpService == null)
+        {
+            return;
+        }
         CancelLoad();
         var version = _loadVersion;
         _request = request;
@@ -275,7 +291,10 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
             return;
         }
         _disposed = true;
-        HelpService.Changed -= ContextChanged;
+        if (HelpService != null)
+        {
+            HelpService.Changed -= ContextChanged;
+        }
         CancelLoad();
         if (_module != null)
         {
