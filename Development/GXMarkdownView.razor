@@ -87,6 +87,11 @@ else if (!string.IsNullOrEmpty(_html))
     /// </summary>
     [Parameter] public bool GenerateHeadingIds { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets whether HTTP and HTTPS links open in a new browsing context.
+    /// </summary>
+    [Parameter] public bool OpenExternalLinksInNewTab { get; set; }
+
     private string _html = string.Empty;
     private ElementReference _root;
     private Task<IJSObjectReference>? _highlighter;
@@ -102,7 +107,7 @@ else if (!string.IsNullOrEmpty(_html))
         {
             return;
         }
-        if (Services.GetService(typeof(IJSRuntime))is not IJSRuntime js)
+        if (Services.GetService(typeof(IJSRuntime)) is not IJSRuntime js)
         {
             return;
         }
@@ -165,6 +170,7 @@ else if (!string.IsNullOrEmpty(_html))
 
     private string? _lastContent;
     private bool _lastAllowRawHtml;
+    private bool _lastOpenExternalLinksInNewTab;
     private bool _lastGenerateHeadingIds;
 
 
@@ -224,17 +230,20 @@ else if (!string.IsNullOrEmpty(_html))
         // Laske HTML vain jos parametrit muuttuivat
         if (!string.Equals(content, _lastContent, StringComparison.Ordinal) ||
             _lastAllowRawHtml != AllowRawHtml ||
+            _lastOpenExternalLinksInNewTab != OpenExternalLinksInNewTab ||
             _lastGenerateHeadingIds != GenerateHeadingIds)
         {
             _html = MiniMarkdown.ToHtml(content, new MiniMarkdown.Options
             {
                 AllowRawHtml = AllowRawHtml,
+                OpenExternalLinksInNewTab = OpenExternalLinksInNewTab,
                 GenerateHeadingIds = GenerateHeadingIds
             });
 
             // Päivitä välimuistin avaimet
             _lastContent = content;
             _lastAllowRawHtml = AllowRawHtml;
+            _lastOpenExternalLinksInNewTab = OpenExternalLinksInNewTab;
             _lastGenerateHeadingIds = GenerateHeadingIds;
         }
     }
@@ -266,6 +275,7 @@ else if (!string.IsNullOrEmpty(_html))
             /// Gets or sets whether raw HTML blocks are included without encoding; disabled by default.
             /// </summary>
             public bool AllowRawHtml { get; set; }
+            public bool OpenExternalLinksInNewTab { get; set; }
             /// <summary>
             /// Gets or sets whether headings receive unique identifiers for section links; enabled by default.
             /// </summary>
@@ -659,7 +669,8 @@ else if (!string.IsNullOrEmpty(_html))
 
         // Allow only the attribute-free line-break tag, not arbitrary raw HTML.
         private static readonly Regex ReLineBreak = new(@"(?<!\\)<br\s*/?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex[] InlinePatterns = [ReCodeInline, ReImage, ReLink, ReBold, ReItalic, ReLineBreak];
+        private static readonly Regex ReAnchor = new(@"(?<!\\)<a\s+id\s*=\s*[""']([\p{L}\p{N}_.:-]+)[""']\s*>\s*</a\s*>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex[] InlinePatterns = [ReCodeInline, ReImage, ReLink, ReBold, ReItalic, ReLineBreak, ReAnchor];
 
         /// <summary>
         /// Formats inline Markdown tokens while encoding literal text and limiting recursive parsing depth.
@@ -701,6 +712,10 @@ else if (!string.IsNullOrEmpty(_html))
                 {
                     result.Append("<br />");
                 }
+                else if (kind == 6)
+                {
+                    result.Append("<a id=\"").Append(HtmlEncode(next.Groups[1].Value)).Append("\"></a>");
+                }
                 else if (kind is 1 or 2)
                 {
                     var label = next.Groups[1].Value;
@@ -712,7 +727,11 @@ else if (!string.IsNullOrEmpty(_html))
                     }
                     else
                     {
-                        result.Append($"<a href=\"{url}\" rel=\"noopener noreferrer\"{title}>{ProcessInline(label, opt, depth + 1)}</a>");
+                        var target = opt.OpenExternalLinksInNewTab &&
+                            Uri.TryCreate(System.Net.WebUtility.HtmlDecode(url), UriKind.Absolute, out var destination) &&
+                            destination.Scheme is "http" or "https"
+                            ? " target=\"_blank\"" : "";
+                        result.Append($"<a href=\"{url}\" rel=\"noopener noreferrer\"{target}{title}>{ProcessInline(label, opt, depth + 1)}</a>");
                     }
                 }
                 else
@@ -787,7 +806,7 @@ else if (!string.IsNullOrEmpty(_html))
             var sb = new StringBuilder();
             foreach (var ch in s.ToLowerInvariant())
             {
-                if (char.IsLetterOrDigit(ch) || ch is '-' or '_' || char.GetUnicodeCategory(ch)is System.Globalization.UnicodeCategory.NonSpacingMark or System.Globalization.UnicodeCategory.SpacingCombiningMark)
+                if (char.IsLetterOrDigit(ch) || ch is '-' or '_' || char.GetUnicodeCategory(ch) is System.Globalization.UnicodeCategory.NonSpacingMark or System.Globalization.UnicodeCategory.SpacingCombiningMark)
                 {
                     sb.Append(ch);
                 }
