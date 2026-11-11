@@ -41,7 +41,10 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 }
 else if (_display is { Kind: HelpKind.Html })
 {
-    <iframe title="@LinkText" srcdoc="@_document" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" style="width:100%;height:70vh;border:0"></iframe>
+    @if (!string.IsNullOrEmpty(_document))
+    {
+        <iframe @key="_document" title="@LinkText" srcdoc="@_document" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" style="width:100%;height:70vh;border:0"></iframe>
+    }
 }
 else if (_display is { Kind: HelpKind.Link } && IsSafeLink(_display.Value))
 {
