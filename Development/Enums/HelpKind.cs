@@ -35,5 +35,7 @@ public enum HelpKind
     /// <summary>Plain text displayed without interpreting markup.</summary>
     Text,
     /// <summary>Markdown content rendered by the host.</summary>
-    Markdown
+    Markdown,
+    /// <summary>HTML displayed in a sanitized, isolated document.</summary>
+    Html
 }

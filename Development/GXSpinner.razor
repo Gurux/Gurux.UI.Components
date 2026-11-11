@@ -61,8 +61,22 @@ Displays loading state and recent progress messages with support for cancelling 
                                  aria-label="@(task.Message ?? AriaLabel)"
                                  aria-valuemin="0" aria-valuemax="@Math.Max(1, task.Total)"
                                  aria-valuenow="@Math.Clamp(task.Completed, 0, Math.Max(1, task.Total))">
-                                <span class="spinner-task-fill" aria-hidden="true"
-                                      style="@($"width: {Math.Clamp(100.0 * task.Completed / Math.Max(1, task.Total), 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)}%;")"></span>
+                                @if (task.Segments.Count == 0)
+                                {
+                                    <span class="spinner-task-fill" aria-hidden="true"
+                                          style="@($"width: {Math.Clamp(100.0 * task.Completed / Math.Max(1, task.Total), 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)}%;")"></span>
+                                }
+                                else
+                                {
+                                    double offset = 0;
+                                    @foreach (var segment in task.Segments)
+                                    {
+                                        double width = Math.Clamp(100.0 * segment.Completed / Math.Max(1, task.Total), 0, 100 - offset);
+                                        <span class="@($"spinner-task-fill bg-{segment.Color.ToString().ToLowerInvariant()}")" aria-hidden="true"
+                                              style="@FormattableString.Invariant($"left: {offset}%; width: {width}%;")"></span>
+                                        offset += width;
+                                    }
+                                }
                                 <span class="spinner-task-message">@task.Message</span>
                             </div>
                         }

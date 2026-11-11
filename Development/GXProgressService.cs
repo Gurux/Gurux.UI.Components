@@ -25,6 +25,8 @@
 // SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 // --------------------------------------------------------------------------
 
+using Gurux.UI.Components.Enums;
+
 namespace Gurux.UI.Components;
 
 /// <summary>
@@ -90,7 +92,34 @@ public sealed class GXProgressService : IGXProgress
             {
                 return;
             }
-            _operations[id] = (operation.Scope, operation.Item with { Completed = completed, Total = total });
+            _operations[id] = (operation.Scope, operation.Item with { Completed = completed, Total = total, Segments = Array.Empty<(Color Color, int Completed)>() });
+        }
+        Changed?.Invoke();
+    }
+
+    /// <inheritdoc />
+    public void ProgressUpdate(Guid id, IEnumerable<(Color Color, int Completed)> completed, int total)
+    {
+        lock (_sync)
+        {
+            if (!_operations.TryGetValue(id, out var operation))
+            {
+                return;
+            }
+            ArgumentNullException.ThrowIfNull(completed);
+            var segments = completed.ToArray();
+            int count = 0;
+            foreach (var segment in segments)
+            {
+                ArgumentOutOfRangeException.ThrowIfNegative(segment.Completed);
+                count = checked(count + segment.Completed);
+            }
+            _operations[id] = (operation.Scope, operation.Item with
+            {
+                Completed = count,
+                Total = total,
+                Segments = Array.AsReadOnly(segments)
+            });
         }
         Changed?.Invoke();
     }
@@ -102,6 +131,30 @@ public sealed class GXProgressService : IGXProgress
         lock (_sync)
         {
             _operations.Add(scope.Id, (scope, new GXProgressItem(scope.Id, message, completed, total)));
+        }
+
+        Changed?.Invoke();
+        return scope;
+    }
+
+    /// <inheritdoc />
+    public GXProgressScope ProgressStart(string? message, IEnumerable<(Color Color, int Completed)> completed, int total = 0)
+    {
+        ArgumentNullException.ThrowIfNull(completed);
+        var segments = completed.ToArray();
+        int count = 0;
+        foreach (var segment in segments)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(segment.Completed);
+            count = checked(count + segment.Completed);
+        }
+        var scope = new GXProgressScope(ProgressEnd);
+        lock (_sync)
+        {
+            _operations.Add(scope.Id, (scope, new GXProgressItem(scope.Id, message, count, total)
+            {
+                Segments = Array.AsReadOnly(segments)
+            }));
         }
 
         Changed?.Invoke();

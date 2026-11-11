@@ -30,6 +30,12 @@ using Gurux.UI.Components.Enums;
 namespace Gurux.UI.Components.Help;
 
 /// <summary>Help content that a host can present without depending on a particular provider.</summary>
-/// <param name="Kind">Selects whether the value is a link, plain text or Markdown.</param>
-/// <param name="Value">A URL for Link; the actual content for Text or Markdown, rather than a file path.</param>
-public sealed record GXHelpContent(HelpKind Kind, string Value);
+/// <param name="Kind">Selects whether the value is a link, plain text, Markdown or HTML.</param>
+/// <param name="Value">A URL for Link; the actual content for Text, Markdown or Html, rather than a file path.</param>
+public sealed record GXHelpContent(HelpKind Kind, string Value)
+{
+    /// <summary>Original HTML address used to resolve relative links and images.</summary>
+    public string? BaseAddress { get; init; }
+    /// <summary>Optional CSS selector identifying the HTML article.</summary>
+    public string? ArticleSelector { get; init; }
+}

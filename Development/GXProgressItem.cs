@@ -25,9 +25,17 @@
 // SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 // --------------------------------------------------------------------------
 
+using Gurux.UI.Components.Enums;
+
 namespace Gurux.UI.Components;
 
 /// <summary>
 /// Describes the current progress of an active operation.
 /// </summary>
-public sealed record GXProgressItem(Guid Id, string? Message, int Completed = 0, int Total = 0);
+public sealed record GXProgressItem(Guid Id, string? Message, int Completed = 0, int Total = 0)
+{
+    /// <summary>
+    /// Gets completed counts by color in display order, or an empty list for uncolored progress.
+    /// </summary>
+    public IReadOnlyList<(Color Color, int Completed)> Segments { get; init; } = Array.Empty<(Color Color, int Completed)>();
+}

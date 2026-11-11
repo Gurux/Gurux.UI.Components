@@ -25,6 +25,8 @@
 // SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 // --------------------------------------------------------------------------
 
+using Gurux.UI.Components.Enums;
+
 namespace Gurux.UI.Components
 {
     /// <summary>
@@ -70,12 +72,27 @@ namespace Gurux.UI.Components
         void ProgressUpdate(Guid id, int completed, int total);
 
         /// <summary>
+        /// Replaces progress with nonnegative completed counts grouped by color.
+        /// A total of zero indicates unknown progress.
+        /// </summary>
+        void ProgressUpdate(Guid id, IEnumerable<(Color Color, int Completed)> completed, int total);
+
+        /// <summary>
         /// Registers a progress operation and returns a scope whose disposal ends that operation.
         /// </summary>
         /// <param name="message">The message describing the operation.</param>
         /// <param name="completed">The number of completed work items.</param>
         /// <param name="total">The total number of work items, or zero when unknown.</param>
         GXProgressScope ProgressStart(string? message, int completed = 0, int total = 0);
+
+        /// <summary>
+        /// Registers a progress operation with completed counts grouped by color.
+        /// </summary>
+        /// <param name="message">The message describing the operation.</param>
+        /// <param name="completed">The nonnegative completed counts by color, in display order.</param>
+        /// <param name="total">The total number of work items, or zero when unknown.</param>
+        /// <returns>A scope whose disposal ends the operation.</returns>
+        GXProgressScope ProgressStart(string? message, IEnumerable<(Color Color, int Completed)> completed, int total = 0);
 
         /// <summary>
         /// Ends the progress operation with the specified id and notifies listeners when an operation was removed.

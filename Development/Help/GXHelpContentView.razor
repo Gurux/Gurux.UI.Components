@@ -29,22 +29,28 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 
 @namespace Gurux.UI.Components.Help
 @using Gurux.UI.Components.Enums
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@inject IServiceProvider Services
+@implements IDisposable
 
-@if (Content is { Kind: HelpKind.Markdown })
+@if (_display is { Kind: HelpKind.Markdown })
 {
-    <GXMarkdownView Content="@Content.Value" />
+    <GXMarkdownView Content="@_display.Value" />
 }
-else if (Content is { Kind: HelpKind.Text })
+else if (_display is { Kind: HelpKind.Html })
 {
-    <p style="white-space: pre-wrap">@Content.Value</p>
+    <iframe title="@LinkText" srcdoc="@_document" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" style="width:100%;height:70vh;border:0"></iframe>
 }
-else if (Content is { Kind: HelpKind.Link } && IsSafeLink(Content.Value))
+else if (_display is { Kind: HelpKind.Link } && IsSafeLink(_display.Value))
 {
-    <a href="@Content.Value" target="_blank" rel="noopener noreferrer">@LinkText</a>
+    <iframe src="@_display.Value" title="@LinkText" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" style="width:100%;height:70vh;border:0"></iframe>
+    <a href="@_display.Value" target="_blank" rel="noopener noreferrer">@LinkText</a>
 }
-else if (Content != null)
+else if (_display != null)
 {
-    <p style="white-space: pre-wrap">@Content.Value</p>
+    <p style="white-space: pre-wrap">@_display.Value</p>
 }
 else
 {
@@ -52,21 +58,114 @@ else
 }
 
 @code {
-    /// <summary>Provider content to display using the existing Markdown renderer, encoded text or a documentation link.</summary>
+    /// <summary>Help content to display.</summary>
     [Parameter] public GXHelpContent? Content { get; set; }
-    /// <summary>Application-owned fallback rendered when no provider content is available.</summary>
+    /// <summary>Fallback when help is unavailable.</summary>
     [Parameter] public RenderFragment? EmptyContent { get; set; }
-    /// <summary>Accessible text for a documentation link.</summary>
+    /// <summary>Accessible documentation title.</summary>
     [Parameter] public string LinkText { get; set; } = "Help";
+    private IJSObjectReference? _module;
+    private string _document = "";
+    private GXHelpContent? _htmlPrevious;
+    private GXHelpContent? _previous;
+    private GXHelpContent? _display;
+    private CancellationTokenSource? _cancellation;
+    private long _generation;
+    private bool _disposed;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_previous == Content)
+        {
+            return;
+        }
+        _previous = Content;
+        CancelLoad();
+        _document = "";
+        _htmlPrevious = null;
+        var generation = _generation;
+        _display = Content;
+        if (Content is not { Kind: HelpKind.Link } link || !IsSafeLink(link.Value) ||
+            Services.GetService(typeof(IGXHelpLinkLoader)) is not IGXHelpLinkLoader loader)
+        {
+            return;
+        }
+        var cancellation = new CancellationTokenSource();
+        _cancellation = cancellation;
+        var token = cancellation.Token;
+        try
+        {
+            var loaded = await loader.LoadAsync(link.Value, token);
+            if (!_disposed && generation == _generation && !token.IsCancellationRequested)
+            {
+                _display = loaded ?? link;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception)
+        {
+            // Preserve the original link when a host loader fails.
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _display is not { Kind: HelpKind.Html } html || _htmlPrevious == html)
+        {
+            return;
+        }
+        _htmlPrevious = html;
+        var generation = _generation;
+        var content = html.Value;
+        var address = html.BaseAddress;
+        var selector = html.ArticleSelector;
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Help/GXHelpContentView.razor.js");
+            if (_disposed)
+            {
+                await _module.DisposeAsync();
+                _module = null;
+                return;
+            }
+            var document = await _module.InvokeAsync<string>("sanitize", content, address, selector);
+            if (!_disposed && generation == _generation)
+            {
+                _document = document;
+                StateHasChanged();
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // JS interop is unavailable during prerendering.
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    /// <summary>Releases the browser module.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        if (_module != null)
+        {
+            try
+            {
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
 
     private static bool IsSafeLink(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-        value = value.Trim();
-        if (value.Length == 0 || value.Any(char.IsControl) || value.Contains('\\') || value.StartsWith("//", StringComparison.Ordinal))
+        value = value?.Trim();
+        if (string.IsNullOrWhiteSpace(value) || value.Any(char.IsControl) || value.Contains((char)92) || value.StartsWith("//", StringComparison.Ordinal))
         {
             return false;
         }
@@ -76,8 +175,30 @@ else
         }
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
         {
-            return uri.Scheme is "http" or "https";
+            return (uri.Scheme is "http" or "https") && string.IsNullOrEmpty(uri.UserInfo);
         }
         return !value.Split('/', '?', '#')[0].Contains(':');
+    }
+
+    private void CancelLoad()
+    {
+        ++_generation;
+        var cancellation = _cancellation;
+        _cancellation = null;
+        try
+        {
+            cancellation?.Cancel();
+        }
+        finally
+        {
+            cancellation?.Dispose();
+        }
+    }
+
+    /// <summary>Cancels outstanding loading.</summary>
+    public void Dispose()
+    {
+        _disposed = true;
+        CancelLoad();
     }
 }
