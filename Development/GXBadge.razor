@@ -117,8 +117,8 @@ Displays a contextual badge with text or a numeric count alongside optional chil
         var colour = Enum.GetName(typeof(Color), Color)?.ToLower();
         var bgClass = Color switch
         {
-            Color.Light => "bg-light",
-            _ => $"bg-{colour} text-white"
+            Color.Light => "text-bg-light",
+            _ => $"text-bg-{colour}"
         };
         var pillClass = Pill ? "rounded-pill" : string.Empty;
         // Keep a small left margin to separate from the child content, as original markup used "ms-1".

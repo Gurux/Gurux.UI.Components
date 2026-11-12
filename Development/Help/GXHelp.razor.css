@@ -43,7 +43,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 }
 
 .help-link:hover {
-    color: var(--help-icon-hover-color, #0969da);
+    color: var(--help-icon-hover-color, var(--bs-link-hover-color, #0969da));
 }
 
 .help-link:focus-visible {

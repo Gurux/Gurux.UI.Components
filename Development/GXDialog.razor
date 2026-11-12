@@ -37,10 +37,11 @@ Displays a movable, optionally resizable dialog and can persist its position and
 @inject IServiceProvider Services
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
+@inherits GXAdaptiveComponentBase
 
-<div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "modal fade show d-block")" id="@ElementId" tabindex="-1" role="dialog" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true"
+<div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, DialogClass)" id="@ElementId" tabindex="-1" role="dialog" aria-modal="@(IsAdaptive ? "true" : null)" aria-labelledby="@(IsAdaptive ? ElementId + "-title" : null)" @onclick="OnBackdropClick" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true"
      @onpointermove="OnPointerMove" @onpointerup="OnPointerUp" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, $"left:{LeftPx}; top:{TopPx};")">
-    <div @ref="_dialog" class="modal-dialog @(Resizable ? "dialog-resizable" : null)" role="document">
+    <div @ref="_dialog" class="modal-dialog @(Resizable ? "dialog-resizable" : null)" style="@AdaptivePosition" role="document" @onclick:stopPropagation="CloseOnBackdrop">
         <div class="modal-content">
             <div class="modal-header" @onpointerdown="OnPointerDown">
                 <h5 class="modal-title" id="@(ElementId + "-title")">@Title</h5>
@@ -50,7 +51,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
                         @HeaderContent
                     </div>
                 }
-                <button type="button" class="btn btn-close"
+                <button type="button" class="btn-close"
                         data-dismiss="modal" aria-label="Close"
                         onclick="@(() => Cancel())">
                 </button>
@@ -60,19 +61,15 @@ Displays a movable, optionally resizable dialog and can persist its position and
             </div>
             <div class="modal-footer">
                 @FooterContent
-                @if (!string.IsNullOrEmpty(OkButtonTitle))
+                @if (EffectiveButtonOrder == GXDialogButtonOrder.PrimaryLast)
                 {
-                    <button type="button" class="btn btn-primary"
-                            data-dismiss="modal" onclick="@(() => Ok())">
-                        @OkButtonTitle
-                    </button>
+                    @CancelAction
+                    @PrimaryAction
                 }
-                @if (!string.IsNullOrEmpty(CancelButtonTitle))
+                else
                 {
-                    <button type="button" class="btn btn-secondary"
-                            data-dismiss="modal" onclick="@(() => Cancel())">
-                        @CancelButtonTitle
-                    </button>
+                    @PrimaryAction
+                    @CancelAction
                 }
             </div>
         </div>
@@ -81,6 +78,43 @@ Displays a movable, optionally resizable dialog and can persist its position and
 
 @code
 {
+    [Parameter] public GXDialogButtonOrder ButtonOrder { get; set; } = GXDialogButtonOrder.Auto;
+    [Parameter] public GXDialogPresentation Presentation { get; set; } = GXDialogPresentation.Auto;
+    [Parameter] public bool CloseOnEscape { get; set; } = true;
+    [Parameter] public bool CloseOnBackdrop { get; set; }
+    /// <summary>Default is off: native button Enter handling is retained; forms may opt into a default action.</summary>
+    [Parameter] public bool ActivatePrimaryOnEnter { get; set; }
+    private GXDialogButtonOrder EffectiveButtonOrder => ButtonOrder == GXDialogButtonOrder.Auto ? AdaptiveBehavior.DialogButtonOrder : ButtonOrder;
+    private string DialogClass => AdaptiveClass("modal fade show d-block") + (IsAdaptive ? " gx-dialog-adaptive" : "") + (Presentation == GXDialogPresentation.BottomSheet ? " gx-dialog-sheet" : "");
+    private bool EffectiveManageFocus => ManageFocus || IsAdaptive || ActivatePrimaryOnEnter;
+    private bool _positioned;
+    private string? AdaptivePosition => IsAdaptive && _positioned ? FormattableString.Invariant($"transform:translate({_offsetX}px,{_offsetY}px)") : null;
+    private RenderFragment PrimaryAction => @<text>
+        @if (!string.IsNullOrEmpty(OkButtonTitle))
+        {
+            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="@(() => Ok())">@OkButtonTitle</button>
+        }
+    </text>;
+    private RenderFragment CancelAction => @<text>
+        @if (!string.IsNullOrEmpty(CancelButtonTitle))
+        {
+            <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="@(() => Cancel())">@CancelButtonTitle</button>
+        }
+    </text>;
+
+    protected override void OnParametersSet()
+    {
+        if (!Enum.IsDefined(ButtonOrder) || !Enum.IsDefined(Presentation))
+        {
+            throw new ArgumentOutOfRangeException(nameof(ButtonOrder));
+        }
+    }
+
+    [JSInvokable]
+    public Task AcceptFromKeyboard() => !_disposed && ActivatePrimaryOnEnter && !string.IsNullOrEmpty(OkButtonTitle) ? Ok() : Task.CompletedTask;
+
+    private Task OnBackdropClick() => CloseOnBackdrop ? Cancel() : Task.CompletedTask;
+
     /// <summary>
     /// Gets or sets the content rendered inside the component.
     /// </summary>
@@ -164,11 +198,11 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// <summary>
     /// Gets the dialog's horizontal position formatted as a CSS pixel value.
     /// </summary>
-    private string LeftPx => _offsetX.ToString("0") + "px";
+    private string LeftPx => IsAdaptive ? "0px" : _offsetX.ToString("0") + "px";
     /// <summary>
     /// Gets the dialog's vertical position formatted as a CSS pixel value.
     /// </summary>
-    private string TopPx => _offsetY.ToString("0") + "px";
+    private string TopPx => IsAdaptive ? "0px" : _offsetY.ToString("0") + "px";
 
     private string? _generatedId;
     /// <summary>
@@ -186,27 +220,79 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// Gets the local storage key for the dialog layout, or null when layout persistence is disabled.
     /// </summary>
     private string? StorageKey => Save && LocalStorage != null && JS != null
-        ? "Dialog:" + Uri.EscapeDataString(ElementId) + ":Layout" : null;
+        ? "Dialog:" + Uri.EscapeDataString(ElementId) + ":Layout" + (IsAdaptive ? ":" + AdaptiveBehavior.Layout : "") : null;
 
     /// <summary>
     /// Restores the layout for a changed storage key and connects browser size observation when persistence is enabled.
     /// </summary>
+    private bool _synchronizing;
+    private bool _renderAgain;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && ManageFocus && JS is IJSRuntime runtime)
+        if (_disposed)
+        {
+            return;
+        }
+        if (_synchronizing)
+        {
+            _renderAgain = true;
+            return;
+        }
+        _synchronizing = true;
+        try
+        {
+            await SynchronizeBrowserAsync(firstRender);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or OperationCanceledException)
+        {
+            if (!_disposed)
+            {
+                ReportStorageError(ex);
+            }
+        }
+        finally
+        {
+            _synchronizing = false;
+            if (_renderAgain && !_disposed)
+            {
+                _renderAgain = false;
+                StateHasChanged();
+            }
+        }
+    }
+    private async Task SynchronizeBrowserAsync(bool firstRender)
+    {
+        if (EffectiveManageFocus && _focusKey == null && JS is IJSRuntime runtime)
         {
             try
             {
-                _module ??= await runtime.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/GXDialog.razor.js");
-                if (_disposed)
+                _module ??= await GetComponentModuleAsync(runtime, "./_content/Gurux.UI.Components/GXDialog.razor.js");
+                if (_disposed || _module == null)
                 {
                     return;
                 }
                 _focusKey = Guid.NewGuid().ToString("N");
-                await _module.InvokeVoidAsync("openDialog", _dialog, _focusKey);
+                _reference ??= DotNetObjectReference.Create(this);
+                await _module.InvokeVoidAsync("openDialog", _dialog, _focusKey, _reference, new { activatePrimaryOnEnter = ActivatePrimaryOnEnter });
             }
             catch (JSDisconnectedException) { }
             catch (Exception ex) { ReportStorageError(ex); }
+        }
+        if (_disposed)
+        {
+            return;
+        }
+        if (_module != null && _focusKey != null)
+        {
+            if (EffectiveManageFocus)
+            {
+                await _module.InvokeVoidAsync("updateDialog", _focusKey, new { activatePrimaryOnEnter = ActivatePrimaryOnEnter });
+            }
+            else
+            {
+                await _module.InvokeVoidAsync("closeDialog", _focusKey);
+                _focusKey = null;
+            }
         }
         string? key = StorageKey;
         if (_disposed || key == _loadedKey)
@@ -244,11 +330,18 @@ Displays a movable, optionally resizable dialog and can persist its position and
             }
             if (layout != null)
             {
+                _positioned = IsAdaptive;
                 _offsetX = layout[0];
                 _offsetY = layout[1];
             }
-            _module ??= await js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/GXDialog.razor.js");
-            if (_disposed)
+            else
+            {
+                _positioned = false;
+                _offsetX = 80;
+                _offsetY = 80;
+            }
+            _module ??= await GetComponentModuleAsync(js, "./_content/Gurux.UI.Components/GXDialog.razor.js");
+            if (_disposed || _module == null)
             {
                 return;
             }
@@ -324,6 +417,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        DisposeAdaptiveBehavior();
         try
         {
             if (_module != null)
@@ -333,11 +427,11 @@ Displays a movable, optionally resizable dialog and can persist its position and
                     await _module.InvokeVoidAsync("closeDialog", _focusKey);
                 }
                 await _module.InvokeVoidAsync("disconnect", _dialog);
-                await _module.DisposeAsync();
+                await ReleaseComponentModulesAsync();
             }
         }
         catch (JSDisconnectedException) { }
-        finally { _reference?.Dispose(); }
+        finally { _reference?.Dispose(); await ReleaseComponentModulesAsync(); }
     }
 
     /// <summary>
@@ -345,6 +439,16 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// </summary>
     private void OnPointerDown(PointerEventArgs e)
     {
+        if (IsAdaptive && (e.Button != 0 || Presentation == GXDialogPresentation.BottomSheet || AdaptiveBehavior.ResponsiveMode == GXResponsiveLayoutMode.Compact || e.PointerType == "touch"))
+        {
+            return;
+        }
+        if (IsAdaptive && !_positioned)
+        {
+            _offsetX = 0;
+            _offsetY = 0;
+        }
+        _positioned = true;
         _dragging = true;
         _startX = e.ClientX - _offsetX;
         _startY = e.ClientY - _offsetY;
@@ -398,9 +502,10 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// </summary>
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape")
+        if (e.Key == "Escape" && CloseOnEscape)
         {
             await Cancel();
         }
+
     }
 }

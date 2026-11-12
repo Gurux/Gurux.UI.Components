@@ -298,7 +298,7 @@ else
     /// Gets or sets the text color applied when rendering HTML image content.
     /// </summary>
     [Parameter]
-    public string? Color { get; set; } = "red";
+    public string? Color { get; set; } = "var(--bs-danger, red)";
 
     /// <summary>
     /// Builds a Base64 image data URI using the configured MIME type and value.

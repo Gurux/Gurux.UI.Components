@@ -57,11 +57,11 @@ div ::deep :is(h1, h2, h3, h4, h5, h6)[id] {
     div ::deep .heading-link { opacity: 1; }
 }
 
-div ::deep .markdown-alert-note { --markdown-alert-color: #0969da; }
-div ::deep .markdown-alert-tip { --markdown-alert-color: #1a7f37; }
-div ::deep .markdown-alert-important { --markdown-alert-color: #8250df; }
-div ::deep .markdown-alert-warning { --markdown-alert-color: #9a6700; }
-div ::deep .markdown-alert-caution { --markdown-alert-color: #cf222e; }
+div ::deep .markdown-alert-note { --markdown-alert-color: var(--bs-link-color, #0969da); }
+div ::deep .markdown-alert-tip { --markdown-alert-color: var(--bs-success-text-emphasis, #1a7f37); }
+div ::deep .markdown-alert-important { --markdown-alert-color: var(--bs-primary-text-emphasis, #8250df); }
+div ::deep .markdown-alert-warning { --markdown-alert-color: var(--bs-warning-text-emphasis, #9a6700); }
+div ::deep .markdown-alert-caution { --markdown-alert-color: var(--bs-danger-text-emphasis, #cf222e); }
 
 div ::deep blockquote.markdown-alert {
     border-left: 4px solid var(--markdown-alert-color);
@@ -111,13 +111,13 @@ div ::deep .markdown-alert > :last-child {
         padding: .4rem;
         border: 0;
         border-radius: .3rem;
-        background: var(--markdown-code-background, #f3f3f3);
-        color: #57606a;
+        background: var(--markdown-code-background, var(--bs-tertiary-bg, #f3f3f3));
+        color: var(--bs-secondary-color, #57606a);
         cursor: pointer;
     }
 
-    div ::deep .markdown-copy-button:hover { color: #0969da; }
-    div ::deep .markdown-copy-button:focus-visible { outline: 2px solid #0969da; }
+    div ::deep .markdown-copy-button:hover { color: var(--bs-link-color, #0969da); }
+    div ::deep .markdown-copy-button:focus-visible { outline: 2px solid var(--bs-link-color, #0969da); }
 
     div ::deep .markdown-copy-tooltip {
         position: absolute;
@@ -125,8 +125,8 @@ div ::deep .markdown-alert > :last-child {
         top: 100%;
         padding: .25rem .5rem;
         border-radius: .25rem;
-        background: #24292f;
-        color: white;
+        background: var(--bs-emphasis-color, #24292f);
+        color: var(--bs-body-bg, white);
         font: .75rem sans-serif;
         white-space: nowrap;
         pointer-events: none;
@@ -141,15 +141,15 @@ div ::deep .markdown-alert > :last-child {
 
     div ::deep pre {
         /* Override on the MarkdownView container or an ancestor to theme code blocks. */
-        background: var(--markdown-code-background, #f3f3f3);
-        color: #24292f;
+        background: var(--markdown-code-background, var(--bs-tertiary-bg, #f3f3f3));
+        color: var(--bs-body-color, #24292f);
         padding: .75rem;
         overflow: auto;
         border-radius: .5rem;
     }
 
     .markdown-body ::deep code {
-        background: #f6f8fa;
+        background: var(--bs-tertiary-bg, #f6f8fa);
         padding: .1rem .3rem;
         border-radius: .3rem;
     }
@@ -162,23 +162,23 @@ div ::deep .markdown-alert > :last-child {
         white-space: pre;
     }
 
-    div ::deep .hljs-keyword, div ::deep .hljs-selector-tag { color: #cf222e; }
-    div ::deep .hljs-string, div ::deep .hljs-regexp, div ::deep .hljs-doctag { color: #0a3069; }
-    div ::deep .hljs-comment, div ::deep .hljs-quote { color: #57606a; font-style: italic; }
+    div ::deep .hljs-keyword, div ::deep .hljs-selector-tag { color: var(--bs-danger-text-emphasis, #cf222e); }
+    div ::deep .hljs-string, div ::deep .hljs-regexp, div ::deep .hljs-doctag { color: var(--bs-info-text-emphasis, #0a3069); }
+    div ::deep .hljs-comment, div ::deep .hljs-quote { color: var(--bs-secondary-color, #57606a); font-style: italic; }
     div ::deep .hljs-number, div ::deep .hljs-literal, div ::deep .hljs-attr,
-    div ::deep .hljs-variable, div ::deep .hljs-built_in { color: #0550ae; }
-    div ::deep .hljs-title, div ::deep .hljs-type { color: #8250df; }
-    div ::deep .hljs-name, div ::deep .hljs-tag { color: #116329; }
-    div ::deep .hljs-meta, div ::deep .hljs-symbol { color: #953800; }
+    div ::deep .hljs-variable, div ::deep .hljs-built_in { color: var(--bs-primary-text-emphasis, #0550ae); }
+    div ::deep .hljs-title, div ::deep .hljs-type { color: var(--bs-primary-text-emphasis, #8250df); }
+    div ::deep .hljs-name, div ::deep .hljs-tag { color: var(--bs-success-text-emphasis, #116329); }
+    div ::deep .hljs-meta, div ::deep .hljs-symbol { color: var(--bs-warning-text-emphasis, #953800); }
 
     .markdown-body ::deep ul, .markdown-body ::deep ol {
         padding-left: 1.6rem;
     }
 
     .markdown-body ::deep blockquote {
-        border-left: 4px solid #ddd;
+        border-left: 4px solid var(--bs-border-color, #ddd);
         padding-left: .8rem;
-        color: #555;
+        color: var(--bs-secondary-color, #555);
         margin: .8rem 0;
     }
 
@@ -210,7 +210,7 @@ div ::deep .markdown-alert > :last-child {
 
     .markdown-body ::deep th,
     .markdown-body ::deep td {
-        border: 1px solid #8885;
+        border: 1px solid var(--bs-border-color, #8885);
         padding: .5rem .75rem;
         text-align: left;
     }

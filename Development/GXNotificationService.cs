@@ -29,6 +29,7 @@ using Gurux.UI.Components.Enums;
 using Gurux.UI.Components.Tab;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.Extensions.Logging;
 
 namespace Gurux.UI.Components;
 
@@ -37,13 +38,21 @@ namespace Gurux.UI.Components;
 /// </summary>
 public sealed class GXNotificationService : IGXNotificationService, IDisposable
 {
+    private readonly ILogger<GXNotificationService>? _logger;
     private readonly NavigationManager? _navigation;
     private readonly ITabRouteResolver? _tabRoutes;
     private readonly Dictionary<Guid, string> _notificationPages = new();
 
-    /// <summary>Tracks successful navigation when a navigation manager is available through dependency injection.</summary>
-    public GXNotificationService(NavigationManager? navigation = null, ITabRouteResolver? tabRoutes = null)
+    /// <summary>Retains the constructor used by previously compiled hosts and modules.</summary>
+    public GXNotificationService(NavigationManager? navigation, ITabRouteResolver? tabRoutes)
+        : this(navigation, tabRoutes, null)
     {
+    }
+
+    /// <summary>Tracks successful navigation when a navigation manager is available through dependency injection.</summary>
+    public GXNotificationService(NavigationManager? navigation = null, ITabRouteResolver? tabRoutes = null, ILogger<GXNotificationService>? logger = null)
+    {
+        _logger = logger;
         _navigation = navigation;
         _tabRoutes = tabRoutes;
         if (_navigation != null)
@@ -225,6 +234,29 @@ public sealed class GXNotificationService : IGXNotificationService, IDisposable
     public Guid Add(GXNotificationItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        if (item.Level == NotificationLevel.Error)
+        {
+            if (_logger != null)
+            {
+                _logger.LogError("{Title}{NewLine}{Message}", item.Title, Environment.NewLine, item.Description);
+            }
+            else
+            {
+                Console.Error.WriteLine($"{item.Title}{Environment.NewLine}{item.Description}");
+            }
+            item = item with
+            {
+                Title = null,
+                TitleContent = null,
+                Description = string.IsNullOrWhiteSpace(item.Description) ? item.Title ?? "" : item.Description
+            };
+        }
+        return Store(item);
+    }
+
+    private Guid Store(GXNotificationItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
         lock (_sync)
         {
             _notifications[item.Id] = item;
@@ -278,12 +310,21 @@ public sealed class GXNotificationService : IGXNotificationService, IDisposable
     }
 
     /// <summary>
-    /// Creates an error notification using the exception message and details.
+    /// Logs the complete exception and creates a notification containing only its message.
     /// </summary>
     public Guid ReportError(Exception exception, string? key = null, NotificationScope scope = NotificationScope.Page)
     {
         ArgumentNullException.ThrowIfNull(exception);
-        return Add(new GXNotificationItem(NotificationLevel.Error,
-            exception.Message, exception.ToString(), key, true, scope));
+        if (_logger != null)
+        {
+            _logger.LogError(exception, "{Message}", exception.Message);
+        }
+        else
+        {
+            // Console.Error also reaches the browser console in WebAssembly hosts.
+            Console.Error.WriteLine(exception);
+        }
+        return Store(new GXNotificationItem(NotificationLevel.Error,
+            null, exception.Message, key, true, scope));
     }
 }

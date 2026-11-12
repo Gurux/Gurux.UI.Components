@@ -68,19 +68,22 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 @using System.Diagnostics
 @using Microsoft.AspNetCore.Components.Routing
 @implements IDisposable
+@implements IAsyncDisposable
+@inherits GXAdaptiveComponentBase
+@using Microsoft.JSInterop
 
 @inject NavigationManager NavigationManager
 @inject IServiceProvider Services
 
 <CascadingValue Value="_scope">
 <CascadingValue Value="this">
-    <ul class="nav nav-tabs @(StickyHeader ? "gx-sticky-tabs" : null)"
+    <ul @ref="_headers" class="@HeaderClass"
         role="tablist"
         style="width:100%">
         @foreach (var it in GetPages())
         {
             <li class="nav-item" role="presentation">
-                <button type="button" class="@GetActiveClass(it)"
+                <button @ref="it.HeaderElement" type="button" class="@GetActiveClass(it)" role="@(IsAdaptive ? "tab" : null)" id="@(IsAdaptive ? it.Id + "-tab" : null)" aria-controls="@(IsAdaptive ? it.Id + "-panel" : null)" aria-selected="@(IsAdaptive ? (it == ActivePage).ToString().ToLowerInvariant() : null)" tabindex="@(IsAdaptive ? (it == ActivePage ? "0" : "-1") : null)" @onkeydown="@(args => TabKeyDown(args,it))"
                         @onclick="@( () => ActivatePage(it))">
                     @if (TabTextTemplate != null)
                     {
@@ -103,6 +106,74 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 </CascadingValue>
 
 @code {
+    /// <summary>Content tabs remain in place; application navigation may opt into a bottom bar.</summary>
+    [Parameter] public bool ApplicationNavigation { get; set; }
+    internal bool AdaptiveTabs => IsAdaptive;
+    private string HeaderClass => AdaptiveClass("nav nav-tabs" + (StickyHeader ? " gx-sticky-tabs" : "") + (IsAdaptive ? " gx-adaptive-tabs" : "") + (ApplicationNavigation && IsAdaptive && AdaptiveBehavior.ResponsiveMode == GXResponsiveLayoutMode.Compact && AdaptiveBehavior.Layout is GXLayoutStyle.Cupertino or GXLayoutStyle.Material ? " gx-app-tabs-bottom" : ""));
+    private ElementReference _headers;
+    private IJSObjectReference? _adaptiveModule;
+    private Task? _browserDisposal;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!disposed && Services.GetService(typeof(IJSRuntime)) is IJSRuntime runtime && (IsAdaptive || _adaptiveModule != null))
+        {
+            _adaptiveModule ??= await GetComponentModuleAsync(runtime, "./_content/Gurux.UI.Components/ContextMenu/GXContextMenuController.razor.js");
+            if (!disposed && _adaptiveModule != null)
+            {
+                await _adaptiveModule.InvokeVoidAsync("configureTabs", _headers, IsAdaptive);
+            }
+        }
+    }
+    private async Task TabKeyDown(KeyboardEventArgs args, GXTabPage current)
+    {
+        if (!IsAdaptive || args.AltKey || args.CtrlKey || args.MetaKey)
+        {
+            return;
+        }
+        var visible = GetPages().ToList();
+        if (visible.Count == 0)
+        {
+            return;
+        }
+        var index = visible.IndexOf(current);
+        var next = args.Key switch
+        {
+            "ArrowRight" => (index + 1) % visible.Count,
+            "ArrowLeft" => (index - 1 + visible.Count) % visible.Count,
+            "Home" => 0,
+            "End" => visible.Count - 1,
+            _ => -1
+        };
+        if (next >= 0)
+        {
+            await ActivatePage(visible[next]);
+            if (!disposed && visible[next].IsAccessible)
+            {
+                await visible[next].HeaderElement.FocusAsync();
+            }
+        }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        if (_browserDisposal != null)
+        {
+            await _browserDisposal;
+        }
+    }
+    private async Task ReleaseBrowserAsync()
+    {
+        try
+        {
+            if (_adaptiveModule != null)
+            {
+                await _adaptiveModule.InvokeVoidAsync("configureTabs", _headers, false);
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or OperationCanceledException) { }
+        finally { await ReleaseComponentModulesAsync(); }
+    }
+
     /// <summary>Nesting information for tab controls.</summary>
     public sealed record TabScope(int Depth);
     /// <summary>Parent tab nesting information.</summary>
@@ -403,7 +474,13 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     /// </summary>
     public void Dispose()
     {
+        if (disposed)
+        {
+            return;
+        }
         disposed = true;
+        DisposeAdaptiveBehavior();
         NavigationManager.LocationChanged -= LocationChanged;
+        _browserDisposal = ReleaseBrowserAsync();
     }
 }

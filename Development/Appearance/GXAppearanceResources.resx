@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Appearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="Layout" xml:space="preserve"><value>Layout</value></data>
+  <data name="BootstrapTheme" xml:space="preserve"><value>Bootstrap theme</value></data>
+  <data name="ColorMode" xml:space="preserve"><value>Color mode</value></data>
+  <data name="Default" xml:space="preserve"><value>Default</value></data>
+  <data name="Auto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Fluent" xml:space="preserve"><value>Fluent</value></data>
+  <data name="Cupertino" xml:space="preserve"><value>Cupertino</value></data>
+  <data name="Material" xml:space="preserve"><value>Material</value></data>
+  <data name="Light" xml:space="preserve"><value>Light</value></data>
+  <data name="Dark" xml:space="preserve"><value>Dark</value></data>
+  <data name="Reset" xml:space="preserve"><value>Reset appearance</value></data>
+  <data name="Preview" xml:space="preserve"><value>Preview</value></data>
+  <data name="LimitedColorModes" xml:space="preserve"><value>This theme uses a fixed palette. Some colors may not follow the selected color mode.</value></data>
+  <data name="PersistenceUnavailable" xml:space="preserve"><value>Appearance changed for this session, but saving preferences is unavailable.</value></data>
+  <data name="Navigation" xml:space="preserve"><value>Navigation</value></data>
+  <data name="Back" xml:space="preserve"><value>Back</value></data>
+  <data name="InvalidDateTime" xml:space="preserve"><value>Invalid date or time.</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+</root>

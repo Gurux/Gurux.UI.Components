@@ -29,7 +29,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 
 @*
 <summary>
-Edits a typed date and time value with formatting and optional persistence.
+Edits a typed date and time value with formatting and optional persistence. String values preserve custom date/time patterns, including wildcards, for validation by the consumer.
 </summary>
 *@
 
@@ -38,26 +38,40 @@ Edits a typed date and time value with formatting and optional persistence.
 @using Microsoft.Extensions.Logging
 
 @typeparam TItem
+@inherits GXAdaptiveComponentBase
+@implements IDisposable
+@using Gurux.UI.Components.Appearance
 
 @inject IGXLocalStorage localStorage
 @inject ILogger<GXDateTimeSelector<TItem>> Logger
 
 <CascadingValue Value="this">
     <input id="@Id"
-           type="datetime-local"
+           type="@InputType" step="@(IsAdaptive ? "1" : null)" aria-invalid="@(_invalid ? "true" : null)"
            value="@ValueToString()"
            placeholder="@Placeholder"
-           @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "form-control")"
+           @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" style="@GXComponentAttributes.GetStyle(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, InputClass)"
            onreset="@(() => Reset())"
            onchange="@((ChangeEventArgs e) => UpdateDateTime(e.Value))"
            required="@Required"
            disabled="@IsDisabled()"
            aria-required="@Required" />
+    @if (_invalid)
+    {
+        <span role="alert" class="text-danger">@(InvalidValueText ?? GXAppearanceText.Get("InvalidDateTime"))</span>
+    }
 </CascadingValue>
 
 @code
 {
-    const string Format = "yyyy-MM-ddTHH:mm:ss";
+    [Parameter] public TimeZoneInfo? TimeZone { get; set; }
+    [Parameter] public string? InvalidValueText { get; set; }
+    private static readonly Type ValueType = Nullable.GetUnderlyingType(typeof(TItem)) ?? typeof(TItem);
+    private string InputType => ValueType == typeof(string) ? "text" : ValueType == typeof(DateOnly) ? "date" : ValueType == typeof(TimeOnly) ? "time" : "datetime-local";
+    private string Format => InputType == "date" ? "yyyy-MM-dd" : InputType == "time" ? "HH:mm:ss" : "yyyy-MM-ddTHH:mm:ss";
+    private bool _invalid;
+    private string InputClass => (IsAdaptive ? AdaptiveClass("form-control gx-adaptive-picker") : "form-control") + (_invalid ? " is-invalid" : "");
+    public void Dispose() => DisposeAdaptiveBehavior();
 
     /// <summary>
     /// Gets or sets captured HTML attributes forwarded to the underlying element.
@@ -105,14 +119,14 @@ Edits a typed date and time value with formatting and optional persistence.
     public GXDateTimeSelector()
     {
         Type type = Nullable.GetUnderlyingType(typeof(TItem)) ?? typeof(TItem);
-        if (type != typeof(DateTime) && type != typeof(DateTimeOffset) && type != typeof(DateOnly) && type != typeof(TimeOnly))
+        if (type != typeof(DateTime) && type != typeof(DateTimeOffset) && type != typeof(DateOnly) && type != typeof(TimeOnly) && type != typeof(string))
         {
             throw new InvalidOperationException($"Unsupported {GetType()} type param '{type}'.");
         }
     }
 
     /// <summary>
-    /// Gets or sets the typed date and time value edited by the selector.
+    /// Gets or sets the typed date and time value, or a custom string pattern validated by the consumer.
     /// </summary>
     [Parameter]
     public TItem? Value { get; set; }
@@ -120,9 +134,9 @@ Edits a typed date and time value with formatting and optional persistence.
     /// <summary>
     /// Clears the selected date and time value and requests rendering.
     /// </summary>
-    private void Reset()
+    private Task Reset()
     {
-        UpdateDateTime(null);
+        return UpdateDateTime(null);
     }
 
     /// <summary>
@@ -136,6 +150,11 @@ Edits a typed date and time value with formatting and optional persistence.
     /// </summary>
     private string? ValueToString()
     {
+        if (Value is string text)
+        {
+            return text;
+        }
+
         if (Value is DateTime dt)
         {
             return BindConverter.FormatValue(dt,
@@ -145,7 +164,7 @@ Edits a typed date and time value with formatting and optional persistence.
 
         if (Value is DateTimeOffset dto)
         {
-            return BindConverter.FormatValue(dto,
+            return BindConverter.FormatValue(TimeZone == null ? dto : TimeZoneInfo.ConvertTime(dto, TimeZone),
                 Format,
                 CultureInfo.InvariantCulture);
         }
@@ -175,45 +194,48 @@ Edits a typed date and time value with formatting and optional persistence.
     /// <summary>
     /// Converts an edited date and time value, notifies changes, and saves it when persistence is enabled.
     /// </summary>
-    private void UpdateDateTime(object? value, bool init = false)
+    private async Task UpdateDateTime(object? value, bool init = false)
     {
-        bool change = false;
-        if (value is string str &&
-        !string.IsNullOrEmpty(str))
+        TItem? result = default;
+        _invalid = false;
+        if (value is string text && !string.IsNullOrWhiteSpace(text))
         {
-            Value = default;
-            TItem? result;
-            if (!BindConverter.TryConvertTo<TItem>(value, CultureInfo.InvariantCulture, out result))
+            if (ValueType == typeof(string))
             {
-                throw new Exception("Invalid date time.");
+                result = (TItem)(object)text;
             }
-            change = Value?.ToString() != result?.ToString();
-            Value = result;
-            if (change)
+            else if (init && ValueType == typeof(DateTimeOffset) && DateTimeOffset.TryParseExact(text, "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out var restored))
             {
-                if (ValueChanged.HasDelegate)
+                result = (TItem)(object)restored;
+            }
+            else if (ValueType == typeof(DateTimeOffset) && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
+            {
+                local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+                if (TimeZone?.IsInvalidTime(local) == true)
                 {
-                    ValueChanged.InvokeAsync(Value);
+                    _invalid = true;
+                    return;
                 }
+                var offset = TimeZone?.GetUtcOffset(local) ?? (Value is DateTimeOffset previous ? previous.Offset : TimeSpan.Zero);
+                result = (TItem)(object)new DateTimeOffset(local, offset);
+            }
+            else if (!BindConverter.TryConvertTo<TItem>(text, CultureInfo.InvariantCulture, out result))
+            {
+                _invalid = true;
+                return;
             }
         }
-        else
+        var changed = !EqualityComparer<TItem?>.Default.Equals(Value, result);
+        Value = result;
+        if (changed && ValueChanged.HasDelegate)
         {
-            change = Value != null;
-            Value = default;
-            if (change)
-            {
-                if (ValueChanged.HasDelegate)
-                {
-                    ValueChanged.InvokeAsync(Value);
-                }
-            }
+            await ValueChanged.InvokeAsync(Value);
         }
         try
         {
             if (!Disabled && !init && Save && !string.IsNullOrEmpty(Id))
             {
-                localStorage.SetValueAsync(Id, ValueToString());
+                await localStorage.SetValueAsync(Id, Value is DateTimeOffset current ? current.ToString("O", CultureInfo.InvariantCulture) : ValueToString());
             }
         }
         catch (Exception ex)
@@ -235,7 +257,11 @@ Edits a typed date and time value with formatting and optional persistence.
                 if (!Disabled && Save && !string.IsNullOrEmpty(Id))
                 {
                     string? str = await localStorage.GetValueAsync(Id);
-                    UpdateDateTime(str, true);
+                    if (str != null && !AdaptiveDisposed)
+                    {
+                        await UpdateDateTime(str, true);
+                        StateHasChanged();
+                    }
                 }
             }
             catch (Exception ex)

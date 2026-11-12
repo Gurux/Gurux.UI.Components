@@ -236,8 +236,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
         {
             if (!_disposed && _open && version == _loadVersion && !token.IsCancellationRequested)
             {
-                NotificationService.Add(new GXNotificationItem(NotificationLevel.Error,
-                    ErrorText, error.ToString(), NotificationKey, true));
+                NotificationService.ReportError(error, NotificationKey);
             }
         }
         finally

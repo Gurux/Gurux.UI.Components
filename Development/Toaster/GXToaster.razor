@@ -37,12 +37,14 @@ Displays transient toast messages and refreshes them as messages are added, remo
 @using Gurux.UI.Components
 @using Gurux.UI.Components.Enums
 @namespace Gurux.UI.Component.Toaster
+@inherits GXAdaptiveComponentBase
+@implements IDisposable
 
 @inject IServiceProvider Services
 @if (ToasterService?.Any == true)
 {
     <div>
-        <div class="toast-container position-absolute top-0 end-0 mt-5 pt-5 pe-2" style="z-index: 1080;">
+        <div class="@ContainerClass" style="z-index: 1080;">
             @foreach (var it in this.ToasterService.GetToasts())
             {
                 var toast = GetCss(it);
@@ -50,12 +52,12 @@ Displays transient toast messages and refreshes them as messages are added, remo
                     <div class="toast-header @toast">
                         <strong class="me-auto">@((MarkupString)(it.Title ?? string.Empty))</strong>
                         <GXAutoRefresh>
-                            <small class="@toast; markup">@it.PostedTimeText</small>
+                            <small class="@toast markup">@it.PostedTimeText</small>
                         </GXAutoRefresh>
-                        <button type="button" class="btn-close btn-close-white" aria-label="Close"
+                        <button type="button" class="btn-close" aria-label="Close"
                                 @onclick="() => Close(it)"></button>
                     </div>
-                    <div class="toast-body; markup">
+                    <div class="toast-body markup">
                         @((MarkupString)(it.Message ?? string.Empty))
                     </div>
                 </div>
@@ -66,6 +68,7 @@ Displays transient toast messages and refreshes them as messages are added, remo
 
 @code
 {
+    private string ContainerClass => !IsAdaptive ? "toast-container position-absolute top-0 end-0 mt-5 pt-5 pe-2" : AdaptiveClass("toast-container gx-adaptive-toasts") + " gx-notification-" + AdaptiveBehavior.Notification.ToString().ToLowerInvariant();
     private IGXToasterService? ToasterService;
     private bool _disposed;
 
@@ -74,6 +77,7 @@ Displays transient toast messages and refreshes them as messages are added, remo
     /// </summary>
     protected override void OnInitialized()
     {
+        base.OnInitialized();
         ToasterService = Services.GetService<IGXToasterService>();
         if (ToasterService != null)
         {
@@ -110,6 +114,7 @@ Displays transient toast messages and refreshes them as messages are added, remo
     public void Dispose()
     {
         _disposed = true;
+        DisposeAdaptiveBehavior();
         if (ToasterService != null)
         {
             ToasterService.ToasterChanged -= ToastChanged;
@@ -126,8 +131,8 @@ Displays transient toast messages and refreshes them as messages are added, remo
         var colour = Enum.GetName(typeof(Color), toast.Color)?.ToLower();
         return toast.Color switch
         {
-            Color.Light => "bg-light",
-            _ => $"bg-{colour} text-white"
+            Color.Light => "text-bg-light",
+            _ => $"text-bg-{colour}"
         };
     }
 }

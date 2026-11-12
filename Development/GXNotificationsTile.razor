@@ -38,12 +38,13 @@ Displays stored notifications using severity filters, field settings, and option
 @using Gurux.UI.Components.Enums
 @using Gurux.UI.Components.TemplateToken
 @implements IDisposable
+@inherits GXAdaptiveComponentBase
 
 @inject IGXNotificationService NotificationService
 
 @if (_visibleNotifications.Count != 0)
 {
-    <ul class="notification-list list-unstyled mt-3 mb-0 text-start"
+    <ul class="@NotificationClass"
         aria-label="Notifications">
         @foreach (GXNotificationItem notification in _visibleNotifications)
         {
@@ -85,6 +86,7 @@ Displays stored notifications using severity filters, field settings, and option
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    private string NotificationClass => AdaptiveClass("notification-list list-unstyled mt-3 mb-0 text-start") + (IsAdaptive ? " gx-adaptive-notifications gx-notification-" + (AdaptiveBehavior.Layout == GXLayoutStyle.Fluent ? "infobar" : "banner") : "");
     private readonly List<GXNotificationItem> _visibleNotifications = new();
     private bool _disposed;
 
@@ -93,6 +95,7 @@ Displays stored notifications using severity filters, field settings, and option
     /// </summary>
     protected override void OnInitialized()
     {
+        base.OnInitialized();
         NotificationService.Changed += OnChanged;
     }
 
@@ -155,6 +158,7 @@ Displays stored notifications using severity filters, field settings, and option
     public void Dispose()
     {
         _disposed = true;
+        DisposeAdaptiveBehavior();
         NotificationService.Changed -= OnChanged;
     }
 

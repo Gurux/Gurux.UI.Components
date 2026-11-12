@@ -45,14 +45,15 @@ html, body {
 .spinner-task-progress {
     position: relative;
     overflow: hidden;
-    background-color: #e9ecef;
-    border-radius: 0.25rem;
+    background-color: var(--bs-secondary-bg, #e9ecef);
+    color: var(--bs-body-color, #212529);
+    border-radius: var(--gx-control-radius, 0.25rem);
 }
 
 .spinner-task-fill {
     position: absolute;
     inset: 0 auto 0 0;
-    background-color: #9ec5fe;
+    background-color: var(--bs-primary-bg-subtle, #9ec5fe);
 }
 
 .spinner-task-message {
@@ -72,6 +73,7 @@ html, body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(var(--bs-body-bg-rgb, 255, 255, 255), 0.6);
+    color: var(--bs-body-color, #212529);
     z-index: 2000;
 }

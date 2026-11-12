@@ -1,0 +1,42 @@
+/* Keep the close icon in the contextual header's theme-selected foreground. */
+.toast-header .btn-close {
+    color: inherit;
+    background-image: none;
+    background-color: currentColor;
+    mask-image: var(--bs-btn-close-bg);
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: 1em;
+    filter: none;
+}
+
+@media (forced-colors: active) {
+    .toast-header .btn-close {
+        forced-color-adjust: none;
+        color: CanvasText;
+        background-color: CanvasText;
+    }
+}
+
+.gx-adaptive-toasts {
+    position: fixed;
+    top: max(1rem, env(safe-area-inset-top));
+    inset-inline-end: 1rem;
+    width: min(24rem, calc(100vw - 2rem));
+    padding: 0;
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+}
+.gx-adaptive-toasts .toast { width: 100%; border-radius: var(--gx-card-radius, .5rem); }
+.gx-adaptive-toasts .toast-header { border-radius: var(--gx-card-radius, .5rem) var(--gx-card-radius, .5rem) 0 0; }
+.gx-notification-banner { inset-inline: 1rem; margin-inline: auto; }
+.gx-notification-snackbar {
+    top: auto;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    inset-inline: 1rem;
+    margin-inline: auto;
+    width: min(35rem, calc(100vw - 2rem));
+}
+@media (max-width: 48rem) {
+    body:has(.gx-layout-material > .gx-adaptive-navigation:not([hidden])) .gx-notification-snackbar { bottom: calc(5rem + env(safe-area-inset-bottom)); }
+}

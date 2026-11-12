@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Appearance" xml:space="preserve"><value>Ulkoasu</value></data>
+  <data name="Layout" xml:space="preserve"><value>Asettelu</value></data>
+  <data name="BootstrapTheme" xml:space="preserve"><value>Bootstrap-teema</value></data>
+  <data name="ColorMode" xml:space="preserve"><value>Väritila</value></data>
+  <data name="Default" xml:space="preserve"><value>Oletus</value></data>
+  <data name="Auto" xml:space="preserve"><value>Automaattinen</value></data>
+  <data name="Fluent" xml:space="preserve"><value>Fluent</value></data>
+  <data name="Cupertino" xml:space="preserve"><value>Cupertino</value></data>
+  <data name="Material" xml:space="preserve"><value>Material</value></data>
+  <data name="Light" xml:space="preserve"><value>Vaalea</value></data>
+  <data name="Dark" xml:space="preserve"><value>Tumma</value></data>
+  <data name="Reset" xml:space="preserve"><value>Palauta oletukset</value></data>
+  <data name="Preview" xml:space="preserve"><value>Esikatselu</value></data>
+  <data name="LimitedColorModes" xml:space="preserve"><value>Teemassa on kiinteä väripaletti. Kaikki värit eivät seuraa valittua väritilaa.</value></data>
+  <data name="PersistenceUnavailable" xml:space="preserve"><value>Ulkoasu muuttui tässä istunnossa, mutta asetusten tallennus ei ole käytettävissä.</value></data>
+  <data name="Navigation" xml:space="preserve"><value>Navigointi</value></data>
+  <data name="Back" xml:space="preserve"><value>Takaisin</value></data>
+  <data name="InvalidDateTime" xml:space="preserve"><value>Virheellinen päivämäärä tai kellonaika.</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Peruuta</value></data>
+</root>

@@ -51,11 +51,11 @@ Displays original and changed text side by side with word differences highlighte
     <div class="diff-container">
         <div class="diff-box">
             <h5>@OriginalTitle</h5>
-            @((MarkupString)BuildDiffHtml(OriginalText, ChangedText, "#ffcccc", true))
+            @((MarkupString)BuildDiffHtml(OriginalText, ChangedText, "gx-diff-removed", true))
         </div>
         <div class="diff-box">
             <h5>@ChangedTitle</h5>
-            @((MarkupString)BuildDiffHtml(OriginalText, ChangedText, "#ccffcc", false))
+            @((MarkupString)BuildDiffHtml(OriginalText, ChangedText, "gx-diff-added", false))
         </div>
     </div>
 }
@@ -86,7 +86,7 @@ Displays original and changed text side by side with word differences highlighte
     /// <summary>
     /// Renders one side of a word comparison with changed words highlighted and whitespace preserved.
     /// </summary>
-    private MarkupString BuildDiffHtml(string left, string right, string color, bool renderLeft)
+    private MarkupString BuildDiffHtml(string left, string right, string differenceClass, bool renderLeft)
     {
         left ??= string.Empty;
         right ??= string.Empty;
@@ -115,7 +115,7 @@ Displays original and changed text side by side with word differences highlighte
             else
             {
                 bool different = wordIndex < diffFlags.Length && diffFlags[wordIndex];
-                AppendWordHtml(sb, token, different, color);
+                AppendWordHtml(sb, token, different, differenceClass);
                 wordIndex++;
             }
         }
@@ -232,12 +232,12 @@ Displays original and changed text side by side with word differences highlighte
     /// <summary>
     /// Appends an encoded word, wrapping changed words in a highlight span.
     /// </summary>
-    private void AppendWordHtml(StringBuilder sb, string word, bool different, string color)
+    private void AppendWordHtml(StringBuilder sb, string word, bool different, string differenceClass)
     {
         string encoded = System.Net.WebUtility.HtmlEncode(word);
         if (different)
         {
-            sb.Append($"<span style=\"background-color:{color};\">{encoded}</span>");
+            sb.Append($"<span class=\"{differenceClass}\">{encoded}</span>");
         }
         else
         {

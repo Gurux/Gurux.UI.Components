@@ -1,0 +1,77 @@
+/*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*/
+
+.gx-map {
+    background: var(--bs-secondary-bg, #ddd);
+    color: var(--bs-body-color, #333);
+    font-family: var(--gx-layout-font, var(--bs-body-font-family, sans-serif));
+}
+
+.gx-map ::deep :is(.leaflet-bar a, .leaflet-control-layers, .leaflet-popup-content-wrapper, .leaflet-popup-tip, .leaflet-tooltip) {
+    color: var(--bs-body-color, #333);
+    background: var(--bs-body-bg, #fff);
+    border-color: var(--bs-border-color, #ccc);
+}
+
+.gx-map ::deep .leaflet-bar {
+    border-color: var(--bs-border-color, #ccc);
+    border-radius: var(--gx-control-radius, 4px);
+    box-shadow: var(--gx-popup-shadow, var(--bs-box-shadow-sm, 0 1px 5px rgb(0 0 0 / 65%)));
+}
+
+.gx-map ::deep .leaflet-bar a:hover,
+.gx-map ::deep .leaflet-bar a:focus {
+    color: var(--bs-emphasis-color, #000);
+    background: var(--bs-tertiary-bg, #f4f4f4);
+}
+
+.gx-map ::deep .leaflet-bar a.leaflet-disabled {
+    color: var(--bs-tertiary-color, #bbb);
+    background: var(--bs-secondary-bg, #f4f4f4);
+}
+
+.gx-map ::deep .leaflet-popup-content-wrapper {
+    border-radius: var(--gx-popup-radius, 12px);
+    box-shadow: var(--gx-popup-shadow, var(--bs-box-shadow, 0 3px 14px rgb(0 0 0 / 40%)));
+}
+
+.gx-map ::deep .leaflet-control-attribution {
+    color: var(--bs-secondary-color, #333);
+    background: rgba(var(--bs-body-bg-rgb, 255, 255, 255), .85);
+}
+
+.gx-map ::deep .leaflet-control-attribution a,
+.gx-map ::deep a.leaflet-popup-close-button {
+    color: var(--bs-link-color, #0078a8);
+}
+
+.gx-map ::deep .leaflet-tooltip-top::before { border-top-color: var(--bs-body-bg, #fff); }
+.gx-map ::deep .leaflet-tooltip-bottom::before { border-bottom-color: var(--bs-body-bg, #fff); }
+.gx-map ::deep .leaflet-tooltip-left::before { border-left-color: var(--bs-body-bg, #fff); }
+.gx-map ::deep .leaflet-tooltip-right::before { border-right-color: var(--bs-body-bg, #fff); }

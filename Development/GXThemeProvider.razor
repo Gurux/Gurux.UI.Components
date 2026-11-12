@@ -1,0 +1,199 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
+@using Microsoft.JSInterop
+@using Microsoft.Extensions.Logging
+@inject ILogger<GXThemeProvider> Logger
+@implements IAsyncDisposable
+@inject IGXThemeService ThemeService
+@inject IJSRuntime Runtime
+
+<CascadingValue Value="ThemeService" IsFixed="true">
+    <div class="gx-appearance">
+        @ChildContent
+        @if (Error != null && ErrorContent != null)
+        {
+            @ErrorContent(Error)
+        }
+    </div>
+</CascadingValue>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Identifies the host's Bootstrap link; application styles are never removed.</summary>
+    [Parameter] public string BootstrapStylesheetSelector { get; set; } = "link[data-gx-bootstrap]";
+    [Parameter] public RenderFragment<string>? ErrorContent { get; set; }
+    [Parameter] public EventCallback<string> OnError { get; set; }
+    public string? Error { get; private set; }
+
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _controller;
+    private DotNetObjectReference<GXThemeProvider>? _reference;
+    private bool _disposed;
+    private bool _applying;
+    private bool _dirty = true;
+
+    protected override void OnInitialized() => ThemeService.AppearanceChanged += Changed;
+
+    private void Changed(object? sender, EventArgs args)
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(() =>
+            {
+                _dirty = true;
+                StateHasChanged();
+            });
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || _applying || !_dirty)
+        {
+            return;
+        }
+        _applying = true;
+        _dirty = false;
+        try
+        {
+            if (_controller == null)
+            {
+                await ThemeService.InitializeAsync();
+                _module ??= await Runtime.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Appearance/appearance.js");
+                if (_disposed)
+                {
+                    return;
+                }
+                _reference ??= DotNetObjectReference.Create(this);
+                _controller = await _module.InvokeAsync<IJSObjectReference>("create", _reference, new { bootstrapStylesheetSelector = BootstrapStylesheetSelector });
+                if (_disposed)
+                {
+                    return;
+                }
+            }
+            var settings = ThemeService.Current;
+            var theme = ThemeService.GetThemes().Single(x => x.Id == settings.BootstrapTheme);
+            await _controller.InvokeVoidAsync("apply", new { themeId = theme.Id, cssUrl = theme.CssUrl, colorMode = settings.ColorMode.ToString(), cssVariables = theme.CssVariables, allowExternalStylesheet = theme.AllowExternalStylesheet, replaceBootstrap = theme.ReplaceBootstrap });
+            if (Error != null)
+            {
+                Error = null;
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or OperationCanceledException)
+        {
+            Logger.LogError(ex, "{Message}", ex.Message);
+            Error = ex.Message;
+            if (!_disposed)
+            {
+                await OnError.InvokeAsync(Error);
+            }
+        }
+        finally
+        {
+            _applying = false;
+            if (_disposed)
+            {
+                await ReleaseAsync();
+            }
+            else
+            {
+                StateHasChanged();
+            }
+        }
+    }
+
+    [JSInvokable]
+    public Task ReceiveEnvironment(string platform, bool prefersDark)
+    {
+        if (!_disposed)
+        {
+            ThemeService.UpdateEnvironment(platform, prefersDark);
+        }
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task ReceiveViewport(int width, bool coarsePointer)
+    {
+        if (!_disposed)
+        {
+            ThemeService.UpdateViewport(width, coarsePointer);
+        }
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        ThemeService.AppearanceChanged -= Changed;
+        if (!_applying)
+        {
+            await ReleaseAsync();
+        }
+    }
+
+    private async Task ReleaseAsync()
+    {
+        try
+        {
+            if (_controller != null)
+            {
+                await _controller.InvokeVoidAsync("dispose");
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or OperationCanceledException)
+        {
+            // The browser may already have closed the circuit.
+        }
+        finally
+        {
+            await ReleaseReferenceAsync(_controller);
+            await ReleaseReferenceAsync(_module);
+            _controller = null;
+            _module = null;
+            _reference?.Dispose();
+            _reference = null;
+        }
+    }
+
+    private static async Task ReleaseReferenceAsync(IJSObjectReference? reference)
+    {
+        try
+        {
+            if (reference != null)
+            {
+                await reference.DisposeAsync();
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or OperationCanceledException)
+        {
+        }
+    }
+}

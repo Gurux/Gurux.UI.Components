@@ -30,5 +30,5 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 .required::after {
     content: "*";
     font-weight: bold;
-    color: red;
+    color: var(--bs-danger, red);
 }

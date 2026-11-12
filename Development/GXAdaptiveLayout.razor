@@ -1,0 +1,126 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
+@using Gurux.UI.Components.Appearance
+@implements IDisposable
+@inject IGXThemeService ThemeService
+
+<CascadingValue Name="GXParentLayout" Value="EffectiveLayout">
+@if (EffectiveLayout == GXLayoutStyle.Default && HeaderContent == null && !OnBack.HasDelegate && NavigationContent == null && FooterContent == null && ParentLayout.GetValueOrDefault() == GXLayoutStyle.Default)
+{
+    @ChildContent
+}
+else
+{
+    <div class="@LayoutClass">
+        @if (HeaderContent != null || OnBack.HasDelegate || (NavigationContent != null && EffectiveLayout != GXLayoutStyle.Default))
+        {
+            <header class="gx-adaptive-header">
+                @if (NavigationContent != null && EffectiveLayout != GXLayoutStyle.Default)
+                {
+                    <button @ref="_navigationToggle" type="button" class="@("btn btn-outline-secondary gx-adaptive-toggle" + (CollapsibleSidebar ? " gx-sidebar-toggle" : ""))" aria-controls="@_navigationId" aria-expanded="@NavigationExpanded.ToString().ToLowerInvariant()" @onclick="ToggleNavigation">@NavigationText</button>
+                }
+                @if (OnBack.HasDelegate)
+                {
+                    <button type="button" class="btn btn-link gx-adaptive-back" @onclick="OnBack">@BackText</button>
+                }
+                @HeaderContent
+            </header>
+        }
+        @if (NavigationContent != null)
+        {
+            <nav id="@_navigationId" class="@NavigationClass" hidden="@(CollapsibleSidebar && _sidebarCollapsed && Behavior.ResponsiveMode != GXResponsiveLayoutMode.Compact)" aria-label="@NavigationText" @onkeydown="NavigationKeyDown">@NavigationContent</nav>
+        }
+        <div class="gx-adaptive-content">@ChildContent</div>
+        @if (FooterContent != null)
+        {
+            <footer class="gx-adaptive-footer">@FooterContent</footer>
+        }
+    </div>
+}
+
+</CascadingValue>
+
+@code {
+    [CascadingParameter(Name = "GXParentLayout")] private GXLayoutStyle? ParentLayout { get; set; }
+    /// <summary>Null follows the service preference, initially Default.</summary>
+    [Parameter] public GXLayoutStyle? LayoutStyle { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
+    /// <summary>Accepts existing Gurux navigation or application-owned menus.</summary>
+    [Parameter] public RenderFragment? NavigationContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+    [Parameter] public string? NavigationLabel { get; set; }
+    private string NavigationText => NavigationLabel ?? GXAppearanceText.Get("Navigation");
+    private readonly string _navigationId = "gx-navigation-" + Guid.NewGuid().ToString("N");
+    [Parameter] public bool CollapsibleSidebar { get; set; }
+    [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public string? BackLabel { get; set; }
+    private string BackText => BackLabel ?? GXAppearanceText.Get("Back");
+    private GXAdaptiveBehavior Behavior => ThemeService.GetAdaptiveBehavior(LayoutStyle ?? ParentLayout);
+    private bool _sidebarCollapsed;
+    private bool NavigationExpanded => CollapsibleSidebar && Behavior.ResponsiveMode != GXResponsiveLayoutMode.Compact ? !_sidebarCollapsed : _navigationOpen;
+    private string NavigationClass => "gx-adaptive-navigation" + (_navigationOpen ? " gx-navigation-expanded" : "") + (Behavior.Navigation == GXNavigationPresentation.Rail ? " gx-navigation-rail" : "");
+    private ElementReference _navigationToggle;
+    private bool _navigationOpen;
+    private void ToggleNavigation()
+    {
+        if (CollapsibleSidebar && Behavior.ResponsiveMode != GXResponsiveLayoutMode.Compact)
+        {
+            _sidebarCollapsed = !_sidebarCollapsed;
+        }
+        else
+        {
+            _navigationOpen = !_navigationOpen;
+        }
+    }
+    private async Task NavigationKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape" && _navigationOpen)
+        {
+            _navigationOpen = false;
+            await _navigationToggle.FocusAsync();
+        }
+    }
+    private GXLayoutStyle EffectiveLayout => ThemeService.ResolveLayout(LayoutStyle ?? ParentLayout ?? ThemeService.Current.Layout);
+    private string LayoutClass => EffectiveLayout == GXLayoutStyle.Default ? (ParentLayout.GetValueOrDefault() != GXLayoutStyle.Default && HeaderContent == null && !OnBack.HasDelegate && NavigationContent == null && FooterContent == null ? "gx-layout-default" : "gx-adaptive-layout gx-layout-default") : $"gx-adaptive-layout gx-layout-{EffectiveLayout.ToString().ToLowerInvariant()}";
+
+    protected override void OnInitialized() => ThemeService.AppearanceChanged += Changed;
+
+    protected override void OnParametersSet()
+    {
+        if (LayoutStyle.HasValue && !Enum.IsDefined(LayoutStyle.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(LayoutStyle));
+        }
+    }
+
+    private void Changed(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => ThemeService.AppearanceChanged -= Changed;
+}

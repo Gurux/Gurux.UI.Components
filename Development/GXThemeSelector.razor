@@ -1,0 +1,95 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
+@using Gurux.UI.Components.Appearance
+@implements IDisposable
+@inject IGXThemeService ThemeService
+
+<fieldset class="gx-theme-selector">
+    <legend>@Text("Appearance")</legend>
+    @if (ShowLayoutSelector)
+    {
+        <label class="form-label">
+            @Text("Layout")
+            <GXInputDropdown TValue="GXLayoutStyle" Items="Layouts" Value="Settings.Layout" OnSelected="ThemeService.SetLayoutAsync" RememberValue="false" Formatter="LayoutText" data-gx-setting="layout" />
+        </label>
+    }
+    @if (ShowThemeSelector)
+    {
+        <label class="form-label">
+            @Text("BootstrapTheme")
+            <GXInputDropdown TValue="string" Items="ThemeIds" Value="Settings.BootstrapTheme" OnSelected="ThemeService.SetThemeAsync" RememberValue="false" Formatter="ThemeText" data-gx-setting="theme" />
+        </label>
+    }
+    @if (ShowColorModeSelector)
+    {
+        <label class="form-label">
+            @Text("ColorMode")
+            <GXInputDropdown TValue="GXColorMode" Items="ColorModes" Value="Settings.ColorMode" OnSelected="ThemeService.SetColorModeAsync" RememberValue="false" Formatter="ColorText" data-gx-setting="color" />
+        </label>
+        @if (!ActiveTheme.SupportsColorModes)
+        {
+            <p role="status">@Text("LimitedColorModes")</p>
+        }
+    }
+    @if (ShowPreview)
+    {
+        <div class="gx-theme-preview border rounded p-3" aria-label="@Text("Preview")">
+            <strong>@ThemeText(Settings.BootstrapTheme)</strong>
+            <span class="badge text-bg-primary">@Text("Preview")</span>
+            <span>@Text(Settings.Layout.ToString()) / @Text(Settings.ColorMode.ToString())</span>
+        </div>
+    }
+    <button type="button" class="btn btn-secondary" @onclick="ThemeService.ResetAsync">@Text("Reset")</button>
+    @if (ThemeService.PersistenceError != null)
+    {
+        <p role="status">@Text("PersistenceUnavailable")</p>
+    }
+</fieldset>
+
+@code {
+    [Parameter] public bool ShowLayoutSelector { get; set; } = true;
+    [Parameter] public bool ShowThemeSelector { get; set; } = true;
+    [Parameter] public bool ShowColorModeSelector { get; set; } = true;
+    [Parameter] public bool ShowPreview { get; set; }
+    /// <summary>Optional host resource lookup, with built-in resource fallback.</summary>
+    [Parameter] public Func<string, string>? Localize { get; set; }
+    private GXAppearanceSettings Settings => ThemeService.Current;
+    private static readonly GXLayoutStyle[] Layouts = Enum.GetValues<GXLayoutStyle>();
+    private static readonly GXColorMode[] ColorModes = Enum.GetValues<GXColorMode>();
+    private IEnumerable<string> ThemeIds => ThemeService.GetThemes().Select(x => x.Id);
+    private GXThemeDefinition ActiveTheme => ThemeService.GetThemes().Single(x => x.Id == Settings.BootstrapTheme);
+    private string Text(string key) => Localize?.Invoke(key) ?? GXAppearanceText.Get(key);
+    private string LayoutText(GXLayoutStyle value) => Text(value.ToString());
+    private string ColorText(GXColorMode value) => Text(value.ToString());
+    private string ThemeText(string id) => id == "default" ? Text("Default") : ThemeService.GetThemes().Single(x => x.Id == id).Name;
+    protected override void OnInitialized() => ThemeService.AppearanceChanged += Changed;
+    private void Changed(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => ThemeService.AppearanceChanged -= Changed;
+}

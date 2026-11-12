@@ -27,6 +27,11 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 --------------------------------------------------------------------------
 */
 
+.modal-header > .btn-close {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
 .dialog-header-actions {
     display: flex;
     align-items: center;

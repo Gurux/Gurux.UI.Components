@@ -41,13 +41,13 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     font-size: 1.5rem;
     font-weight: 700;
     line-height: 1;
-    color: #000;
-    text-shadow: 0 1px 0 #fff;
+    color: var(--bs-body-color, #000);
+    text-shadow: 0 1px 0 var(--bs-body-bg, #fff);
     opacity: .5
 }
 
     .close:hover {
-        color: #000;
+        color: var(--bs-body-color, #000);
         text-decoration: none
     }
 
@@ -67,3 +67,10 @@ button.close {
 a.close.disabled {
     pointer-events: none
 }
+
+.gx-adaptive-notifications { gap: .5rem; }
+.gx-adaptive-notifications > .alert { border-radius: var(--gx-control-radius, .5rem); padding-block: .75rem; }
+.gx-notification-infobar > .alert { border-inline-start-width: .25rem; }
+.gx-notification-infobar .alert-heading { font-size: 1rem; }
+.gx-notification-banner > .alert { border-radius: var(--gx-card-radius, .875rem); padding: 1rem; }
+.gx-notification-banner .alert-heading { font-size: 1rem; font-weight: 600; }

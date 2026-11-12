@@ -28,9 +28,9 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 */
 
 .button {
-    background-color: whitesmoke;
+    background-color: var(--bs-tertiary-bg, whitesmoke);
     border: none;
-    color: Black;
+    color: var(--bs-body-color, Black);
     padding: 8px 8px;
     text-align: center;
     opacity: 0.6;
@@ -82,18 +82,18 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     max-height: min(70vh, 28rem);
     overflow-y: auto;
     padding: 0.25rem;
-    border: 1px solid #ccc;
-    border-radius: 0.25rem;
-    background: white;
-    color: black;
-    box-shadow: 0 0.25rem 0.5rem #0003;
+    border: 1px solid var(--bs-border-color, #ccc);
+    border-radius: var(--gx-popup-radius, 0.25rem);
+    background: var(--gx-popup-bg, var(--bs-body-bg, white));
+    color: var(--bs-body-color, black);
+    box-shadow: var(--gx-popup-shadow, var(--bs-box-shadow, 0 0.25rem 0.5rem #0003));
 }
 
 .gx-menu-popup > button {
     width: 100%;
     text-align: start;
     white-space: nowrap;
-    border-radius: 0;
+    border-radius: var(--gx-menu-item-radius, 0);
 }
 
 .gx-menu-popup-right {
@@ -130,5 +130,5 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 .gx-menu-separator {
     margin: 0.25rem 0;
     border: 0;
-    border-top: 1px solid #ccc;
+    border-top: 1px solid var(--bs-border-color, #ccc);
 }

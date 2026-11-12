@@ -37,7 +37,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     border: none;
     background: transparent;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--gx-control-radius, 6px);
 }
 
     /* Tooltip */
@@ -46,10 +46,10 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
         bottom: 125%;
         left: 50%;
         transform: translateX(-50%);
-        background: #222;
-        color: #fff;
+        background: var(--bs-emphasis-color, #222);
+        color: var(--bs-body-bg, #fff);
         padding: 4px 8px;
-        border-radius: 6px;
+        border-radius: var(--gx-control-radius, 6px);
         font-size: 12px;
         white-space: nowrap;
         opacity: 0;
@@ -66,7 +66,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
             transform: translateX(-50%);
             border-width: 5px;
             border-style: solid;
-            border-color: #222 transparent transparent transparent;
+            border-color: var(--bs-emphasis-color, #222) transparent transparent transparent;
         }
 
     .copy-btn:hover .tooltip {

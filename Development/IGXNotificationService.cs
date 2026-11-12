@@ -88,7 +88,7 @@ namespace Gurux.UI.Components
         Guid Add(GXNotificationItem item);
 
         /// <summary>
-        /// Creates an error notification using the exception message and details.
+        /// Logs the complete exception and creates a notification containing only its message.
         /// </summary>
         /// <param name="exception">The exception to report.</param>
         /// <param name="key">An optional grouping key used to replace or remove related notifications.</param>

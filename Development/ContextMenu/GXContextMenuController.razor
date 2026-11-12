@@ -40,7 +40,9 @@ Displays registered context menu items and manages pointer activation and delaye
 @inject IJSRuntime JS
 @inject IServiceProvider Services
 @implements IAsyncDisposable
-<div @ref="_trigger" tabindex="0"
+@inherits GXAdaptiveComponentBase
+<div @ref="_trigger" tabindex="0" role="@(IsAdaptive ? "button" : null)" aria-haspopup="@(IsAdaptive ? "menu" : null)" aria-expanded="@(IsAdaptive ? _show.ToString().ToLowerInvariant() : null)"
+     @onkeydown="OnMenuKeyDown" @onpointerdown="BeginPress" @onpointermove="MoveLongPress" @onpointerup="CancelLongPress" @onpointercancel="CancelLongPress"
      onclick="@((MouseEventArgs e) => HandleClick(e))"
      @oncontextmenu="OnContextMenu"
      @onblur="OnBlur"
@@ -50,14 +52,14 @@ Displays registered context menu items and manages pointer activation and delaye
 </div>
 
 <CascadingValue Value="this">
-    <div @ref="_menu" class="contextmenu" popover="manual"
+    <div @ref="_menu" class="@AdaptiveClass("contextmenu" + (AdaptiveBehavior.Menu == GXMenuPresentation.ActionSheet ? " gx-menu-sheet" : ""))" role="@(IsAdaptive ? "menu" : null)" @onkeydown="OnMenuKeyDown" popover="manual"
          style="@($"z-index:1000; visibility:{GetVisibility()};")">
         @if (_show)
         {
             <ul class="contextmenuitems">
                 @foreach (GXContextMenuItem it in Items.Where(it => _authorization?.IsAllowed(it.Policy) == true))
                 {
-                    <li tabindex="@GetTabIndex()" class="contextmenuitem" onclick="@it.ClickAsync">
+                    <li tabindex="@(IsAdaptive ? "-1" : GetTabIndex())" role="@(IsAdaptive ? "menuitem" : null)" class="contextmenuitem" onclick="@it.ClickAsync">
                         @if (!string.IsNullOrEmpty(it.Image))
                         {
                             <GXImage Value="@it.Image"></GXImage>
@@ -69,6 +71,10 @@ Displays registered context menu items and manages pointer activation and delaye
                         &nbsp;
                         @it.Text
                     </li>
+                }
+                @if (IsAdaptive && AdaptiveBehavior.Menu == GXMenuPresentation.ActionSheet)
+                {
+                    <li role="presentation"><button type="button" class="btn btn-secondary w-100" @onclick="Hide">@Gurux.UI.Components.Appearance.GXAppearanceText.Get("Cancel")</button></li>
                 }
             </ul>
         }
@@ -82,12 +88,15 @@ Displays registered context menu items and manages pointer activation and delaye
     private IJSObjectReference? _module;
     private GXCommandAuthorization? _authorization;
     private bool _disposed;
+    private bool _triggerConfigured;
+    private DotNetObjectReference<GXContextMenuController>? _adaptiveReference;
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationState { get; set; }
 
     protected override void OnInitialized()
     {
+        base.OnInitialized();
         _authorization = new GXCommandAuthorization(Services, AuthorizationInvalidated);
     }
 
@@ -142,10 +151,32 @@ Displays registered context menu items and manages pointer activation and delaye
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_disposed)
+        {
+            return;
+        }
+        if ((IsAdaptive || _triggerConfigured) && !_disposed)
+        {
+            _module ??= await GetComponentModuleAsync(JS, "./_content/Gurux.UI.Components/ContextMenu/GXContextMenuController.razor.js");
+            if (_disposed || _module == null)
+            {
+                return;
+            }
+            await _module.InvokeVoidAsync("configureTrigger", _trigger, IsAdaptive);
+            _triggerConfigured = IsAdaptive;
+        }
         if (_show)
         {
-            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/ContextMenu/GXContextMenuController.razor.js");
-            await _module.InvokeVoidAsync("show", _menu, _trigger);
+            _module ??= await GetComponentModuleAsync(JS, "./_content/Gurux.UI.Components/ContextMenu/GXContextMenuController.razor.js");
+            if (_disposed || _module == null)
+            {
+                return;
+            }
+            if (IsAdaptive)
+            {
+                _adaptiveReference ??= DotNetObjectReference.Create(this);
+            }
+            await _module.InvokeVoidAsync("show", _menu, _trigger, new { adaptive = IsAdaptive, sheet = AdaptiveBehavior.Menu == GXMenuPresentation.ActionSheet }, _adaptiveReference);
         }
         else if (_module != null)
         {
@@ -156,19 +187,22 @@ Displays registered context menu items and manages pointer activation and delaye
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        DisposeAdaptiveBehavior();
         _authorization?.Dispose();
+        _adaptiveReference?.Dispose();
         Items.Clear();
         _timer.Stop();
         _timer.Dispose();
-        if (_module != null)
+        try
         {
-            try
+            if (_module != null)
             {
                 await _module.InvokeVoidAsync("hide", _menu);
-                await _module.DisposeAsync();
+                await _module.InvokeVoidAsync("configureTrigger", _trigger, false);
             }
-            catch (JSDisconnectedException) { }
         }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or OperationCanceledException) { }
+        finally { await ReleaseComponentModulesAsync(); }
     }
 
     /// <summary>
@@ -207,7 +241,7 @@ Displays registered context menu items and manages pointer activation and delaye
     /// </summary>
     void HandleClick(MouseEventArgs args)
     {
-        if (args.Button == 0)
+        if (!ConsumeLongPressClick() && args.Button == 0)
         {
             Show();
         }
@@ -216,8 +250,42 @@ Displays registered context menu items and manages pointer activation and delaye
     /// <summary>
     /// Opens the context menu in response to a context menu event.
     /// </summary>
+    [JSInvokable]
+    public Task DismissMenu()
+    {
+        if (!_disposed)
+        {
+            Hide();
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task BeginPress(PointerEventArgs args) => StartLongPressAsync(args, () => { Show(); return Task.CompletedTask; });
+
+    private async Task OnMenuKeyDown(KeyboardEventArgs args)
+    {
+        if (!IsAdaptive)
+        {
+            return;
+        }
+        if (args.Key == "Escape")
+        {
+            Hide();
+            await _trigger.FocusAsync(preventScroll: true);
+        }
+        else if (!_show && (args.Key is "Enter" or " " or "ContextMenu" || args.Key == "F10" && args.ShiftKey))
+        {
+            Show();
+        }
+        else if (_show && _module != null && args.Key is "ArrowDown" or "ArrowUp" or "Home" or "End")
+        {
+            await _module.InvokeVoidAsync("focusMenu", _menu, args.Key);
+        }
+    }
+
     void OnContextMenu(MouseEventArgs args)
     {
+        MarkContextGestureHandled();
         Show();
     }
 
@@ -235,6 +303,11 @@ Displays registered context menu items and manages pointer activation and delaye
     /// </summary>
     void OnBlur(FocusEventArgs args)
     {
+        if (IsAdaptive)
+        {
+            _timer.Stop();
+            return;
+        }
         _timer.Interval = 300;
         _timer.AutoReset = true;
         _timer.Elapsed += TimerElapsed;
@@ -265,6 +338,7 @@ Displays registered context menu items and manages pointer activation and delaye
         {
             return;
         }
+        _timer.Stop();
         _show = true;
         InvokeAsync(StateHasChanged);
     }

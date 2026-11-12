@@ -52,7 +52,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     box-sizing: border-box;
     flex: 0 0 6px;
     align-self: stretch;
-    background: #e1e5e8;
+    background: var(--bs-secondary-bg, #e1e5e8);
     cursor: ew-resize;
     touch-action: none;
     user-select: none;
@@ -66,13 +66,13 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     width: 2px;
     height: 2px;
     border-radius: 50%;
-    background: #616a72;
-    box-shadow: 0 -4px 0 #616a72, 0 4px 0 #616a72;
+    background: var(--bs-secondary-color, #616a72);
+    box-shadow: 0 -4px 0 var(--bs-secondary-color, #616a72), 0 4px 0 var(--bs-secondary-color, #616a72);
     transform: translate(-50%, -50%);
     pointer-events: none;
 }
 
 #verticalDivider:hover,
 #verticalDivider:active {
-    background: #c8cfd5;
+    background: var(--bs-tertiary-color, #c8cfd5);
 }

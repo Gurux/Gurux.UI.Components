@@ -42,7 +42,7 @@ Defines a tab page whose header and content can be restricted by an authorizatio
 
 @if (IsAccessible)
 {
-    <div style="position: relative; width: 100%; ">
+    <div style="position: relative; width: 100%; " role="@(Parent?.AdaptiveTabs == true ? "tabpanel" : null)" hidden="@(Parent?.AdaptiveTabs == true && Parent.ActivePage != this)" tabindex="@(Parent?.AdaptiveTabs == true ? "0" : null)" id="@(Parent?.AdaptiveTabs == true ? Id + "-panel" : null)" aria-labelledby="@(Parent?.AdaptiveTabs == true ? Id + "-tab" : null)">
         @if (Parent?.ActivePage == this)
         {
             @ChildContent
@@ -159,7 +159,8 @@ Defines a tab page whose header and content can be restricted by an authorizatio
     /// Gets or sets the tab page identifier used by the containing tab control.
     /// </summary>
     /// <remarks> This is for internal use. </remarks>
-    internal string? Id { get; set; }
+    internal string? Id { get; set; } = "gx-tab-" + Guid.NewGuid().ToString("N");
+    internal ElementReference HeaderElement;
 
     /// <summary>
     /// Registers the tab with its parent and subscribes to authorization and authentication changes.

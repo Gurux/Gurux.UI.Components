@@ -28,7 +28,7 @@
 const observers = new WeakMap();
 const dialogs = new Map();
 
-export function openDialog(element, key) {
+export function openDialog(element, key, reference = null, options = {}) {
     const root = element?.closest('[role="dialog"]');
     if (!root || dialogs.has(key))
     {
@@ -36,10 +36,17 @@ export function openDialog(element, key) {
     }
     const previous = document.activeElement;
     const topmost = () => [...dialogs.keys()].at(-1) === key;
-    const focusable = () => [...root.querySelectorAll('button, [href], input, select, textarea, [tabindex]')]
-        .filter(node => !node.disabled && node.tabIndex >= 0 && node.getClientRects().length);
+    const focusable = () => [...root.querySelectorAll('button, [href], input, select, textarea, [tabindex], [contenteditable]')]
+        .filter(node => !node.matches(':disabled') && !node.closest('[inert]') && (node.tabIndex >= 0 || !node.hasAttribute('tabindex') && node.isContentEditable) && node.getClientRects().length);
     const focusFirst = () => (focusable()[0] ?? root).focus();
     const onKeyDown = event => {
+        const state = dialogs.get(key);
+        const entry = event.target === root || event.target.matches('input:not([type]),input[type="text"],input[type="search"],input[type="email"],input[type="url"],input[type="tel"],input[type="password"],input[type="number"]');
+        if (event.key === "Enter" && entry && !event.target.isContentEditable && topmost() && state?.options.activatePrimaryOnEnter && !event.repeat && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey && !event.isComposing && !event.target.closest('button,a,textarea,[contenteditable="true"],[role="button"]')) {
+            event.preventDefault();
+            Promise.resolve(reference?.invokeMethodAsync("AcceptFromKeyboard")).catch(() => {});
+            return;
+        }
         if (event.key !== 'Tab' || !topmost())
         {
             return;
@@ -62,8 +69,15 @@ export function openDialog(element, key) {
     };
     root.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusin', onFocus);
-    dialogs.set(key, { root, previous, onKeyDown, onFocus });
+    dialogs.set(key, { root, previous, onKeyDown, onFocus, options });
     focusFirst();
+}
+
+export function updateDialog(key, options) {
+    const state = dialogs.get(key);
+    if (state) {
+        state.options = options;
+    }
 }
 
 export function closeDialog(key) {
