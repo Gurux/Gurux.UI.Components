@@ -39,13 +39,16 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 @inject ILogger<GXMenuControl> Logger
 @inject IServiceProvider Services
 @implements IDisposable
+@implements IAsyncDisposable
+@inherits GXAdaptiveComponentBase
+@using Microsoft.JSInterop
 
 <CascadingValue Value="this">
-    <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, Dropdown ? (Submenu ? "btn-group gx-menu-control gx-menu-submenu" : "btn-group gx-menu-control") : "btn-group")" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(Dropdown && _isOpen)">
+    <div @ref="_adaptiveRoot" @onpointerdown="BeginPress" @onpointermove="MoveLongPress" @onpointerup="CancelLongPress" @onpointercancel="CancelLongPress" @oncontextmenu="OpenContext" @oncontextmenu:preventDefault="IsAdaptive" @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" class="@GXComponentAttributes.GetClass(AdditionalAttributes, AdaptiveClass(Dropdown ? (Submenu ? "btn-group gx-menu-control gx-menu-submenu" : "btn-group gx-menu-control") : "btn-group"))" role="group" style="@GXComponentAttributes.GetStyle(AdditionalAttributes, GetStyle())" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(Dropdown && _isOpen)">
         @if (Dropdown)
         {
             <button @ref="_toggle" type="button" class="nav-link btn btn-link gx-menu-toggle" disabled="@(ReadOnly || !Items.Any(IsVisible))"
-                    aria-expanded="@(_isOpen ? "true" : "false")" aria-controls="@_popupId" @onclick="Toggle">
+                    role="@(IsAdaptive && Submenu ? "menuitem" : null)" aria-haspopup="@(IsAdaptive ? "menu" : null)" aria-expanded="@(_isOpen ? "true" : "false")" aria-controls="@_popupId" @onclick="ClickToggle">
                 @if (!string.IsNullOrEmpty(Icon))
                 {
                     <GXImage Id="@Icon" />
@@ -59,7 +62,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
                 {
                     <button type="button" class="gx-menu-dismiss" tabindex="-1" aria-label="Close menu" @onclick="Close" />
                 }
-                <div id="@_popupId" class="gx-menu-popup @(Submenu ? "gx-menu-popup-nested" : null) @(RightCorner ? "gx-menu-popup-right" : null) @(Bottom ? "gx-menu-popup-above" : null)">
+                <div role="@(IsAdaptive ? "menu" : null)" id="@_popupId" class="gx-menu-popup @(Submenu ? "gx-menu-popup-nested" : null) @(RightCorner ? "gx-menu-popup-right" : null) @(Bottom ? "gx-menu-popup-above" : null) @(!Submenu && AdaptiveBehavior.Menu == GXMenuPresentation.ActionSheet ? "gx-menu-sheet" : null)">
                     @CommandButtons
                 </div>
             }
@@ -88,7 +91,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             }
             else
             {
-            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" class="@GXComponentAttributes.GetClass(it.AdditionalAttributes, "btn button")" disabled="@(ReadOnly || it.ReadOnly)" style="@GetButtonStyle(it)" @onclick="() => SelectAsync(it)">
+            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" role="@(IsAdaptive ? "menuitem" : null)" class="@GXComponentAttributes.GetClass(it.AdditionalAttributes, "btn button")" disabled="@(ReadOnly || it.ReadOnly)" style="@GetButtonStyle(it)" @onclick="() => SelectAsync(it)">
                 @if (!string.IsNullOrEmpty(it.Image))
                 {
                     <GXImage Value="@it.Image" />
@@ -143,6 +146,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 
     protected override void OnInitialized()
     {
+        base.OnInitialized();
         _authorization = new GXCommandAuthorization(Services, () =>
         {
             if (!_disposed)
@@ -218,6 +222,62 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             !item.IsSeparator && Items.Contains(item) && policy == item.Policy;
     }
 
+    private ElementReference _adaptiveRoot;
+    private IJSObjectReference? _adaptiveModule;
+    private bool _adaptiveFocused;
+    private Task ClickToggle() => ConsumeLongPressClick() ? Task.CompletedTask : Toggle();
+    private Task BeginPress(PointerEventArgs args) => StartLongPressAsync(args, () => !_isOpen && Dropdown ? Toggle() : Task.CompletedTask);
+    private Task OpenContext()
+    {
+        MarkContextGestureHandled();
+        return IsAdaptive && Dropdown && !_isOpen ? Toggle() : Task.CompletedTask;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsAdaptive && _isOpen && Services.GetService(typeof(IJSRuntime)) is IJSRuntime runtime)
+        {
+            _adaptiveModule ??= await GetComponentModuleAsync(runtime, "./_content/Gurux.UI.Components/ContextMenu/GXContextMenuController.razor.js");
+            if (!_disposed && _adaptiveModule != null)
+            {
+                await _adaptiveModule.InvokeVoidAsync("configureMenu", _adaptiveRoot, IsAdaptive && _isOpen);
+            }
+            if (!_disposed && IsAdaptive && _isOpen && _adaptiveModule != null && !_adaptiveFocused)
+            {
+                _adaptiveFocused = true;
+                await _adaptiveModule.InvokeVoidAsync("focusMenu", _adaptiveRoot, "Home");
+            }
+        }
+        else
+        {
+            _adaptiveFocused = false;
+            if (_adaptiveModule != null)
+            {
+                await _adaptiveModule.InvokeVoidAsync("configureMenu", _adaptiveRoot, false);
+            }
+        }
+    }
+    private Task? _browserDisposal;
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        if (_browserDisposal != null)
+        {
+            await _browserDisposal;
+        }
+    }
+    private async Task ReleaseBrowserAsync()
+    {
+        try
+        {
+            if (_adaptiveModule != null)
+            {
+                await _adaptiveModule.InvokeVoidAsync("configureMenu", _adaptiveRoot, false);
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or OperationCanceledException) { }
+        finally { await ReleaseComponentModulesAsync(); }
+    }
+
     private async Task Toggle()
     {
         if (_disposed || ReadOnly)
@@ -250,10 +310,18 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 
     private async Task OnKeyDown(KeyboardEventArgs args)
     {
-        if (Dropdown && _isOpen && args.Key == "Escape")
+        if (IsAdaptive && Dropdown && !_isOpen && (args.Key == "ArrowDown" || Submenu && args.Key == "ArrowRight"))
+        {
+            await Toggle();
+        }
+        else if (Dropdown && _isOpen && (args.Key == "Escape" || IsAdaptive && Submenu && args.Key == "ArrowLeft"))
         {
             Close();
             await _toggle.FocusAsync(preventScroll: true);
+        }
+        else if (IsAdaptive && Dropdown && _isOpen && _adaptiveModule != null && args.Key is "ArrowDown" or "ArrowUp" or "Home" or "End")
+        {
+            await _adaptiveModule.InvokeVoidAsync("focusMenu", _adaptiveRoot, args.Key);
         }
     }
 
@@ -353,9 +421,15 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     /// <summary>Stops child removal notifications from scheduling renders during disposal.</summary>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
         _disposed = true;
+        DisposeAdaptiveBehavior();
         _authorization?.Dispose();
         _childItems.Clear();
+        _browserDisposal = ReleaseBrowserAsync();
     }
 
     /// <summary>
