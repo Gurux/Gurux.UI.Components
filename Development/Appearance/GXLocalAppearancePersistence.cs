@@ -27,20 +27,16 @@
 
 using System.Text.Json;
 
-namespace Gurux.UI.Components;
-
-/// <summary>Replaceable persistence for user appearance, independent of application databases.</summary>
-public interface IGXAppearancePersistence
-{
-    Task<GXAppearanceSettings?> LoadAsync();
-    Task SaveAsync(GXAppearanceSettings settings);
-}
-
+namespace Gurux.UI.Components.Appearance;
 /// <summary>Persists appearance through the existing browser storage abstraction.</summary>
+/// <param name="storage">The existing browser storage service used to read and write preferences.</param>
+/// <param name="options">The appearance configuration containing the persistence key.</param>
 public sealed class GXLocalAppearancePersistence(IGXLocalStorage storage, GXThemeOptions options) : IGXAppearancePersistence
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    /// <summary>Allows stored appearance settings to be read independently of JSON property-name casing.</summary>
+    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
+    /// <inheritdoc />
     public async Task<GXAppearanceSettings?> LoadAsync()
     {
         var json = await storage.GetValueAsync(options.StorageKey);
@@ -50,8 +46,9 @@ public sealed class GXLocalAppearancePersistence(IGXLocalStorage storage, GXThem
         }
         // The layout converter normalizes legacy Gurux names. The next user save
         // writes Default without making a successful read depend on write access.
-        return JsonSerializer.Deserialize<GXAppearanceSettings>(json, JsonOptions);
+        return JsonSerializer.Deserialize<GXAppearanceSettings>(json, _jsonOptions);
     }
 
-    public Task SaveAsync(GXAppearanceSettings settings) => storage.SetValueAsync(options.StorageKey, JsonSerializer.Serialize(settings, JsonOptions));
+    /// <inheritdoc />
+    public Task SaveAsync(GXAppearanceSettings settings) => storage.SetValueAsync(options.StorageKey, JsonSerializer.Serialize(settings, _jsonOptions));
 }

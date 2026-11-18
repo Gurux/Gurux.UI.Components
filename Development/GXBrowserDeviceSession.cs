@@ -30,16 +30,29 @@ using Microsoft.JSInterop;
 namespace Gurux.UI.Components;
 
 // Owns references only; device state remains inside each independent JavaScript controller.
+/// <summary>Owns a browser module and its independent device controller until disposal.</summary>
+/// <param name="runtime">The JavaScript runtime connected to the browser.</param>
+/// <param name="path">The browser module asset path to import.</param>
+/// <param name="arguments">Arguments passed to the module controller factory.</param>
 internal sealed class GXBrowserDeviceSession(IJSRuntime runtime, string path, params object?[] arguments) : IAsyncDisposable
 {
+    /// <summary>Caches the pending controller initialization to avoid duplicate browser devices.</summary>
     private Task<IJSObjectReference>? _initialization;
+    /// <summary>Holds the imported JavaScript module until its owner is disposed.</summary>
     private IJSObjectReference? _module;
+    /// <summary>Holds the independent browser device controller.</summary>
     private IJSObjectReference? _controller;
+    /// <summary>Records whether this owner has released its resources and stopped accepting updates.</summary>
     private bool _disposed;
 
+    /// <summary>Determines whether an error represents an unavailable or canceled browser operation.</summary>
+    /// <param name="error">The failure to classify.</param>
+    /// <returns>True when the failure represents JavaScript, a disconnected browser, or cancellation.</returns>
     internal static bool IsInteropFailure(Exception error) =>
         error is JSException or JSDisconnectedException or OperationCanceledException;
 
+    /// <summary>Returns the existing controller or starts a retryable initialization attempt.</summary>
+    /// <returns>The initialized controller reference.</returns>
     internal Task<IJSObjectReference> GetAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -50,6 +63,8 @@ internal sealed class GXBrowserDeviceSession(IJSRuntime runtime, string path, pa
         return _initialization;
     }
 
+    /// <summary>Imports the browser module and creates the controller, releasing references if initialization fails.</summary>
+    /// <returns>The initialized controller reference.</returns>
     private async Task<IJSObjectReference> InitializeAsync()
     {
         IJSObjectReference? module = null;
@@ -57,9 +72,9 @@ internal sealed class GXBrowserDeviceSession(IJSRuntime runtime, string path, pa
         var transferred = false;
         try
         {
-            module = await runtime.InvokeAsync<IJSObjectReference>("import", path);
+            module = await GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(runtime, "import", path);
             ObjectDisposedException.ThrowIf(_disposed, this);
-            controller = await module.InvokeAsync<IJSObjectReference>("create", arguments);
+            controller = await GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(module, "create", arguments);
             ObjectDisposedException.ThrowIf(_disposed, this);
             _module = module;
             _controller = controller;
@@ -75,6 +90,10 @@ internal sealed class GXBrowserDeviceSession(IJSRuntime runtime, string path, pa
         }
     }
 
+    /// <summary>Stops the browser controller and releases both JavaScript references.</summary>
+    /// <param name="controller">The device controller to stop and release, if created.</param>
+    /// <param name="module">The imported module to release, if created.</param>
+    /// <returns>The asynchronous reference cleanup operation.</returns>
     private static async ValueTask ReleaseAsync(IJSObjectReference? controller, IJSObjectReference? module)
     {
         if (controller is not null)
@@ -100,6 +119,7 @@ internal sealed class GXBrowserDeviceSession(IJSRuntime runtime, string path, pa
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

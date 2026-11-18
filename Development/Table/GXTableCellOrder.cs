@@ -35,51 +35,70 @@ namespace Gurux.UI.Components.Table;
 // Replays only the outer cell templates. Child fragments, component parameters, bindings and
 // reference captures retain their original values; Blazor continues to own every DOM node.
 #pragma warning disable BL0006 // Render-tree inspection is isolated here and covered by render/lifecycle checks.
+/// <summary>Captures outer table cells and replays them in a requested order without rebuilding their child content.</summary>
 internal sealed class GXTableCellOrder
 {
-    private readonly RenderTreeFrame[] frames;
-    private readonly List<int> roots = [];
-    private readonly Dictionary<int, string> scopes = [];
-    private readonly Dictionary<int, (string Content, bool Cell, string? Name)> markup = [];
+    /// <summary>Stores the captured render-tree frames, including nested content and component parameters.</summary>
+    private readonly RenderTreeFrame[] _frames;
+    /// <summary>Stores the outer frame indices and synthetic static markup entries in original order.</summary>
+    private readonly List<int> _roots = [];
+    /// <summary>Associates each outer frame with its render-tree region identity.</summary>
+    private readonly Dictionary<int, string> _scopes = [];
+    /// <summary>Stores static HTML fragments separated at outer table-cell boundaries.</summary>
+    private readonly Dictionary<int, (string Content, bool Cell, string? Name)> _markup = [];
+    /// <summary>Combines render region, column, and original component identity to preserve cell instances when reordered.</summary>
+    /// <param name="Scope">The render-tree region identity containing this cell.</param>
+    /// <param name="Column">The stable column identifier, when supplied.</param>
+    /// <param name="Original">The original render-tree identity to preserve.</param>
     private sealed record CellKey(string Scope, string? Column, object? Original);
-    private static readonly Regex Tags = new("<!--.*?-->|</?(?<tag>[A-Za-z][A-Za-z0-9:-]*)\\b(?:[^>\"']|\"[^\"]*\"|'[^']*')*>", RegexOptions.Singleline);
-    private static readonly Regex IdAttribute = new("\\s+id\\s*=\\s*(?:\"(?<id>[^\"]*)\"|'(?<id>[^']*)'|(?<id>[^\\s>]+))", RegexOptions.IgnoreCase);
+    /// <summary>Matches HTML tags and comments to locate static outer table-cell boundaries.</summary>
+    private static readonly Regex _tags = new("<!--.*?-->|</?(?<tag>[A-Za-z][A-Za-z0-9:-]*)\\b(?:[^>\"']|\"[^\"]*\"|'[^']*')*>", RegexOptions.Singleline);
+    /// <summary>Extracts an HTML element identifier from a static table-cell tag.</summary>
+    private static readonly Regex _idAttribute = new("\\s+id\\s*=\\s*(?:\"(?<id>[^\"]*)\"|'(?<id>[^']*)'|(?<id>[^\\s>]+))", RegexOptions.IgnoreCase);
 
+    /// <summary>Captures outer table cells and replays them in a requested order without rebuilding their child content.</summary>
+    /// <param name="content">The fragment or HTML content to capture, inspect, or cache.</param>
     internal GXTableCellOrder(RenderFragment content)
     {
         using var capture = new RenderTreeBuilder();
         content(capture);
         var buffer = capture.GetFrames();
-        frames = buffer.Array[..buffer.Count];
-        ReadRoots(0, frames.Length, "");
+        _frames = buffer.Array[..buffer.Count];
+        ReadRoots(0, _frames.Length, "");
     }
 
+    /// <summary>Collects outer cells and non-cell content while preserving render-tree region boundaries.</summary>
+    /// <param name="start">The first frame index in the render-tree region to inspect.</param>
+    /// <param name="end">The exclusive end index of the render-tree region to inspect.</param>
+    /// <param name="scope">The stable render-tree region path containing the inspected frames.</param>
     private void ReadRoots(int start, int end, string scope)
     {
         var occurrences = new Dictionary<int, int>();
-        for (var index = start; index < end; index += Length(frames[index]))
+        for (var index = start; index < end; index += Length(_frames[index]))
         {
-            if (frames[index].FrameType == RenderTreeFrameType.Region)
+            if (_frames[index].FrameType == RenderTreeFrameType.Region)
             {
-                int sequence = frames[index].Sequence;
+                int sequence = _frames[index].Sequence;
                 int occurrence = occurrences.GetValueOrDefault(sequence);
                 occurrences[sequence] = occurrence + 1;
-                ReadRoots(index + 1, index + frames[index].RegionSubtreeLength, scope + "/" + sequence + ":" + occurrence);
+                ReadRoots(index + 1, index + _frames[index].RegionSubtreeLength, scope + "/" + sequence + ":" + occurrence);
             }
-            else if (frames[index].FrameType == RenderTreeFrameType.Markup)
+            else if (_frames[index].FrameType == RenderTreeFrameType.Markup)
             {
-                ReadMarkup(frames[index].MarkupContent);
+                ReadMarkup(_frames[index].MarkupContent);
             }
             else
             {
-                roots.Add(index);
-                scopes[index] = scope;
+                _roots.Add(index);
+                _scopes[index] = scope;
             }
         }
     }
 
     // Razor combines adjacent static cells into one markup frame. Split only their outer
     // boundaries, retaining the original HTML and any nested tables verbatim.
+    /// <summary>Separates static HTML at outer table-cell boundaries while retaining nested content verbatim.</summary>
+    /// <param name="content">The fragment or HTML content to capture, inspect, or cache.</param>
     private void ReadMarkup(string content)
     {
         int position = 0, start = -1, depth = 0;
@@ -90,11 +109,11 @@ internal sealed class GXTableCellOrder
             {
                 return;
             }
-            int key = -markup.Count - 1;
-            markup[key] = (value, cell, id);
-            roots.Add(key);
+            int key = -_markup.Count - 1;
+            _markup[key] = (value, cell, id);
+            _roots.Add(key);
         }
-        foreach (Match tag in Tags.Matches(content))
+        foreach (Match tag in _tags.Matches(content))
         {
             string tagName = tag.Groups["tag"].Value.ToLowerInvariant();
             bool closing = tag.Value.StartsWith("</", StringComparison.Ordinal);
@@ -108,7 +127,7 @@ internal sealed class GXTableCellOrder
                 start = tag.Index;
                 cellTag = tagName;
                 depth = 1;
-                var id = IdAttribute.Match(tag.Value);
+                var id = _idAttribute.Match(tag.Value);
                 name = id.Success ? System.Net.WebUtility.HtmlDecode(id.Groups["id"].Value) : null;
             }
             else if (tagName == cellTag)
@@ -126,6 +145,9 @@ internal sealed class GXTableCellOrder
         Add(content[(start >= 0 ? start : position)..], false);
     }
 
+    /// <summary>Calculates the number of render-tree frames owned by a frame and its subtree.</summary>
+    /// <param name="frame">The render-tree frame whose subtree length is required.</param>
+    /// <returns>The frame subtree length, or one for frames without descendants.</returns>
     private static int Length(RenderTreeFrame frame) => frame.FrameType switch
     {
         RenderTreeFrameType.Element => frame.ElementSubtreeLength,
@@ -134,13 +156,16 @@ internal sealed class GXTableCellOrder
         _ => 1
     };
 
+    /// <summary>Determines whether an outer entry represents an HTML or Gurux table cell.</summary>
+    /// <param name="index">The outer frame or synthetic markup index to inspect or replay.</param>
+    /// <returns>True when the entry represents an outer table cell.</returns>
     private bool IsCell(int index)
     {
         if (index < 0)
         {
-            return markup[index].Cell;
+            return _markup[index].Cell;
         }
-        var frame = frames[index];
+        var frame = _frames[index];
         if (frame.FrameType == RenderTreeFrameType.Element)
         {
             return frame.ElementName is "td" or "th";
@@ -153,16 +178,19 @@ internal sealed class GXTableCellOrder
         return type == typeof(GXTd) || type == typeof(GXFh) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(GXTh<>);
     }
 
+    /// <summary>Reads the explicit column name or element identifier associated with an outer cell.</summary>
+    /// <param name="index">The outer frame or synthetic markup index to inspect or replay.</param>
+    /// <returns>The explicit column identifier, or null when none exists.</returns>
     private string? Name(int index)
     {
         if (index < 0)
         {
-            return markup[index].Name;
+            return _markup[index].Name;
         }
         string? id = null, name = null;
-        for (var position = index + 1; position < index + Length(frames[index]) && frames[position].FrameType == RenderTreeFrameType.Attribute; ++position)
+        for (var position = index + 1; position < index + Length(_frames[index]) && _frames[position].FrameType == RenderTreeFrameType.Attribute; ++position)
         {
-            var attribute = frames[position];
+            var attribute = _frames[position];
             if (attribute.AttributeName.Equals("Id", StringComparison.OrdinalIgnoreCase))
             {
                 id = attribute.AttributeValue as string;
@@ -179,13 +207,18 @@ internal sealed class GXTableCellOrder
         return string.IsNullOrWhiteSpace(id) ? name : id;
     }
 
-    internal string?[] Names => roots.Where(IsCell).Select(Name).ToArray();
+    /// <summary>Gets the column identifiers of outer cells in their original order.</summary>
+    internal string?[] Names => _roots.Where(IsCell).Select(Name).ToArray();
 
+    /// <summary>Creates a fragment that replays named cells in the requested order while retaining non-cell content positions.</summary>
+    /// <param name="order">The requested ordered list of visible column identifiers.</param>
+    /// <param name="headerNames">Optional header identifiers used when body cells have no explicit identifier.</param>
+    /// <returns>A fragment preserving the original cell content and requested visible ordering.</returns>
     internal RenderFragment Render(string[]? order, string?[]? headerNames = null) => builder =>
     {
         var names = new Dictionary<int, string>();
         int cell = 0;
-        foreach (var root in roots.Where(IsCell))
+        foreach (var root in _roots.Where(IsCell))
         {
             var name = Name(root) ?? (headerNames != null && cell < headerNames.Length ? headerNames[cell] : null);
             if (!string.IsNullOrWhiteSpace(name))
@@ -196,23 +229,29 @@ internal sealed class GXTableCellOrder
         }
         var positions = (order ?? []).Select((name, index) => (name, index))
             .DistinctBy(pair => pair.name, StringComparer.Ordinal).ToDictionary(pair => pair.name, pair => pair.index, StringComparer.Ordinal);
-        var sorted = roots.Where(names.ContainsKey).OrderBy(root => positions.GetValueOrDefault(names[root], int.MaxValue)).ToArray();
+        var sorted = _roots.Where(names.ContainsKey).OrderBy(root => positions.GetValueOrDefault(names[root], int.MaxValue)).ToArray();
         int next = 0, sequence = 0;
-        foreach (var source in roots)
+        foreach (var source in _roots)
         {
             var root = names.ContainsKey(source) ? sorted[next++] : source;
             Replay(builder, root, sequence++, names.GetValueOrDefault(root));
         }
     };
 
+    /// <summary>Copies an outer frame and its descendants into a target render tree while preserving bindings and references.</summary>
+    /// <param name="builder">The target render-tree builder receiving the captured frames.</param>
+    /// <param name="index">The outer frame or synthetic markup index to inspect or replay.</param>
+    /// <param name="sequence">The optional sequence number replacing the original outer frame sequence.</param>
+    /// <param name="columnKey">The stable column identifier used to preserve component identity during reordering.</param>
+    /// <returns>The first frame index after the replayed subtree.</returns>
     private int Replay(RenderTreeBuilder builder, int index, int? sequence = null, string? columnKey = null)
     {
         if (index < 0)
         {
-            builder.AddMarkupContent(sequence!.Value, markup[index].Content);
+            builder.AddMarkupContent(sequence!.Value, _markup[index].Content);
             return index + 1;
         }
-        var frame = frames[index];
+        var frame = _frames[index];
         int seq = sequence ?? frame.Sequence;
         int end = index + Length(frame);
         switch (frame.FrameType)
@@ -221,7 +260,7 @@ internal sealed class GXTableCellOrder
                 builder.OpenElement(seq, frame.ElementName);
                 if (columnKey != null || frame.ElementKey != null)
                 {
-                    builder.SetKey(sequence.HasValue ? new CellKey(scopes[index], columnKey, frame.ElementKey) : frame.ElementKey);
+                    builder.SetKey(sequence.HasValue ? new CellKey(_scopes[index], columnKey, frame.ElementKey) : frame.ElementKey);
                 }
                 for (int child = index + 1; child < end;)
                 {
@@ -233,7 +272,7 @@ internal sealed class GXTableCellOrder
                 builder.OpenComponent(seq, frame.ComponentType);
                 if (columnKey != null || frame.ComponentKey != null)
                 {
-                    builder.SetKey(sequence.HasValue ? new CellKey(scopes[index], columnKey, frame.ComponentKey) : frame.ComponentKey);
+                    builder.SetKey(sequence.HasValue ? new CellKey(_scopes[index], columnKey, frame.ComponentKey) : frame.ComponentKey);
                 }
                 for (int child = index + 1; child < end;)
                 {

@@ -66,9 +66,11 @@ Edits a typed date and time value with formatting and optional persistence. Stri
 {
     [Parameter] public TimeZoneInfo? TimeZone { get; set; }
     [Parameter] public string? InvalidValueText { get; set; }
-    private static readonly Type ValueType = Nullable.GetUnderlyingType(typeof(TItem)) ?? typeof(TItem);
-    private string InputType => ValueType == typeof(string) ? "text" : ValueType == typeof(DateOnly) ? "date" : ValueType == typeof(TimeOnly) ? "time" : "datetime-local";
+    /// <summary>Stores the non-nullable bound type used to select date and time parsing and input formatting.</summary>
+    private static readonly Type _valueType = Nullable.GetUnderlyingType(typeof(TItem)) ?? typeof(TItem);
+    private string InputType => _valueType == typeof(string) ? "text" : _valueType == typeof(DateOnly) ? "date" : _valueType == typeof(TimeOnly) ? "time" : "datetime-local";
     private string Format => InputType == "date" ? "yyyy-MM-dd" : InputType == "time" ? "HH:mm:ss" : "yyyy-MM-ddTHH:mm:ss";
+    /// <summary>Records whether the current input failed validation.</summary>
     private bool _invalid;
     private string InputClass => (IsAdaptive ? AdaptiveClass("form-control gx-adaptive-picker") : "form-control") + (_invalid ? " is-invalid" : "");
     public void Dispose() => DisposeAdaptiveBehavior();
@@ -84,6 +86,7 @@ Edits a typed date and time value with formatting and optional persistence. Stri
     /// </summary>
     private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
+    /// <summary>Stores a stable generated element identifier when the caller supplies none.</summary>
     private string? _generatedId;
 
     /// <summary>
@@ -200,15 +203,15 @@ Edits a typed date and time value with formatting and optional persistence. Stri
         _invalid = false;
         if (value is string text && !string.IsNullOrWhiteSpace(text))
         {
-            if (ValueType == typeof(string))
+            if (_valueType == typeof(string))
             {
                 result = (TItem)(object)text;
             }
-            else if (init && ValueType == typeof(DateTimeOffset) && DateTimeOffset.TryParseExact(text, "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out var restored))
+            else if (init && _valueType == typeof(DateTimeOffset) && DateTimeOffset.TryParseExact(text, "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out var restored))
             {
                 result = (TItem)(object)restored;
             }
-            else if (ValueType == typeof(DateTimeOffset) && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
+            else if (_valueType == typeof(DateTimeOffset) && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
             {
                 local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
                 if (TimeZone?.IsInvalidTime(local) == true)

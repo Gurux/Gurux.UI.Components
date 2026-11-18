@@ -25,17 +25,21 @@
 // SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 // --------------------------------------------------------------------------
 
-namespace Gurux.UI.Components;
-
+namespace Gurux.UI.Components.Appearance;
 /// <summary>A trusted application-registered Bootstrap-compatible stylesheet.</summary>
 public class GXThemeDefinition
 {
+    /// <summary>Gets or sets the stable lowercase identifier used to select this theme.</summary>
     public string Id { get; set; } = "";
+    /// <summary>Gets or sets the theme display name supplied by the application.</summary>
     public string Name { get; set; } = "";
+    /// <summary>Gets or sets the stylesheet asset path or an explicitly permitted HTTP(S) URL.</summary>
     public string CssUrl { get; set; } = "";
+    /// <summary>Gets or sets whether the theme uses a predominantly dark palette.</summary>
     public bool IsDark { get; set; }
     /// <summary>False for themes whose fixed palette cannot fully follow color modes.</summary>
     public bool SupportsColorModes { get; set; } = true;
+    /// <summary>Gets or sets the optional description displayed for the theme.</summary>
     public string? Description { get; set; }
     /// <summary>Optional trusted application preview color, not a full stylesheet.</summary>
     public string? PreviewColor { get; set; }
@@ -47,18 +51,12 @@ public class GXThemeDefinition
     /// <summary>CSS custom properties applied while this theme is active.</summary>
     public Dictionary<string, string> CssVariables { get; set; } = new(StringComparer.Ordinal);
 
+    /// <summary>Creates an independent copy so callers cannot mutate the stored settings or theme variables.</summary>
+    /// <returns>A theme copy with an independent CSS variable dictionary.</returns>
     internal GXThemeDefinition Copy()
     {
         var copy = (GXThemeDefinition)MemberwiseClone();
         copy.CssVariables = new Dictionary<string, string>(CssVariables, StringComparer.Ordinal);
         return copy;
     }
-}
-
-/// <summary>Application defaults and trusted additional theme registrations.</summary>
-public sealed class GXThemeOptions
-{
-    public GXAppearanceSettings Defaults { get; set; } = new();
-    public List<GXThemeDefinition> Themes { get; } = new();
-    public string StorageKey { get; set; } = "Gurux.UI.Components:Appearance";
 }

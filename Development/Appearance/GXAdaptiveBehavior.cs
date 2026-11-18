@@ -25,49 +25,53 @@
 // SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 // --------------------------------------------------------------------------
 
-namespace Gurux.UI.Components;
+using Gurux.UI.Components.Enums;
 
-/// <summary>Configurable dialog action conventions; Auto follows the selected style.</summary>
-public enum GXDialogButtonOrder { Auto, PrimaryFirst, PrimaryLast }
-/// <summary>Presentation is independent of action severity. Sheets are explicitly opted into.</summary>
-public enum GXDialogPresentation { Auto, Dialog, BottomSheet }
-/// <summary>Viewport modes, independent of client operating system.</summary>
-public enum GXResponsiveLayoutMode { Compact, Medium, Expanded }
-public enum GXNavigationPresentation { Default, Sidebar, BottomTabs, Rail, Drawer }
-public enum GXMenuPresentation { Default, Popup, ActionSheet }
-public enum GXNotificationPresentation { Default, InfoBar, Banner, Snackbar }
-
+namespace Gurux.UI.Components.Appearance;
 /// <summary>Immutable shared UI conventions resolved by the existing scoped theme service.</summary>
+/// <param name="Layout">The effective layout used to choose platform conventions.</param>
+/// <param name="ResponsiveMode">The viewport size class used to choose navigation density.</param>
+/// <param name="CoarsePointer">Whether the primary pointer has coarse precision.</param>
+/// <param name="DialogButtonOrder">The order of primary and cancel actions.</param>
+/// <param name="Navigation">The navigation container appropriate for the layout and viewport.</param>
+/// <param name="Menu">The presentation used for menu commands.</param>
+/// <param name="Notification">The presentation used for notifications.</param>
 public sealed record GXAdaptiveBehavior(
-    GXLayoutStyle Layout,
-    GXResponsiveLayoutMode ResponsiveMode,
+    LayoutStyle Layout,
+    ResponsiveLayoutMode ResponsiveMode,
     bool CoarsePointer,
-    GXDialogButtonOrder DialogButtonOrder,
-    GXNavigationPresentation Navigation,
-    GXMenuPresentation Menu,
-    GXNotificationPresentation Notification)
+    DialogButtonOrder DialogButtonOrder,
+    NavigationPresentation Navigation,
+    MenuPresentation Menu,
+    NotificationPresentation Notification)
 {
-    public static GXAdaptiveBehavior Default { get; } = Create(GXLayoutStyle.Default, GXResponsiveLayoutMode.Expanded, false);
+    /// <summary>Gets the conventions for the default layout on an expanded viewport with a fine pointer.</summary>
+    public static GXAdaptiveBehavior Default { get; } = Create(LayoutStyle.Default, ResponsiveLayoutMode.Expanded, false);
 
-    public static GXAdaptiveBehavior Create(GXLayoutStyle layout, GXResponsiveLayoutMode mode, bool coarsePointer)
+    /// <summary>Resolves dialog, navigation, menu, and notification conventions for the selected layout and viewport.</summary>
+    /// <param name="layout">The requested adaptive layout.</param>
+    /// <param name="mode">The viewport size class used to resolve responsive conventions.</param>
+    /// <param name="coarsePointer">Whether the browser primary pointer has coarse precision.</param>
+    /// <returns>The immutable conventions resolved for the supplied environment.</returns>
+    public static GXAdaptiveBehavior Create(LayoutStyle layout, ResponsiveLayoutMode mode, bool coarsePointer)
     {
-        var compact = mode == GXResponsiveLayoutMode.Compact;
+        var compact = mode == ResponsiveLayoutMode.Compact;
         return new(layout, mode, coarsePointer,
-            layout is GXLayoutStyle.Cupertino or GXLayoutStyle.Material ? GXDialogButtonOrder.PrimaryLast : GXDialogButtonOrder.PrimaryFirst,
+            layout is LayoutStyle.Cupertino or LayoutStyle.Material ? DialogButtonOrder.PrimaryLast : DialogButtonOrder.PrimaryFirst,
             layout switch
             {
-                GXLayoutStyle.Fluent => compact ? GXNavigationPresentation.Drawer : GXNavigationPresentation.Sidebar,
-                GXLayoutStyle.Cupertino => compact ? GXNavigationPresentation.BottomTabs : GXNavigationPresentation.Sidebar,
-                GXLayoutStyle.Material => compact ? GXNavigationPresentation.BottomTabs : mode == GXResponsiveLayoutMode.Medium ? GXNavigationPresentation.Rail : GXNavigationPresentation.Sidebar,
-                _ => GXNavigationPresentation.Default
+                LayoutStyle.Fluent => compact ? NavigationPresentation.Drawer : NavigationPresentation.Sidebar,
+                LayoutStyle.Cupertino => compact ? NavigationPresentation.BottomTabs : NavigationPresentation.Sidebar,
+                LayoutStyle.Material => compact ? NavigationPresentation.BottomTabs : mode == ResponsiveLayoutMode.Medium ? NavigationPresentation.Rail : NavigationPresentation.Sidebar,
+                _ => NavigationPresentation.Default
             },
-            layout == GXLayoutStyle.Default ? GXMenuPresentation.Default : compact && layout is GXLayoutStyle.Cupertino or GXLayoutStyle.Material ? GXMenuPresentation.ActionSheet : GXMenuPresentation.Popup,
+            layout == LayoutStyle.Default ? MenuPresentation.Default : compact && layout is LayoutStyle.Cupertino or LayoutStyle.Material ? MenuPresentation.ActionSheet : MenuPresentation.Popup,
             layout switch
             {
-                GXLayoutStyle.Fluent => GXNotificationPresentation.InfoBar,
-                GXLayoutStyle.Cupertino => GXNotificationPresentation.Banner,
-                GXLayoutStyle.Material => GXNotificationPresentation.Snackbar,
-                _ => GXNotificationPresentation.Default
+                LayoutStyle.Fluent => NotificationPresentation.InfoBar,
+                LayoutStyle.Cupertino => NotificationPresentation.Banner,
+                LayoutStyle.Material => NotificationPresentation.Snackbar,
+                _ => NotificationPresentation.Default
             });
     }
 }

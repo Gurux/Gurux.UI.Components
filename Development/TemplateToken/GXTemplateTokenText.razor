@@ -46,13 +46,14 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     /// <summary>Text containing optional [url:address]label[/url] tags. Ordinary HTML is displayed as text.</summary>
     [Parameter] public string? Text { get; set; }
     private readonly record struct Part(string Text, string? Url = null);
-    private static readonly Regex UrlTags = new(@"\[url:([^\]\r\n]+)\]([\s\S]*?)\[/url\]",
+    /// <summary>Recognizes custom [url:destination]caption[/url] markup rendered as links.</summary>
+    private static readonly Regex _urlTags = new(@"\[url:([^\]\r\n]+)\]([\s\S]*?)\[/url\]",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
     private static IEnumerable<Part> Parse(string text)
     {
         int position = 0;
-        foreach (Match match in UrlTags.Matches(text))
+        foreach (Match match in _urlTags.Matches(text))
         {
             if (match.Index > position)
             {

@@ -9,10 +9,11 @@
         <Version Condition=" '$(BUILD_BUILDNUMBER)' == '' ">4.0.2611.1101-local</Version>
         <Version Condition=" '$(BUILD_BUILDNUMBER)' != '' ">$(BUILD_BUILDNUMBER)</Version>
         <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+        <TargetFrameworks>net11.0;net10.0</TargetFrameworks>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <RepositoryUrl>https://github.com/gurux/gurux.ui.components</RepositoryUrl>
         <PackageTags>UI </PackageTags>
         <PackageId>Gurux.UI.Components</PackageId>
@@ -26,13 +27,19 @@
     <ItemGroup>
         <SupportedPlatform Include="browser" />
     </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.14" />
-        <PackageReference Include="System.ServiceModel.Syndication" Version="10.0.14" />
+    <!-- ASP.NET versions are managed per target framework. Exclude them from NuGet
+         Update All, which otherwise attempts to apply the .NET 11 version to .NET 10.
+         Update these explicit versions here when upgrading each target framework. -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.15" IsImplicitlyDefined="true" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.15" IsImplicitlyDefined="true" />
+        <PackageReference Include="System.ServiceModel.Syndication" Version="11.0.0" />
     </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.14" />
+    <ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
+        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="11.0.0" IsImplicitlyDefined="true" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="11.0.0" IsImplicitlyDefined="true" />
+        <PackageReference Include="System.ServiceModel.Syndication" Version="11.0.0" />
     </ItemGroup>
 
     <ItemGroup>

@@ -120,7 +120,9 @@ Copies a value to the clipboard and displays a temporary success indicator.
     [Parameter]
     public bool AlignRight { get; set; }
 
+    /// <summary>Records whether the clipboard success indicator is currently visible.</summary>
     private bool _copied;
+    /// <summary>Cancels pending asynchronous work when a newer operation starts or the component is disposed.</summary>
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -135,7 +137,7 @@ Copies a value to the clipboard and displays a temporary success indicator.
     {
         if (Value != null)
         {
-            await JS.InvokeVoidAsync("copyToClipboard", Value.ToString());
+            await GXJavaScriptInterop.InvokeVoidAsync(JS, "copyToClipboard", Value.ToString());
 
             _copied = true;
             StateHasChanged();

@@ -33,9 +33,9 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
 </summary>
 *@
 
-@using System.Diagnostics
-@using Microsoft.Extensions.Logging
+@using Gurux.UI.Components.Enums
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Extensions.Logging
 @inject ILogger<GXMenuControl> Logger
 @inject IServiceProvider Services
 @implements IDisposable
@@ -60,9 +60,9 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             {
                 @if (!Submenu)
                 {
-                    <button type="button" class="gx-menu-dismiss" tabindex="-1" aria-label="Close menu" @onclick="Close" />
+                    <button type="button" class="gx-menu-dismiss" tabindex="-1" aria-label="@Gurux.UI.Components.Properties.Resources.CloseMenu" @onclick="Close" />
                 }
-                <div role="@(IsAdaptive ? "menu" : null)" id="@_popupId" class="gx-menu-popup @(Submenu ? "gx-menu-popup-nested" : null) @(RightCorner ? "gx-menu-popup-right" : null) @(Bottom ? "gx-menu-popup-above" : null) @(!Submenu && AdaptiveBehavior.Menu == GXMenuPresentation.ActionSheet ? "gx-menu-sheet" : null)">
+                <div role="@(IsAdaptive ? "menu" : null)" id="@_popupId" class="gx-menu-popup @(Submenu ? "gx-menu-popup-nested" : null) @(RightCorner ? "gx-menu-popup-right" : null) @(Bottom ? "gx-menu-popup-above" : null) @(!Submenu && AdaptiveBehavior.Menu == MenuPresentation.ActionSheet ? "gx-menu-sheet" : null)">
                     @CommandButtons
                 </div>
             }
@@ -86,23 +86,23 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             else if (it.Children is { Count: > 0 })
             {
                 <GXMenuControl @key="it" Dropdown="true" Submenu="true" Text="@it.Text" Icon="@it.Id"
-                             ReadOnly="@(ReadOnly || it.ReadOnly)" MenuItems="@it.Children" OnSelected="CloseBranchAsync"
-                             ParentCanExecute="@(() => CanExecuteAsync(it))" />
+                               ReadOnly="@(ReadOnly || it.ReadOnly)" MenuItems="@it.Children" OnSelected="CloseBranchAsync"
+                               ParentCanExecute="@(() => CanExecuteAsync(it))" />
             }
             else
             {
-            <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" role="@(IsAdaptive ? "menuitem" : null)" class="@GXComponentAttributes.GetClass(it.AdditionalAttributes, "btn button")" disabled="@(ReadOnly || it.ReadOnly)" style="@GetButtonStyle(it)" @onclick="() => SelectAsync(it)">
-                @if (!string.IsNullOrEmpty(it.Image))
-                {
-                    <GXImage Value="@it.Image" />
-                }
-                else if (!string.IsNullOrEmpty(it.Id))
-                {
-                    <GXImage Id="@it.Id" />
-                }
-                &nbsp;
-                <GXLocalizedText Value="@it.Text" />
-            </button>
+                <button @attributes="GXComponentAttributes.WithoutCss(it.AdditionalAttributes)" type="button" role="@(IsAdaptive ? "menuitem" : null)" class="@GXComponentAttributes.GetClass(it.AdditionalAttributes, "btn button")" disabled="@(ReadOnly || it.ReadOnly)" style="@GetButtonStyle(it)" @onclick="() => SelectAsync(it)">
+                    @if (!string.IsNullOrEmpty(it.Image))
+                    {
+                        <GXImage Value="@it.Image" />
+                    }
+                    else if (!string.IsNullOrEmpty(it.Id))
+                    {
+                        <GXImage Id="@it.Id" />
+                    }
+                    &nbsp;
+                    <GXLocalizedText Value="@it.Text" />
+                </button>
             }
         }
     </text>;
@@ -131,10 +131,15 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     [Parameter]
     public bool ReadOnly { get; set; }
 
+    /// <summary>Stores the unique browser identifier for this menu popup.</summary>
     private readonly string _popupId = $"gx-menu-{Guid.NewGuid():N}";
+    /// <summary>References the menu toggle used when returning keyboard focus.</summary>
     private ElementReference _toggle;
+    /// <summary>Records whether the dropdown menu is currently expanded.</summary>
     private bool _isOpen;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
     private bool _disposed;
+    /// <summary>Caches command-policy decisions and tracks authorization invalidation.</summary>
     private GXCommandAuthorization? _authorization;
 
     [CascadingParameter]
@@ -188,9 +193,9 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             if (item.Children != null)
             {
                 foreach (var policy in Policies(item.Children))
-                    {
-                        yield return policy;
-                    }
+                {
+                    yield return policy;
+                }
             }
         }
     }
@@ -222,8 +227,11 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             !item.IsSeparator && Items.Contains(item) && policy == item.Policy;
     }
 
+    /// <summary>References the menu root configured by the adaptive browser module.</summary>
     private ElementReference _adaptiveRoot;
+    /// <summary>Holds the module implementing adaptive menu or tab keyboard behavior.</summary>
     private IJSObjectReference? _adaptiveModule;
+    /// <summary>Records whether initial adaptive menu focus has already been assigned.</summary>
     private bool _adaptiveFocused;
     private Task ClickToggle() => ConsumeLongPressClick() ? Task.CompletedTask : Toggle();
     private Task BeginPress(PointerEventArgs args) => StartLongPressAsync(args, () => !_isOpen && Dropdown ? Toggle() : Task.CompletedTask);
@@ -239,12 +247,12 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             _adaptiveModule ??= await GetComponentModuleAsync(runtime, "./_content/Gurux.UI.Components/ContextMenu/GXContextMenuController.razor.js");
             if (!_disposed && _adaptiveModule != null)
             {
-                await _adaptiveModule.InvokeVoidAsync("configureMenu", _adaptiveRoot, IsAdaptive && _isOpen);
+                await GXJavaScriptInterop.InvokeVoidAsync(_adaptiveModule, "configureMenu", _adaptiveRoot, IsAdaptive && _isOpen);
             }
             if (!_disposed && IsAdaptive && _isOpen && _adaptiveModule != null && !_adaptiveFocused)
             {
                 _adaptiveFocused = true;
-                await _adaptiveModule.InvokeVoidAsync("focusMenu", _adaptiveRoot, "Home");
+                await GXJavaScriptInterop.InvokeVoidAsync(_adaptiveModule, "focusMenu", _adaptiveRoot, "Home");
             }
         }
         else
@@ -252,10 +260,11 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
             _adaptiveFocused = false;
             if (_adaptiveModule != null)
             {
-                await _adaptiveModule.InvokeVoidAsync("configureMenu", _adaptiveRoot, false);
+                await GXJavaScriptInterop.InvokeVoidAsync(_adaptiveModule, "configureMenu", _adaptiveRoot, false);
             }
         }
     }
+    /// <summary>Tracks asynchronous browser cleanup so duplicate disposal shares the same operation.</summary>
     private Task? _browserDisposal;
     public async ValueTask DisposeAsync()
     {
@@ -284,7 +293,8 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
         {
             return;
         }
-        if (_isOpen) { Close(); return; }
+        if (_isOpen)
+        { Close(); return; }
         if (ParentCanExecute != null && !await ParentCanExecute())
         {
             return;
@@ -321,7 +331,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
         }
         else if (IsAdaptive && Dropdown && _isOpen && _adaptiveModule != null && args.Key is "ArrowDown" or "ArrowUp" or "Home" or "End")
         {
-            await _adaptiveModule.InvokeVoidAsync("focusMenu", _adaptiveRoot, args.Key);
+            await GXJavaScriptInterop.InvokeVoidAsync(_adaptiveModule, "focusMenu", _adaptiveRoot, args.Key);
         }
     }
 
@@ -334,11 +344,15 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
         // Invoke directly after the final authorization check. Public selection notifications
         // must not change policy/registration between authorization and the command callback.
         Close();
-        try { await item.OnClick.InvokeAsync(); }
-        finally { if (!_disposed)
+        try
+        { await item.OnClick.InvokeAsync(); }
+        finally
         {
-            await CloseBranchAsync();
-        } }
+            if (!_disposed)
+            {
+                await CloseBranchAsync();
+            }
+        }
     }
 
     /// <summary>
@@ -396,6 +410,7 @@ Renders command buttons or a dropdown with configurable right and bottom alignme
     [Parameter]
     public List<GXMenuEntry>? MenuItems { get; set; }
 
+    /// <summary>Stores menu entries registered through declarative child content.</summary>
     private readonly List<GXMenuEntry> _childItems = new();
     private IEnumerable<GXMenuEntry> Items => (MenuItems ?? Enumerable.Empty<GXMenuEntry>()).Concat(_childItems);
 

@@ -84,7 +84,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     @if (showColumnConfiguration && _showColumnEditor)
     {
         var editorContext = CreateColumnEditorContext();
-        <GXDialog Id="@(Id + "-columns")" Title="@ColumnSelectorText" Save="false" ManageFocus="true" OkButtonTitle="Save" CancelButtonTitle="Cancel"
+        <GXDialog Id="@(Id + "-columns")" Title="@ColumnSelectorText" Save="false" ManageFocus="true" OkButtonTitle="@Gurux.UI.Components.Properties.Resources.Save" CancelButtonTitle="@Gurux.UI.Components.Properties.Resources.Cancel"
                 OnOk="SaveColumnEditorAsync" OnCancel="CloseColumnEditorAsync" aria-modal="true" aria-labelledby="@(Id + "-columns-title")">
             <FooterContent>
                 @if (ColumnEditorFooterContent != null)
@@ -273,7 +273,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         </tbody>
     </table>
     @*Add pagination.*@
-    @if (Pages.Count > 1 && !ShowAllData)
+    @if (_pages.Count > 1 && !ShowAllData)
     {
         <ul class="pagination justify-content-center">
             @if (CurrentPage != 0)
@@ -282,7 +282,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                     style="cursor: pointer;"
                     class="page-link" href="#">&laquo;</li>
             }
-            @foreach (int pos in Pages)
+            @foreach (int pos in _pages)
             {
                 @if (pos >= CurrentPage - Spread && pos <= CurrentPage + Spread)
                 {
@@ -322,7 +322,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 <label for="@GetPageSizeId()" class="mb-0">@Properties.Resources.RowsPerPage</label>
                 <GXInputDropdown class="form-select w-auto"
                                  Id="@GetPageSizeId()"
-                                 Items="@RowsPerPage"
+                                 Items="@_rowsPerPage"
                                  TValue="int" Value="@PageSize"
                                  ValueExpression="@(() => PageSize)"
                                  ValueChanged="SetPageSize">
@@ -361,10 +361,15 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     [Parameter]
     public string? PreferencesId { get; set; }
 
+    /// <summary>Stores persisted or measured widths by table column identifier.</summary>
     private readonly Dictionary<string, double> _columnWidths = new(StringComparer.Ordinal);
+    /// <summary>Holds the browser module implementing table column width persistence.</summary>
     private IJSObjectReference? _widthModule;
+    /// <summary>Holds the browser controller observing and resizing table columns.</summary>
     private IJSObjectReference? _widthHandler;
+    /// <summary>Allows the browser width controller to publish measured widths to this table.</summary>
     private DotNetObjectReference<GXTable<TItem>>? _widthReference;
+    /// <summary>Tracks browser width initialization to avoid duplicate observers.</summary>
     private Task? _widthInitialization;
 
     private string? ColumnWidthsKey => GetStorageKey("ColumnWidths");
@@ -422,6 +427,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// </summary>
     public string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
+    /// <summary>Stores a stable generated element identifier when the caller supplies none.</summary>
     private string? _generatedId;
 
     /// <summary>
@@ -436,7 +442,8 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         return null;
     }
 
-    int[] RowsPerPage = new int[] { 10, 20, 50, 100 };
+    /// <summary>Stores the page sizes offered by the table page-size selector.</summary>
+    int[] _rowsPerPage = new int[] { 10, 20, 50, 100 };
 
     /// <summary>
     /// Determines whether a row checkbox is disabled and whether the row should be checked.
@@ -590,7 +597,8 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         }
     }
 
-    private TItem? DropItem;
+    /// <summary>Stores the row currently being dragged for a row-move operation.</summary>
+    private TItem? _dropItem;
 
     /// <summary>
     /// Records the table item being dragged for a subsequent row reorder operation.
@@ -598,7 +606,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     private void HandleDragStart(TItem item)
     {
         Logger.LogError("Drag start: {0}", item);
-        DropItem = item;
+        _dropItem = item;
     }
 
     /// <summary>
@@ -623,12 +631,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     private async Task HandleDrop(TItem item)
     {
         Logger.LogError("Drag drop: {0}", item);
-        if (DropItem != null && OnItemMoved.HasDelegate && Items != null)
+        if (_dropItem != null && OnItemMoved.HasDelegate && Items != null)
         {
             List<TItem> tmp = new(Items);
             int pos = tmp.IndexOf(item);
-            var dropped = DropItem;
-            DropItem = default;
+            var dropped = _dropItem;
+            _dropItem = default;
             await OnItemMoved.InvokeAsync((dropped, pos));
         }
     }
@@ -639,7 +647,8 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     [Parameter]
     public int Spread { get; set; } = 2;
 
-    private List<int> Pages = new List<int>();
+    /// <summary>Stores the page indices offered by the table pagination controls.</summary>
+    private List<int> _pages = new List<int>();
 
     /// <summary>
     /// Gets or sets the currently focused table item.
@@ -849,22 +858,34 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     /// <summary>Applies custom draft defaults after Reset, before the user saves or cancels.</summary>
     [Parameter] public EventCallback<GXTableColumnEditorContext> OnColumnEditorReset { get; set; }
     /// <summary>Caption for the column selector.</summary>
-    [Parameter] public string ColumnSelectorText { get; set; } = "Columns";
+    [Parameter] public string ColumnSelectorText { get; set; } = Gurux.UI.Components.Properties.Resources.Columns;
     /// <summary>Loads visible column identifiers. Null uses the default columns.</summary>
     [Parameter] public Func<Task<string[]?>>? ColumnsProvider { get; set; }
     /// <summary>Persists visible column identifiers before they are applied.</summary>
     [Parameter] public EventCallback<string[]> ColumnsChanged { get; set; }
+    /// <summary>Records whether a column customization save is in progress.</summary>
     private bool _savingColumns;
+    /// <summary>Stores the latest column customization error for display.</summary>
     private string? _columnError;
+    /// <summary>Stores the visible column identifiers currently applied to the table.</summary>
     private string[]? _visibleColumns;
+    /// <summary>Stores the most recently observed externally supplied visible column identifiers.</summary>
     private string[]? _parameterColumns;
+    /// <summary>Stores the most recently observed externally supplied default column identifiers.</summary>
     private string[]? _parameterDefaultColumns;
+    /// <summary>Stores the default visible column identifiers used by reset operations.</summary>
     private string[]? _defaultColumns;
+    /// <summary>Stores the current ordered column identifiers.</summary>
     private string[]? _columnOrder;
+    /// <summary>Stores the identifiers captured from the original header content.</summary>
     private string?[]? _sourceColumnNames;
+    /// <summary>Owns the active column editor context and its callbacks.</summary>
     private GXTable<GXTableColumn>? _columnEditor;
+    /// <summary>Records whether the column customization editor is currently visible.</summary>
     private bool _showColumnEditor;
+    /// <summary>Stores the editable column customization draft before it is committed.</summary>
     private ColumnPreferences? _columnDraft;
+    /// <summary>Records whether committing the current customization must clear saved widths.</summary>
     private bool _draftResetWidths;
 
     private GXTableColumnEditorContext CreateColumnEditorContext()
@@ -1067,9 +1088,13 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
             }
         }
     }
+    /// <summary>Records whether initial column customization has been applied.</summary>
     private bool _columnsInitialized;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
     private bool _disposed;
+    /// <summary>Stores column components registered with this table.</summary>
     private readonly Dictionary<string, RegisteredColumn> _registeredColumns = new(StringComparer.Ordinal);
+    /// <summary>Stores explicit visibility overrides by column identifier.</summary>
     private readonly Dictionary<string, Visibility> _columnVisibility = new(StringComparer.Ordinal);
 
     private sealed record RegisteredColumn(RenderFragment? Content, Visibility Visibility);
@@ -1464,6 +1489,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     [Parameter]
     public SelectionMode SelectionMode { get; set; } = SelectionMode.Single;
 
+    /// <summary>Cancels pending asynchronous work when a newer operation starts or the component is disposed.</summary>
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -1586,12 +1612,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 if (updated)
                 {
                     Items = tmp;
-                    Pages.Clear();
+                    _pages.Clear();
                     if (!ShowAllData)
                     {
                         for (int pos = 0; pos != TotalPages; ++pos)
                         {
-                            Pages.Add(pos);
+                            _pages.Add(pos);
                         }
                     }
                     InvokeAsync(StateHasChanged);
@@ -1621,7 +1647,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         {
             if (ItemsProvider == null)
             {
-                throw new Exception("ItemsProvider not set.");
+                throw new Exception(Gurux.UI.Components.Properties.Resources.ItemsProviderRequired);
             }
             var result = await ItemsProvider(req);
             Items = result.Items;
@@ -1672,12 +1698,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 }
             }
             TotalCount = result.TotalItemCount;
-            Pages.Clear();
+            _pages.Clear();
             if (!ShowAllData)
             {
                 for (int pos = 0; pos != TotalPages; ++pos)
                 {
-                    Pages.Add(pos);
+                    _pages.Add(pos);
                 }
             }
             // Only apply result if the task was not canceled.
@@ -1985,13 +2011,13 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
     private async Task InitializeColumnResizingAsync(IJSRuntime js)
     {
-        _widthModule = await js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Table/widths.js");
+        _widthModule = await GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(js, "import", "./_content/Gurux.UI.Components/Table/widths.js");
         if (_disposed)
         {
             return;
         }
         _widthReference = DotNetObjectReference.Create(this);
-        _widthHandler = await _widthModule.InvokeAsync<IJSObjectReference>("initialize", Id, _widthReference);
+        _widthHandler = await GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(_widthModule, "initialize", Id, _widthReference);
     }
 
     /// <summary>Removes browser resize listeners and releases interop references.</summary>

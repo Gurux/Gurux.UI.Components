@@ -28,11 +28,15 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Gurux.UI.Components;
+namespace Gurux.UI.Components.Appearance;
 
 /// <summary>Opt-in appearance registration for WebAssembly and Server circuits.</summary>
 public static class GXAppearanceServiceCollectionExtensions
 {
+    /// <summary>Registers scoped appearance services and applies optional application configuration.</summary>
+    /// <param name="services">The service collection receiving appearance, theme, and persistence registrations.</param>
+    /// <param name="configure">The optional callback configuring appearance defaults and trusted themes.</param>
+    /// <returns>The service collection so registrations can be chained.</returns>
     public static IServiceCollection AddGXAppearance(this IServiceCollection services, Action<GXThemeOptions>? configure = null)
     {
         var options = new GXThemeOptions();

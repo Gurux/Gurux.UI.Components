@@ -69,19 +69,25 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     /// <summary>Preferred CSS width, constrained to the viewport width.</summary>
     [Parameter] public string Width { get; set; } = "42rem";
     /// <summary>Accessible close-button label, supplied by the application for localization.</summary>
-    [Parameter] public string CloseButtonTitle { get; set; } = "Close";
+    [Parameter] public string CloseButtonTitle { get; set; } = Gurux.UI.Components.Properties.Resources.Close;
     /// <summary>Optional stable element identifier; a unique identifier is generated when absent.</summary>
     [Parameter] public string? Id { get; set; }
     /// <summary>Additional HTML attributes, classes and styles for the panel root.</summary>
     [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>References the rendered component root used by browser enhancements.</summary>
     private ElementReference _root;
+    /// <summary>Stores a stable generated element identifier when the caller supplies none.</summary>
     private string? _generatedId;
     private string ElementId => string.IsNullOrWhiteSpace(Id)
         ? GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId) : Id;
+    /// <summary>Shares the pending browser module import between rendering and disposal.</summary>
     private Task<IJSObjectReference>? _moduleTask;
+    /// <summary>Holds the imported browser module until component disposal.</summary>
     private IJSObjectReference? _module;
+    /// <summary>Identifies the browser focus scope owned by this component.</summary>
     private string? _focusKey;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
     private bool _disposed;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -99,7 +105,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
         {
             return;
         }
-        _moduleTask ??= js.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Panel/GXSidePanel.razor.js").AsTask();
+        _moduleTask ??= GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(js, "import", "./_content/Gurux.UI.Components/Panel/GXSidePanel.razor.js").AsTask();
         _module = await _moduleTask;
         if (_disposed || !Open)
         {
@@ -110,7 +116,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
         {
             await ReleaseFocusAsync();
             _focusKey = key;
-            await _module.InvokeVoidAsync("open", _root, key);
+            await GXJavaScriptInterop.InvokeVoidAsync(_module, "open", _root, key);
         }
     }
 
@@ -135,7 +141,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
         {
             var key = _focusKey;
             _focusKey = null;
-            await _module.InvokeVoidAsync("close", key);
+            await GXJavaScriptInterop.InvokeVoidAsync(_module, "close", key);
         }
     }
 

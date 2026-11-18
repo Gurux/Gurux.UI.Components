@@ -29,10 +29,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Gurux.UI.Components.TemplateToken;
-
-/// <summary>A plain-text editor view with an explicit indication of example substitution.</summary>
-public sealed record TemplateTokenViewResult(string Text, bool UsesExamples);
-
 /// <summary>Creates an editor view without recursively expanding replacement values.</summary>
 public static partial class TemplateTokenView
 {
@@ -77,6 +73,8 @@ public static partial class TemplateTokenView
         return new(result.ToString(), usesExamples);
     }
 
+    /// <summary>Matches original template-token references for a single nonrecursive expansion pass.</summary>
+    /// <returns>The regular expression recognizing supported template tokens.</returns>
     [GeneratedRegex(@"\[([A-Za-z][A-Za-z0-9_-]{0,63}:[A-Za-z0-9_.:-]{1,128})\]", RegexOptions.CultureInvariant)]
     private static partial Regex TokenPattern();
 }

@@ -28,6 +28,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 *@
 
 @using Gurux.UI.Components.Appearance
+@using Gurux.UI.Components.Enums
 @implements IDisposable
 @inject IGXThemeService ThemeService
 
@@ -37,7 +38,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     {
         <label class="form-label">
             @Text("Layout")
-            <GXInputDropdown TValue="GXLayoutStyle" Items="Layouts" Value="Settings.Layout" OnSelected="ThemeService.SetLayoutAsync" RememberValue="false" Formatter="LayoutText" data-gx-setting="layout" />
+            <GXInputDropdown TValue="LayoutStyle" Items="_layouts" Value="Settings.Layout" OnSelected="ThemeService.SetLayoutAsync" RememberValue="false" Formatter="LayoutText" data-gx-setting="layout" />
         </label>
     }
     @if (ShowThemeSelector)
@@ -51,7 +52,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     {
         <label class="form-label">
             @Text("ColorMode")
-            <GXInputDropdown TValue="GXColorMode" Items="ColorModes" Value="Settings.ColorMode" OnSelected="ThemeService.SetColorModeAsync" RememberValue="false" Formatter="ColorText" data-gx-setting="color" />
+            <GXInputDropdown TValue="ColorMode" Items="_colorModes" Value="Settings.ColorMode" OnSelected="ThemeService.SetColorModeAsync" RememberValue="false" Formatter="ColorText" data-gx-setting="color" />
         </label>
         @if (!ActiveTheme.SupportsColorModes)
         {
@@ -81,13 +82,15 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     /// <summary>Optional host resource lookup, with built-in resource fallback.</summary>
     [Parameter] public Func<string, string>? Localize { get; set; }
     private GXAppearanceSettings Settings => ThemeService.Current;
-    private static readonly GXLayoutStyle[] Layouts = Enum.GetValues<GXLayoutStyle>();
-    private static readonly GXColorMode[] ColorModes = Enum.GetValues<GXColorMode>();
+    /// <summary>Stores all supported layout choices for the appearance selector.</summary>
+    private static readonly LayoutStyle[] _layouts = Enum.GetValues<LayoutStyle>();
+    /// <summary>Stores all supported color-mode choices for the appearance selector.</summary>
+    private static readonly ColorMode[] _colorModes = Enum.GetValues<ColorMode>();
     private IEnumerable<string> ThemeIds => ThemeService.GetThemes().Select(x => x.Id);
     private GXThemeDefinition ActiveTheme => ThemeService.GetThemes().Single(x => x.Id == Settings.BootstrapTheme);
     private string Text(string key) => Localize?.Invoke(key) ?? GXAppearanceText.Get(key);
-    private string LayoutText(GXLayoutStyle value) => Text(value.ToString());
-    private string ColorText(GXColorMode value) => Text(value.ToString());
+    private string LayoutText(LayoutStyle value) => Text(value.ToString());
+    private string ColorText(ColorMode value) => Text(value.ToString());
     private string ThemeText(string id) => id == "default" ? Text("Default") : ThemeService.GetThemes().Single(x => x.Id == id).Name;
     protected override void OnInitialized() => ThemeService.AppearanceChanged += Changed;
     private void Changed(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);

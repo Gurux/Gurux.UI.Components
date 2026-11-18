@@ -84,6 +84,7 @@ namespace Gurux.UI.Components
         /// </summary>
         private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
+        /// <summary>Stores the stable element identifier generated when the caller supplies none.</summary>
         private string? _generatedId;
 
         /// <summary>
@@ -190,7 +191,7 @@ namespace Gurux.UI.Components
             cancellationToken);
             if (ItemsProvider == null)
             {
-                throw new Exception("ItemsProvider not set.");
+                throw new Exception(Gurux.UI.Components.Properties.Resources.ItemsProviderRequired);
             }
             var result = await ItemsProvider(req);
             if (cancellationToken.IsCancellationRequested)
@@ -212,6 +213,7 @@ namespace Gurux.UI.Components
                 StateHasChanged();
             }
         }
+        /// <summary>Records whether the bound value type supports multiple selected values.</summary>
         private readonly bool _isMultipleSelect;
 
         /// <summary>
@@ -301,7 +303,9 @@ namespace Gurux.UI.Components
             }
             builder.CloseElement();
         }
+        /// <summary>Stores the value present when editing started so canceled edits can restore it.</summary>
         private TValue? _original;
+        /// <summary>Records whether an original value has been captured for the current edit.</summary>
         private bool _hasOriginal;
 
         /// <summary>
@@ -356,7 +360,7 @@ namespace Gurux.UI.Components
                 _original = default!;
                 _hasOriginal = false;
                 OnSelected.InvokeAsync(Value);
-                StateHasChanged();
+
             }
         }
 
@@ -492,4 +496,3 @@ namespace Gurux.UI.Components
 
     }
 }
-

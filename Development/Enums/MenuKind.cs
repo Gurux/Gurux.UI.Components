@@ -30,12 +30,19 @@ namespace Gurux.UI.Components.Enums;
 /// <summary>The purpose and presentation role of a menu.</summary>
 public enum MenuKind : byte
 {
+    /// <summary>Identifies navigation commands rather than editing actions.</summary>
     Navigation = 0,
+    /// <summary>Identifies commands associated with tab navigation.</summary>
     Tabs = 1,
+    /// <summary>Identifies commands for changing application configuration.</summary>
     Configuration = 2,
+    /// <summary>Identifies commands displayed in the main menu bar.</summary>
     MenuBar = 3,
+    /// <summary>Identifies commands displayed in a context menu.</summary>
     ContextMenu = 4,
+    /// <summary>Identifies commands displayed in a dropdown menu.</summary>
     Dropdown = 5,
+    /// <summary>Identifies commands moved to an overflow menu.</summary>
     Overflow = 6,
     /// <summary>Regeneration selector only; not a stored or rendered menu kind.</summary>
     All = 255

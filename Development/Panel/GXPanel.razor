@@ -46,16 +46,16 @@ Arranges child panels around a draggable splitter and persists their resized dim
 <CascadingValue Value="this">
     <div @attributes="GXComponentAttributes.WithoutCss(AdditionalAttributes)" @ref="_panelElement" id="@Id" class="@GXComponentAttributes.GetClass(AdditionalAttributes, "gx-panel container-fluid")" data-fill-viewport="@(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "true" : "false")" style="@($"height:{(string.Equals(Height, "fill", StringComparison.OrdinalIgnoreCase) ? "auto" : Height ?? "90vh")};{Style}")">
         <div @attributes="GetItemAttributes(0)" id="leftDiv" class="@GetItemClass(0)" style="@GetStyle(0)">
-            @if (Items?.Count > 0)
+            @if (_items?.Count > 0)
             {
-                @Items[0].ChildContent
+                @_items[0].ChildContent
             }
         </div>
-        <div id="verticalDivider" title="Drag to resize panels"></div>
+        <div id="verticalDivider" title="@Gurux.UI.Components.Properties.Resources.ResizePanels"></div>
         <div @attributes="GetItemAttributes(1)" id="rightDiv" class="@GetItemClass(1)" style="@GetStyle(1)">
-            @if (Items?.Count > 1)
+            @if (_items?.Count > 1)
             {
-                @Items[1].ChildContent
+                @_items[1].ChildContent
             }
         </div>
     </div>
@@ -80,38 +80,38 @@ Arranges child panels around a draggable splitter and persists their resized dim
     /// Returns the captured non-CSS attributes for a child panel at the specified index.
     /// </summary>
     private IReadOnlyDictionary<string, object>? GetItemAttributes(int index)
-        => Items.Count > index ? GXComponentAttributes.WithoutCss(Items[index].AdditionalAttributes) : null;
+        => _items.Count > index ? GXComponentAttributes.WithoutCss(_items[index].AdditionalAttributes) : null;
     /// <summary>
     /// Returns the captured CSS classes for a child panel at the specified index.
     /// </summary>
-    private string? GetItemClass(int index) => Items.Count > index ? GXComponentAttributes.GetClass(Items[index].AdditionalAttributes) : null;
+    private string? GetItemClass(int index) => _items.Count > index ? GXComponentAttributes.GetClass(_items[index].AdditionalAttributes) : null;
     /// <summary>
     /// Combines a child panel's styles with its saved or configured splitter dimensions.
     /// </summary>
     private string? GetStyle(int index)
     {
         string? str = null;
-        if (Items.Count > index)
+        if (_items.Count > index)
         {
-            str = Items[index].Style;
+            str = _items[index].Style;
             if (index == 0)
             {
-                if (string.IsNullOrEmpty((Items[index].SavedWidth ?? Items[index].Width)))
+                if (string.IsNullOrEmpty((_items[index].SavedWidth ?? _items[index].Width)))
                 {
                     str += "flex-basis: 100%;";
                 }
                 else
                 {
-                    str += "flex-basis: " + (Items[index].SavedWidth ?? Items[index].Width) + ";";
+                    str += "flex-basis: " + (_items[index].SavedWidth ?? _items[index].Width) + ";";
                 }
             }
-            if (string.IsNullOrEmpty((Items[index].Height ?? Items[index].SavedHeight)))
+            if (string.IsNullOrEmpty((_items[index].Height ?? _items[index].SavedHeight)))
             {
                 str += "height: 100%;";
             }
             else
             {
-                str += "height: " + (Items[index].Height ?? Items[index].SavedHeight) + ";";
+                str += "height: " + (_items[index].Height ?? _items[index].SavedHeight) + ";";
             }
         }
         return str;
@@ -160,7 +160,7 @@ Arranges child panels around a draggable splitter and persists their resized dim
     /// <summary>
     /// Child panels.
     /// </summary>
-    private readonly List<GXPanelItem> Items = new List<GXPanelItem>();
+    private readonly List<GXPanelItem> _items = new List<GXPanelItem>();
 
     /// <summary>
     /// Gets the inline CSS declarations applied to the component.
@@ -191,10 +191,15 @@ Arranges child panels around a draggable splitter and persists their resized dim
     [Parameter]
     public string? Height { get; set; }
 
+    /// <summary>References the splitter container in the browser.</summary>
     private ElementReference _panelElement;
+    /// <summary>Holds the imported browser module until component disposal.</summary>
     private IJSObjectReference? _module;
+    /// <summary>Holds the browser controller that observes and resizes the child panels.</summary>
     private IJSObjectReference? _splitter;
+    /// <summary>Records whether the component has applied its initial parameters.</summary>
     private bool _initialized;
+    /// <summary>Allows browser callbacks to invoke this component until disposal.</summary>
     private DotNetObjectReference<GXPanel>? _reference;
 
     /// <summary>
@@ -203,12 +208,12 @@ Arranges child panels around a draggable splitter and persists their resized dim
     [JSInvokable]
     public async Task SaveSizes(double leftWidth, double leftHeight, double rightWidth, double rightHeight)
     {
-        if (Items.Count < 2)
+        if (_items.Count < 2)
         {
             return;
         }
-        await Items[0].SaveSizeAsync(leftWidth, leftHeight);
-        await Items[1].SaveSizeAsync(rightWidth, rightHeight);
+        await _items[0].SaveSizeAsync(leftWidth, leftHeight);
+        await _items[1].SaveSizeAsync(rightWidth, rightHeight);
     }
 
 
@@ -217,7 +222,7 @@ Arranges child panels around a draggable splitter and persists their resized dim
     /// </summary>
     internal async Task AddItem(GXPanelItem value)
     {
-        Items.Add(value);
+        _items.Add(value);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -226,14 +231,14 @@ Arranges child panels around a draggable splitter and persists their resized dim
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_initialized || Items.Count < 2)
+        if (_initialized || _items.Count < 2)
         {
             return;
         }
         _initialized = true;
         try
         {
-            foreach (var item in Items)
+            foreach (var item in _items)
             {
                 await item.LoadSizeAsync();
             }

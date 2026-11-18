@@ -47,14 +47,14 @@ Usage example in a Razor component:
     </GXTabPage>
 </GXTabControl>
 
-<p>Selected tab: @selectedTab</p>
+<p>Selected tab: @_selectedTab</p>
 
 @code {
-    private string selectedTab = "General";
+    private string _selectedTab = "General";
 
     private void OnTabSelectionChanged(GXTabPage page)
     {
-        selectedTab = page.Text;
+        _selectedTab = page.Text;
     }
 }
 
@@ -66,6 +66,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 
 @namespace Gurux.UI.Components.Tab
 @using System.Diagnostics
+@using Gurux.UI.Components.Enums
 @using Microsoft.AspNetCore.Components.Routing
 @implements IDisposable
 @implements IAsyncDisposable
@@ -76,51 +77,54 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 @inject IServiceProvider Services
 
 <CascadingValue Value="_scope">
-<CascadingValue Value="this">
-    <ul @ref="_headers" class="@HeaderClass"
-        role="tablist"
-        style="width:100%">
-        @foreach (var it in GetPages())
-        {
-            <li class="nav-item" role="presentation">
-                <button @ref="it.HeaderElement" type="button" class="@GetActiveClass(it)" role="@(IsAdaptive ? "tab" : null)" id="@(IsAdaptive ? it.Id + "-tab" : null)" aria-controls="@(IsAdaptive ? it.Id + "-panel" : null)" aria-selected="@(IsAdaptive ? (it == ActivePage).ToString().ToLowerInvariant() : null)" tabindex="@(IsAdaptive ? (it == ActivePage ? "0" : "-1") : null)" @onkeydown="@(args => TabKeyDown(args,it))"
-                        @onclick="@( () => ActivatePage(it))">
-                    @if (TabTextTemplate != null)
-                    {
-                        @TabTextTemplate(it)
-                    }
-                    else
-                    {
-                        @if (!string.IsNullOrEmpty(@it.Icon))
+    <CascadingValue Value="this">
+        <ul @ref="_headers" class="@HeaderClass"
+            role="tablist"
+            style="width:100%">
+            @foreach (var it in GetPages())
+            {
+                <li class="nav-item" role="presentation">
+                    <button @ref="it.HeaderElement" type="button" class="@GetActiveClass(it)" role="@(IsAdaptive ? "tab" : null)" id="@(IsAdaptive ? it.Id + "-tab" : null)" aria-controls="@(IsAdaptive ? it.Id + "-panel" : null)" aria-selected="@(IsAdaptive ? (it == ActivePage).ToString().ToLowerInvariant() : null)" tabindex="@(IsAdaptive ? (it == ActivePage ? "0" : "-1") : null)" @onkeydown="@(args => TabKeyDown(args, it))"
+                            @onclick="@( () => ActivatePage(it))">
+                        @if (TabTextTemplate != null)
                         {
-                            <GXTabIcon Id="@it.Icon" Color="@it.IconColor" />
+                            @TabTextTemplate(it)
                         }
-                        @it.Text
-                    }
-                </button>
-            </li>
-        }
-    </ul>
-    @ChildContent
-</CascadingValue>
+                        else
+                        {
+                            @if (!string.IsNullOrEmpty(@it.Icon))
+                            {
+                                <GXTabIcon Id="@it.Icon" Color="@it.IconColor" />
+                            }
+                            @it.Text
+                        }
+                    </button>
+                </li>
+            }
+        </ul>
+        @ChildContent
+    </CascadingValue>
 </CascadingValue>
 
 @code {
     /// <summary>Content tabs remain in place; application navigation may opt into a bottom bar.</summary>
     [Parameter] public bool ApplicationNavigation { get; set; }
     internal bool AdaptiveTabs => IsAdaptive;
-    private string HeaderClass => AdaptiveClass("nav nav-tabs" + (StickyHeader ? " gx-sticky-tabs" : "") + (IsAdaptive ? " gx-adaptive-tabs" : "") + (ApplicationNavigation && IsAdaptive && AdaptiveBehavior.ResponsiveMode == GXResponsiveLayoutMode.Compact && AdaptiveBehavior.Layout is GXLayoutStyle.Cupertino or GXLayoutStyle.Material ? " gx-app-tabs-bottom" : ""));
+    private string HeaderClass => AdaptiveClass("nav nav-tabs" + (StickyHeader ? " gx-sticky-tabs" : "") + (IsAdaptive ? " gx-adaptive-tabs" : "") + (ApplicationNavigation && IsAdaptive && AdaptiveBehavior.ResponsiveMode == ResponsiveLayoutMode.Compact && AdaptiveBehavior.Layout is LayoutStyle.Cupertino or LayoutStyle.Material ? " gx-app-tabs-bottom" : ""));
+    /// <summary>References the tab header region used for adaptive keyboard navigation.</summary>
     private ElementReference _headers;
+    /// <summary>Holds the module implementing adaptive menu or tab keyboard behavior.</summary>
     private IJSObjectReference? _adaptiveModule;
+    /// <summary>Tracks asynchronous browser cleanup so duplicate disposal shares the same operation.</summary>
     private Task? _browserDisposal;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!disposed && Services.GetService(typeof(IJSRuntime)) is IJSRuntime runtime && (IsAdaptive || _adaptiveModule != null))
+        if (!_disposed && Services.GetService(typeof(IJSRuntime)) is IJSRuntime runtime && (IsAdaptive || _adaptiveModule != null))
         {
             _adaptiveModule ??= await GetComponentModuleAsync(runtime, "./_content/Gurux.UI.Components/ContextMenu/GXContextMenuController.razor.js");
-            if (!disposed && _adaptiveModule != null)
+            if (!_disposed && _adaptiveModule != null)
             {
-                await _adaptiveModule.InvokeVoidAsync("configureTabs", _headers, IsAdaptive);
+                await GXJavaScriptInterop.InvokeVoidAsync(_adaptiveModule, "configureTabs", _headers, IsAdaptive);
             }
         }
     }
@@ -147,7 +151,7 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
         if (next >= 0)
         {
             await ActivatePage(visible[next]);
-            if (!disposed && visible[next].IsAccessible)
+            if (!_disposed && visible[next].IsAccessible)
             {
                 await visible[next].HeaderElement.FocusAsync();
             }
@@ -184,7 +188,9 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     [Parameter] public string? RouteGroup { get; set; }
     /// <summary>Optional routing adapter; otherwise uses the registered adapter or query-only routing.</summary>
     [Parameter] public ITabRouteResolver? RouteResolver { get; set; }
+    /// <summary>Stores the tab URL scope used to keep independent controls from sharing selection state.</summary>
     private TabScope _scope = new(1);
+    /// <summary>Stores the tab identifier used when URL selection cannot resolve an accessible page.</summary>
     private string? _activeFallback;
     private int Depth => ParentScope?.Depth ?? 0;
     private ITabRouteResolver? EffectiveRouteResolver => RouteResolver ?? Services.GetService(typeof(ITabRouteResolver)) as ITabRouteResolver;
@@ -219,13 +225,13 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
 
     private void LocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        if (!PersistSelectionInUrl || disposed)
+        if (!PersistSelectionInUrl || _disposed)
         {
             return;
         }
         _ = InvokeAsync(() =>
         {
-            if (disposed)
+            if (_disposed)
             {
                 return;
             }
@@ -301,26 +307,32 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     [Parameter]
     public RenderFragment<GXTabPage>? TabTextTemplate { get; set; }
 
-    private GXTabPage? activePage;
-    private bool disposed;
-    private bool userSelected;
-    private GXTabPage? selectedPage;
-    private string? previousActive;
-    private (GXTabPage Page, string Text, string? Icon, string? IconColor, string? Path, string? Padge, int Count, TraceLevel Type)[] previousHeaders = [];
+    /// <summary>Stores the currently active accessible tab.</summary>
+    private GXTabPage? _activePage;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
+    private bool _disposed;
+    /// <summary>Records whether the user explicitly selected the active tab.</summary>
+    private bool _userSelected;
+    /// <summary>Stores the tab whose selection state was most recently applied.</summary>
+    private GXTabPage? _selectedPage;
+    /// <summary>Stores the last active identifier used to detect tab header updates.</summary>
+    private string? _previousActive;
+    /// <summary>Stores the last rendered tab header data to detect relevant parameter changes.</summary>
+    private (GXTabPage Page, string Text, string? Icon, string? IconColor, string? Path, string? Padge, int Count, TraceLevel Type)[] _previousHeaders = [];
     /// <summary>
     /// Gets or sets the active registered tab, rejecting inaccessible pages.
     /// </summary>
     public GXTabPage? ActivePage
     {
-        get => activePage;
+        get => _activePage;
         set
         {
-            if (value != null && (!value.IsAccessible || !Pages.Contains(value)) || ReferenceEquals(activePage, value))
+            if (value != null && (!value.IsAccessible || !_pages.Contains(value)) || ReferenceEquals(_activePage, value))
             {
                 return;
             }
-            activePage = value;
-            foreach (var page in Pages)
+            _activePage = value;
+            foreach (var page in _pages)
             {
                 page.RequestRender();
             }
@@ -332,26 +344,27 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     /// </summary>
     IEnumerable<GXTabPage> GetPages()
     {
-        return Pages.Where(w => w.IsAccessible);
+        return _pages.Where(w => w.IsAccessible);
     }
 
-    private readonly List<GXTabPage> Pages = new List<GXTabPage>();
+    /// <summary>Stores the registered child tabs in their declaration order.</summary>
+    private readonly List<GXTabPage> _pages = new List<GXTabPage>();
     /// <summary>
     /// Unregisters a tab, updates page indices, and resolves the remaining active tab.
     /// </summary>
     internal void RemovePage(GXTabPage page)
     {
-        if (!Pages.Remove(page))
+        if (!_pages.Remove(page))
         {
             return;
         }
-        if (selectedPage == page)
+        if (_selectedPage == page)
         {
-            selectedPage = null;
+            _selectedPage = null;
         }
-        for (int index = 0; index < Pages.Count; ++index)
+        for (int index = 0; index < _pages.Count; ++index)
         {
-            Pages[index].Index = index;
+            _pages[index].Index = index;
         }
         if (ActivePage == page)
         {
@@ -365,8 +378,8 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     /// </summary>
     internal void AddPage(GXTabPage tabPage)
     {
-        tabPage.Index = Pages.Count;
-        Pages.Add(tabPage);
+        tabPage.Index = _pages.Count;
+        _pages.Add(tabPage);
         PageChanged(tabPage);
     }
 
@@ -375,13 +388,13 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     /// </summary>
     protected override void OnParametersSet()
     {
-        if (Active != previousActive)
+        if (Active != _previousActive)
         {
-            previousActive = Active;
-            userSelected = false;
+            _previousActive = Active;
+            _userSelected = false;
             if (PersistSelectionInUrl)
             {
-                selectedPage = null;
+                _selectedPage = null;
                 ActivePage = null;
             }
         }
@@ -393,32 +406,32 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     /// </summary>
     internal void PageChanged(GXTabPage? changed)
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
         var before = ActivePage;
-        var desired = Pages.FirstOrDefault(page => page.IsAccessible && (!string.IsNullOrEmpty(page.Path) ? page.Path == Active : PersistSelectionInUrl && page.Text == Active));
-        if (userSelected && selectedPage?.IsAccessible == true && Pages.Contains(selectedPage))
+        var desired = _pages.FirstOrDefault(page => page.IsAccessible && (!string.IsNullOrEmpty(page.Path) ? page.Path == Active : PersistSelectionInUrl && page.Text == Active));
+        if (_userSelected && _selectedPage?.IsAccessible == true && _pages.Contains(_selectedPage))
         {
-            ActivePage = selectedPage;
+            ActivePage = _selectedPage;
         }
-        else if (!userSelected && desired != null)
+        else if (!_userSelected && desired != null)
         {
             ActivePage = desired;
         }
-        else if (changed?.IsAccessible == true && (changed.Active || !userSelected && changed.Index == InitialTab))
+        else if (changed?.IsAccessible == true && (changed.Active || !_userSelected && changed.Index == InitialTab))
         {
             ActivePage = changed;
         }
         else if (ActivePage?.IsAccessible != true)
         {
-            ActivePage = Pages.ElementAtOrDefault(InitialTab)is { IsAccessible: true } initial ? initial : Pages.FirstOrDefault(page => page.IsAccessible);
+            ActivePage = _pages.ElementAtOrDefault(InitialTab) is { IsAccessible: true } initial ? initial : _pages.FirstOrDefault(page => page.IsAccessible);
         }
         var headers = GetPages().Select(page => (page, page.Text, page.Icon, page.IconColor, page.Path, page.Padge, page.PadgeCount, page.PadgeType)).ToArray();
-        if (!ReferenceEquals(before, ActivePage) || !previousHeaders.SequenceEqual(headers))
+        if (!ReferenceEquals(before, ActivePage) || !_previousHeaders.SequenceEqual(headers))
         {
-            previousHeaders = headers;
+            _previousHeaders = headers;
             _ = InvokeAsync(StateHasChanged);
         }
     }
@@ -440,8 +453,8 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
         {
             return;
         }
-        userSelected = true;
-        selectedPage = page;
+        _userSelected = true;
+        _selectedPage = page;
         ActivePage = page;
         await NotifySelectionAsync(page, navigateToPath: true);
         await InvokeAsync(StateHasChanged);
@@ -452,11 +465,11 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
     /// </summary>
     public async Task ActivatePage(int index)
     {
-        if (index >= 0 && Pages.Count > index && Pages[index].IsAccessible)
+        if (index >= 0 && _pages.Count > index && _pages[index].IsAccessible)
         {
-            userSelected = true;
-            selectedPage = Pages[index];
-            ActivePage = Pages[index];
+            _userSelected = true;
+            _selectedPage = _pages[index];
+            ActivePage = _pages[index];
             await NotifySelectionAsync(ActivePage, navigateToPath: false);
             Update();
         }
@@ -470,15 +483,15 @@ Set TabPage.Path to navigate to a URL when the tab is clicked.
         InvokeAsync(StateHasChanged);
     }
     /// <summary>
-    /// Marks the tab control as disposed to stop subsequent page updates.
+    /// Marks the tab control as _disposed to stop subsequent page updates.
     /// </summary>
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
-        disposed = true;
+        _disposed = true;
         DisposeAdaptiveBehavior();
         NavigationManager.LocationChanged -= LocationChanged;
         _browserDisposal = ReleaseBrowserAsync();

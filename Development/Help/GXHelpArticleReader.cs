@@ -34,12 +34,19 @@ namespace Gurux.UI.Components.Help;
 /// <remarks>Configure HTTP handlers to disable automatic redirects. Supplied clients remain caller-owned.</remarks>
 public sealed class GXHelpArticleReader : IDisposable
 {
+    /// <summary>Limits a downloaded help article to two mebibytes.</summary>
     private const int MaximumBytes = 2 * 1024 * 1024;
+    /// <summary>Stores the caller-owned HTTP client, when the reader was constructed with one.</summary>
     private readonly HttpClient? _http;
+    /// <summary>Creates an HTTP client owned and disposed by each individual fetch.</summary>
     private readonly Func<HttpClient>? _createClient;
+    /// <summary>Decides whether an article or redirect target may be fetched.</summary>
     private readonly Func<Uri, bool> _allowedAddress;
+    /// <summary>Serializes article downloads and access to the bounded help content cache.</summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>Stores article HTML and expiration timestamps by allowed article address.</summary>
     private readonly Dictionary<Uri, (DateTimeOffset Expires, string Content)> _cache = new();
+    /// <summary>Records whether this owner has released its resources and stopped accepting updates.</summary>
     private bool _disposed;
 
     /// <summary>Creates a reader using a caller-owned client, an address allowlist.</summary>
@@ -62,6 +69,11 @@ public sealed class GXHelpArticleReader : IDisposable
     /// <summary>Loads unmodified HTML, using a separately allowed fallback when the server returns 404.</summary>
     public Task<string?> LoadHtmlAsync(Uri address, Uri? fallbackAddress, CancellationToken cancellationToken = default) => LoadCoreAsync(address, fallbackAddress, cancellationToken);
 
+    /// <summary>Loads allowed article HTML with a deadline, bounded caching, and an optional fallback for missing articles.</summary>
+    /// <param name="address">The allowed absolute HTTP(S) address of the help article.</param>
+    /// <param name="fallbackAddress">The optional separately allowed article used when the first address returns not found.</param>
+    /// <param name="cancellationToken">The token used to cancel the asynchronous operation.</param>
+    /// <returns>The article HTML, or null when both the article and allowed fallback are missing.</returns>
     private async Task<string?> LoadCoreAsync(Uri address, Uri? fallbackAddress, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -103,6 +115,9 @@ public sealed class GXHelpArticleReader : IDisposable
         finally { _gate.Release(); }
     }
 
+    /// <summary>Stores article HTML for one hour, evicting the earliest expiration when the cache is full.</summary>
+    /// <param name="address">The allowed absolute HTTP(S) address of the help article.</param>
+    /// <param name="content">The fragment or HTML content to capture, inspect, or cache.</param>
     private void Cache(Uri address, string content)
     {
         if (_cache.Count >= 128 && !_cache.ContainsKey(address))
@@ -112,15 +127,21 @@ public sealed class GXHelpArticleReader : IDisposable
         _cache[address] = (DateTimeOffset.UtcNow.AddHours(1), content);
     }
 
+    /// <summary>Rejects addresses outside the configured HTTP(S) allowlist.</summary>
+    /// <param name="address">The allowed absolute HTTP(S) address of the help article.</param>
     private void Validate(Uri address)
     {
         ArgumentNullException.ThrowIfNull(address);
         if (!address.IsAbsoluteUri || address.Scheme is not ("http" or "https") || address.UserInfo.Length != 0 || !_allowedAddress(address))
         {
-            throw new ArgumentException("The help article address is not allowed.", nameof(address));
+            throw new ArgumentException(Gurux.UI.Components.Properties.Resources.HelpAddressNotAllowed, nameof(address));
         }
     }
 
+    /// <summary>Downloads allowed article HTML, enforcing the size limit and disposing factory-owned clients.</summary>
+    /// <param name="address">The allowed absolute HTTP(S) address of the help article.</param>
+    /// <param name="token">The linked token enforcing caller cancellation and the download deadline.</param>
+    /// <returns>The downloaded HTML, or null when the server reports not found.</returns>
     private async Task<string?> ReadAsync(Uri address, CancellationToken token)
     {
         var http = _http ?? _createClient!();
@@ -133,7 +154,7 @@ public sealed class GXHelpArticleReader : IDisposable
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength > MaximumBytes)
             {
-                throw new InvalidDataException("The help article is too large.");
+                throw new InvalidDataException(Gurux.UI.Components.Properties.Resources.HelpArticleTooLarge);
             }
             await using var stream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
             using var buffer = new MemoryStream();
@@ -141,7 +162,7 @@ public sealed class GXHelpArticleReader : IDisposable
             int count;
             while ((count = await stream.ReadAsync(bytes, token).ConfigureAwait(false)) != 0)
             {
-                if (buffer.Length + count > MaximumBytes) { throw new InvalidDataException("The help article is too large."); }
+                if (buffer.Length + count > MaximumBytes) { throw new InvalidDataException(Gurux.UI.Components.Properties.Resources.HelpArticleTooLarge); }
                 await buffer.WriteAsync(bytes.AsMemory(0, count), token).ConfigureAwait(false);
             }
             var source = Encoding.UTF8.GetString(buffer.ToArray());
@@ -154,6 +175,7 @@ public sealed class GXHelpArticleReader : IDisposable
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         // Do not dispose the semaphore while active requests may still release it.

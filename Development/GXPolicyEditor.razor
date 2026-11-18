@@ -43,26 +43,26 @@ Loads available authorization policy names and edits a filtered selection of pol
 @inject HttpClient Http
 @inject IServiceProvider Services
 
-<label for="@(instanceId + "-filter")" class="visually-hidden"><GXLocalizedText Value="Filter policies by name" /></label>
-<input id="@(instanceId + "-filter")" class="form-control" type="search" placeholder="Filter by name"
-       value="@filter" @oninput="FilterChanged" disabled="@Disabled" />
-@if (loadFailed)
+<label for="@(_instanceId + "-filter")" class="visually-hidden"><GXLocalizedText Value="@Gurux.UI.Components.Properties.Resources.FilterPolicies" /></label>
+<input id="@(_instanceId + "-filter")" class="form-control" type="search" placeholder="@Gurux.UI.Components.Properties.Resources.PolicyFilterPlaceholder"
+       value="@_filter" @oninput="FilterChanged" disabled="@Disabled" />
+@if (_loadFailed)
 {
-    <button type="button" class="btn btn-outline-secondary mt-2" @onclick="LoadAsync" disabled="@loading"><GXLocalizedText Value="Retry" /></button>
+    <button type="button" class="btn btn-outline-secondary mt-2" @onclick="LoadAsync" disabled="@_loading"><GXLocalizedText Value="@Gurux.UI.Components.Properties.Resources.Retry" /></button>
 }
 <table class="table table-striped">
     <thead>
         <tr>
             <th scope="col">
-                <GXLocalizedText Value="Name" />
+                <GXLocalizedText Value="@Gurux.UI.Components.Properties.Resources.Name" />
                 <div class="form-check form-switch">
-                    <input id="@(instanceId + "-all")" class="form-check-input" type="checkbox"
-                           checked="@AllVisibleSelected" disabled="@(Disabled || invalidValue || VisibleNames.Length == 0)"
+                    <input id="@(_instanceId + "-all")" class="form-check-input" type="checkbox"
+                           checked="@AllVisibleSelected" disabled="@(Disabled || _invalidValue || VisibleNames.Length == 0)"
                            @onchange="SelectVisibleAsync" />
-                    <label class="form-check-label" for="@(instanceId + "-all")"><GXLocalizedText Value="Select visible" /></label>
+                    <label class="form-check-label" for="@(_instanceId + "-all")"><GXLocalizedText Value="@Gurux.UI.Components.Properties.Resources.SelectVisible" /></label>
                 </div>
             </th>
-            <th scope="col"><GXLocalizedText Value="Policies" /></th>
+            <th scope="col"><GXLocalizedText Value="@Gurux.UI.Components.Properties.Resources.Policies" /></th>
         </tr>
     </thead>
     <tbody>
@@ -71,21 +71,21 @@ Loads available authorization policy names and edits a filtered selection of pol
             <tr @key="group.Key">
                 <td>@group.Key</td>
                 <td>
-                    <Gurux.UI.Components.Accordion.GXAccordion Id="@(instanceId + "-group-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(group.Key)))">
+                    <Gurux.UI.Components.Accordion.GXAccordion Id="@(_instanceId + "-group-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(group.Key)))">
                         <HeaderTemplate>
-                            <span>@string.Join(", ", group.Where(selected.Contains).Select(ActionName))</span>
+                            <span>@string.Join(", ", group.Where(_selected.Contains).Select(ActionName))</span>
                         </HeaderTemplate>
                         <ChildContent>
                             @foreach (var name in group)
                             {
-                                var id = instanceId + "-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(name));
+                                var id = _instanceId + "-" + Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes(name));
                                 <div class="form-check form-switch mb-2" @key="name">
-                                    <input id="@id" class="form-check-input" type="checkbox" checked="@selected.Contains(name)"
-                                           disabled="@(Disabled || invalidValue)" @onchange="@(e => SelectAsync(name, e))" />
+                                    <input id="@id" class="form-check-input" type="checkbox" checked="@_selected.Contains(name)"
+                                           disabled="@(Disabled || _invalidValue)" @onchange="@(e => SelectAsync(name, e))" />
                                     <label class="form-check-label" for="@id">@ActionName(name)</label>
-                                    @if (loaded && !available.Contains(name))
+                                    @if (_loaded && !_available.Contains(name))
                                     {
-                                        <span class="badge text-bg-secondary ms-2"><GXLocalizedText Value="Unavailable" /></span>
+                                        <span class="badge text-bg-secondary ms-2"><GXLocalizedText Value="@Gurux.UI.Components.Properties.Resources.Unavailable" /></span>
                                     }
                                 </div>
                             }
@@ -94,9 +94,9 @@ Loads available authorization policy names and edits a filtered selection of pol
                 </td>
             </tr>
         }
-        @if (VisibleNames.Length == 0 && !loading)
+        @if (VisibleNames.Length == 0 && !_loading)
         {
-            <tr><td colspan="2"><GXLocalizedText Value="No policies found." /></td></tr>
+            <tr><td colspan="2"><GXLocalizedText Value="@Gurux.UI.Components.Properties.Resources.NoPoliciesFound" /></td></tr>
         }
     </tbody>
 </table>
@@ -122,24 +122,36 @@ Loads available authorization policy names and edits a filtered selection of pol
     /// </summary>
     [Parameter] public bool Disabled { get; set; }
 
-    private readonly string instanceId = "policy-editor-" + Guid.NewGuid().ToString("N");
-    private readonly CancellationTokenSource lifetime = new();
-    private HashSet<string> selected = new(StringComparer.OrdinalIgnoreCase);
-    private HashSet<string> available = new(StringComparer.OrdinalIgnoreCase);
-    private string[] observedValue = [];
-    private string filter = "";
-    private bool loadFailed;
-    private bool invalidValue;
-    private bool initialized;
-    private bool loading;
-    private bool loaded;
-    private bool disposed;
+    /// <summary>Stores the unique component identifier used by form labels and notification keys.</summary>
+    private readonly string _instanceId = "policy-editor-" + Guid.NewGuid().ToString("N");
+    /// <summary>Cancels outstanding operations when the component is disposed.</summary>
+    private readonly CancellationTokenSource _lifetime = new();
+    /// <summary>Stores selected authorization policy names using case-insensitive matching.</summary>
+    private HashSet<string> _selected = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Stores the policy names supplied by the policy provider.</summary>
+    private HashSet<string> _available = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Stores the last bound policy selection applied to this component.</summary>
+    private string[] _observedValue = [];
+    /// <summary>Stores the search text currently used to filter available results.</summary>
+    private string _filter = "";
+    /// <summary>Records whether the most recent policy loading attempt failed.</summary>
+    private bool _loadFailed;
+    /// <summary>Records whether the bound selection contains an invalid policy name.</summary>
+    private bool _invalidValue;
+    /// <summary>Records whether the component has applied its initial parameters.</summary>
+    private bool _initialized;
+    /// <summary>Records whether the current asynchronous loading operation is still in progress.</summary>
+    private bool _loading;
+    /// <summary>Records whether available policy names have been loaded successfully.</summary>
+    private bool _loaded;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
+    private bool _disposed;
 
     /// <summary>
     /// Gets selected and available policy names matching the current filter, ordered by name.
     /// </summary>
-    private string[] VisibleNames => selected.Concat(available).Distinct(StringComparer.OrdinalIgnoreCase)
-        .Where(name => name.Contains(filter, StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).ToArray();
+    private string[] VisibleNames => _selected.Concat(_available).Distinct(StringComparer.OrdinalIgnoreCase)
+        .Where(name => name.Contains(_filter, StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).ToArray();
     /// <summary>Groups visible policy names by the resource before the final dot.</summary>
     private IEnumerable<IGrouping<string, string>> VisibleGroups => VisibleNames.GroupBy(GroupName, StringComparer.OrdinalIgnoreCase);
 
@@ -160,7 +172,7 @@ Loads available authorization policy names and edits a filtered selection of pol
     /// <summary>
     /// Gets whether every currently visible policy is selected and the list is nonempty.
     /// </summary>
-    private bool AllVisibleSelected => VisibleNames.Length > 0 && VisibleNames.All(selected.Contains);
+    private bool AllVisibleSelected => VisibleNames.Length > 0 && VisibleNames.All(_selected.Contains);
 
     /// <summary>
     /// Validates and normalizes supplied policy names and synchronizes the current selection.
@@ -168,20 +180,20 @@ Loads available authorization policy names and edits a filtered selection of pol
     protected override void OnParametersSet()
     {
         var names = (Value ?? []).Select(name => name?.Trim() ?? "").ToArray();
-        if (initialized && observedValue.SequenceEqual(names, StringComparer.Ordinal))
+        if (_initialized && _observedValue.SequenceEqual(names, StringComparer.Ordinal))
         {
             return;
         }
-        initialized = true;
-        observedValue = names.ToArray();
+        _initialized = true;
+        _observedValue = names.ToArray();
         if (names.Any(name => name.Length is 0 or > 128))
         {
-            invalidValue = true;
-            NotificationService?.ReportError(new ArgumentException("Each selected policy must contain 1-128 characters."), ValueErrorKey);
+            _invalidValue = true;
+            NotificationService?.ReportError(new ArgumentException(Gurux.UI.Components.Properties.Resources.InvalidPolicyName), ValueErrorKey);
             return;
         }
-        selected = names.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        invalidValue = false;
+        _selected = names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _invalidValue = false;
         NotificationService?.RemoveByKey(ValueErrorKey);
     }
     /// <summary>
@@ -203,71 +215,71 @@ Loads available authorization policy names and edits a filtered selection of pol
     /// <summary>
     /// Gets the notification key used for policy loading failures.
     /// </summary>
-    private string LoadErrorKey => instanceId + ".Load";
+    private string LoadErrorKey => _instanceId + ".Load";
     /// <summary>
     /// Gets the notification key used for invalid selected policy names.
     /// </summary>
-    private string ValueErrorKey => instanceId + ".Value";
+    private string ValueErrorKey => _instanceId + ".Value";
     /// <summary>
     /// Gets the notification key used for failures in the value changed callback.
     /// </summary>
-    private string CallbackErrorKey => instanceId + ".ValueChanged";
+    private string CallbackErrorKey => _instanceId + ".ValueChanged";
 
     /// <summary>
     /// Loads available policy names from the server with progress tracking, cancellation, and error reporting.
     /// </summary>
     private async Task LoadAsync()
     {
-        if (disposed || loading)
+        if (_disposed || _loading)
         {
             return;
         }
-        loading = true;
-        loadFailed = false;
+        _loading = true;
+        _loadFailed = false;
         NotificationService?.RemoveByKey(LoadErrorKey);
-        using var progress = Progress?.ProgressStart("Loading policies…");
-        using var cancellation = progress == null ? null : CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, progress.CancellationToken);
-        var token = cancellation?.Token ?? lifetime.Token;
+        using var progress = Progress?.ProgressStart(Gurux.UI.Components.Properties.Resources.LoadingPolicies);
+        using var cancellation = progress == null ? null : CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, progress.CancellationToken);
+        var token = cancellation?.Token ?? _lifetime.Token;
         try
         {
             var provider = Services.GetService<IGXPolicyNameProvider>();
             var names = provider != null
                 ? await provider.GetAsync(token)
                 : await Http.GetFromJsonAsync<string[]>("api/Policy/Available", token);
-            if (disposed)
+            if (_disposed)
             {
                 return;
             }
-            available = (names ?? []).Select(name => name?.Trim() ?? "").Where(name => name.Length is > 0 and <= 128).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            loaded = true;
+            _available = (names ?? []).Select(name => name?.Trim() ?? "").Where(name => name.Length is > 0 and <= 128).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _loaded = true;
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { loadFailed = true; }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { _loadFailed = true; }
         catch (Exception ex)
         {
-            if (!disposed)
+            if (!_disposed)
             {
-                loadFailed = true;
+                _loadFailed = true;
                 NotificationService?.ReportError(ex, LoadErrorKey);
             }
         }
-        finally { loading = false; }
+        finally { _loading = false; }
     }
     /// <summary>
     /// Updates the policy name filter from the search input.
     /// </summary>
-    private void FilterChanged(ChangeEventArgs e) => filter = e.Value?.ToString() ?? "";
+    private void FilterChanged(ChangeEventArgs e) => _filter = e.Value?.ToString() ?? "";
 
     /// <summary>
     /// Adds or removes one policy from the selection and publishes the resulting value.
     /// </summary>
     private async Task SelectAsync(string name, ChangeEventArgs e)
     {
-        if (Disabled || invalidValue || disposed)
+        if (Disabled || _invalidValue || _disposed)
         {
             return;
         }
-        var next = new HashSet<string>(selected, StringComparer.OrdinalIgnoreCase);
+        var next = new HashSet<string>(_selected, StringComparer.OrdinalIgnoreCase);
         if (e.Value is true)
         {
             next.Add(name);
@@ -284,11 +296,11 @@ Loads available authorization policy names and edits a filtered selection of pol
     /// </summary>
     private async Task SelectVisibleAsync(ChangeEventArgs e)
     {
-        if (Disabled || invalidValue || disposed)
+        if (Disabled || _invalidValue || _disposed)
         {
             return;
         }
-        var next = new HashSet<string>(selected, StringComparer.OrdinalIgnoreCase);
+        var next = new HashSet<string>(_selected, StringComparer.OrdinalIgnoreCase);
         foreach (var name in VisibleNames)
         {
             if (e.Value is true)
@@ -311,14 +323,14 @@ Loads available authorization policy names and edits a filtered selection of pol
         var names = next.Order(StringComparer.Ordinal).ToList();
         if (names.Any(name => name.Length is 0 or > 128))
         {
-            invalidValue = true;
-            NotificationService?.ReportError(new ArgumentException("Each selected policy must contain 1-128 characters."), ValueErrorKey);
+            _invalidValue = true;
+            NotificationService?.ReportError(new ArgumentException(Gurux.UI.Components.Properties.Resources.InvalidPolicyName), ValueErrorKey);
             return;
         }
-        var previousSelection = selected;
-        var previousValue = observedValue;
-        selected = new HashSet<string>(next, StringComparer.OrdinalIgnoreCase);
-        observedValue = names.ToArray();
+        var previousSelection = _selected;
+        var previousValue = _observedValue;
+        _selected = new HashSet<string>(next, StringComparer.OrdinalIgnoreCase);
+        _observedValue = names.ToArray();
         try
         {
             await ValueChanged.InvokeAsync(names.ToList());
@@ -330,9 +342,9 @@ Loads available authorization policy names and edits a filtered selection of pol
         }
         catch (Exception ex)
         {
-            selected = previousSelection;
-            observedValue = previousValue;
-            if (!disposed)
+            _selected = previousSelection;
+            _observedValue = previousValue;
+            if (!_disposed)
             {
                 NotificationService?.ReportError(ex, CallbackErrorKey);
             }
@@ -343,13 +355,13 @@ Loads available authorization policy names and edits a filtered selection of pol
     /// </summary>
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
-        disposed = true;
-        lifetime.Cancel();
-        lifetime.Dispose();
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
         NotificationService?.RemoveByKey(LoadErrorKey);
         NotificationService?.RemoveByKey(ValueErrorKey);
         NotificationService?.RemoveByKey(CallbackErrorKey);

@@ -75,11 +75,11 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     /// <summary>Documentation path to intercept. Defaults to the help service's base address.</summary>
     [Parameter] public string? HelpPath { get; set; }
     /// <summary>Accessible panel title.</summary>
-    [Parameter] public string Title { get; set; } = "Help";
+    [Parameter] public string Title { get; set; } = Gurux.UI.Components.Properties.Resources.Help;
     /// <summary>Preferred CSS width, constrained to the viewport.</summary>
     [Parameter] public string Width { get; set; } = "42rem";
     /// <summary>Localized close-button label.</summary>
-    [Parameter] public string CloseButtonTitle { get; set; } = "Close";
+    [Parameter] public string CloseButtonTitle { get; set; } = Gurux.UI.Components.Properties.Resources.Close;
     /// <summary>Optional application-owned content; when supplied, the panel does not load providers itself.</summary>
     [Parameter] public RenderFragment<GXHelpRequest>? ContentTemplate { get; set; }
     /// <summary>Application-owned fallback when no registered provider handles the request.</summary>
@@ -89,25 +89,38 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
     /// <summary>Localized title for provider error notifications.</summary>
     [Parameter] public string ErrorText { get; set; } = "Unable to load help. Try again later.";
     /// <summary>Localized message shown when content and fallback are unavailable.</summary>
-    [Parameter] public string UnavailableText { get; set; } = "Help is not available for this topic.";
+    [Parameter] public string UnavailableText { get; set; } = Gurux.UI.Components.Properties.Resources.HelpUnavailable;
     /// <summary>Localized label for provider links.</summary>
-    [Parameter] public string LinkText { get; set; } = "Help";
+    [Parameter] public string LinkText { get; set; } = Gurux.UI.Components.Properties.Resources.Help;
 
     private GXHelpService? HelpService { get; set; }
+    /// <summary>Stores a stable generated element identifier when the caller supplies none.</summary>
     private readonly string _generatedId = "gx-help-panel-" + Guid.NewGuid().ToString("N");
     private string ElementId => string.IsNullOrWhiteSpace(Id) ? _generatedId : Id;
     private Uri HelpUri => new(NavigationManager.ToAbsoluteUri(HelpPath ?? HelpService?.BaseAddress ?? "/help").GetLeftPart(UriPartial.Path));
+    /// <summary>Records whether the contextual help panel is currently open.</summary>
     private bool _open;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
     private bool _disposed;
+    /// <summary>Requests that the browser help panel display the current topic on the next render.</summary>
     private bool _refreshRequested;
+    /// <summary>Owns the progress scope associated with the current help request.</summary>
     private GXProgressScope? _progress;
+    /// <summary>Identifies the current help request so outdated results can be ignored.</summary>
     private long _loadVersion;
+    /// <summary>Stores the topic, version, and culture requested by the open help panel.</summary>
     private GXHelpRequest? _request;
+    /// <summary>Stores the help content returned for the active request.</summary>
     private GXHelpContent? _content;
+    /// <summary>Cancels a help request replaced by another topic or component disposal.</summary>
     private CancellationTokenSource? _loadCancellation;
+    /// <summary>Holds the imported browser module until component disposal.</summary>
     private IJSObjectReference? _module;
+    /// <summary>Allows browser callbacks to invoke this component until disposal.</summary>
     private DotNetObjectReference<GXHelpPanel>? _reference;
+    /// <summary>Stores the element identifier used by the currently initialized browser help controller.</summary>
     private string? _initializedId;
+    /// <summary>Stores the documentation URL used by the currently initialized browser help controller.</summary>
     private string? _initializedUrl;
     private string NotificationKey => _generatedId + ":load";
 
@@ -128,7 +141,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
         }
         if (firstRender)
         {
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Gurux.UI.Components/Help/GXHelpPanel.razor.js");
+            _module = await GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(JS, "import", "./_content/Gurux.UI.Components/Help/GXHelpPanel.razor.js");
             if (_disposed)
             {
                 await _module.DisposeAsync();
@@ -145,17 +158,17 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
         {
             if (_initializedId != null)
             {
-                await _module.InvokeVoidAsync("dispose", _initializedId);
+                await GXJavaScriptInterop.InvokeVoidAsync(_module, "dispose", _initializedId);
             }
             _initializedId = ElementId;
             _initializedUrl = url;
-            await _module.InvokeVoidAsync("initialize", _reference, url, ElementId);
+            await GXJavaScriptInterop.InvokeVoidAsync(_module, "initialize", _reference, url, ElementId);
             _refreshRequested = _open;
         }
         if (_open && _refreshRequested)
         {
             _refreshRequested = false;
-            await _module.InvokeVoidAsync("show", ElementId, _request?.Topic);
+            await GXJavaScriptInterop.InvokeVoidAsync(_module, "show", ElementId, _request?.Topic);
         }
     }
 
@@ -277,7 +290,7 @@ SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
             _content = null;
             if (_module != null && _initializedId != null)
             {
-                await _module.InvokeVoidAsync("close", _initializedId);
+                await GXJavaScriptInterop.InvokeVoidAsync(_module, "close", _initializedId);
             }
         }
     }

@@ -35,7 +35,9 @@ using System.Text;
 /// </summary>
 public class GXLocalStorage : IGXLocalStorage
 {
+    /// <summary>Provides access to JavaScript in the connected browser.</summary>
     private readonly IJSRuntime? _jsRuntime;
+    /// <summary>Records storage operations and failures for diagnostics.</summary>
     private readonly ILogger<GXLocalStorage>? _logger;
 
     /// <summary>
@@ -72,11 +74,11 @@ public class GXLocalStorage : IGXLocalStorage
             }
             if (value == null)
             {
-                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
+                await GXJavaScriptInterop.InvokeVoidAsync(_jsRuntime, "localStorage.removeItem", key);
             }
             else
             {
-                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", key, Convert.ToBase64String(Encoding.Unicode.GetBytes(value)));
+                await GXJavaScriptInterop.InvokeVoidAsync(_jsRuntime, "localStorage.setItem", key, Convert.ToBase64String(Encoding.Unicode.GetBytes(value)));
             }
         }
     }
@@ -147,7 +149,7 @@ public class GXLocalStorage : IGXLocalStorage
             {
                 key = group + ":" + key;
             }
-            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
+            await GXJavaScriptInterop.InvokeVoidAsync(_jsRuntime, "localStorage.removeItem", key);
         }
     }
 
@@ -165,15 +167,15 @@ public class GXLocalStorage : IGXLocalStorage
         {
             if (string.IsNullOrEmpty(group))
             {
-                await _jsRuntime.InvokeVoidAsync("localStorage.clear");
+                await GXJavaScriptInterop.InvokeVoidAsync(_jsRuntime, "localStorage.clear");
             }
             else
             {
                 string tmp = "Object.keys(localStorage).filter(k => k.startsWith(" + System.Text.Json.JsonSerializer.Serialize(group + ":") + "))";
-                string[]? values = await _jsRuntime.InvokeAsync<string[]>("eval", tmp);
+                string[]? values = await GXJavaScriptInterop.InvokeAsync<string[]>(_jsRuntime, "eval", tmp);
                 foreach (var it in values)
                 {
-                    await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", it);
+                    await GXJavaScriptInterop.InvokeVoidAsync(_jsRuntime, "localStorage.removeItem", it);
                 }
             }
         }
@@ -189,7 +191,7 @@ public class GXLocalStorage : IGXLocalStorage
             if (!string.IsNullOrEmpty(group))
             {
                 string tmp = "Object.keys(localStorage).filter(k => k.startsWith(" + System.Text.Json.JsonSerializer.Serialize(group + ":") + "))";
-                string[]? values = await _jsRuntime.InvokeAsync<string[]>("eval", tmp);
+                string[]? values = await GXJavaScriptInterop.InvokeAsync<string[]>(_jsRuntime, "eval", tmp);
                 return values;
             }
         }

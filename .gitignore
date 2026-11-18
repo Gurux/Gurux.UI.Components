@@ -13,3 +13,12 @@ Development/obj/
 /Views
 AGENTS.md
 /Tests
+
+# Keep the interop regression checks reviewable.
+!/Tests/
+/Tests/*
+!/Tests/JavaScriptInterop/
+/Tests/JavaScriptInterop/bin/
+/Tests/JavaScriptInterop/obj/
+*.zip
+/Tests

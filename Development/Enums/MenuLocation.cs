@@ -24,8 +24,18 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 // --------------------------------------------------------------------------
-
 namespace Gurux.UI.Components.Enums;
-
 /// <summary>The layout region hosting a shared menu.</summary>
-public enum MenuLocation { Top, Left, Right, Bottom, Footer }
+public enum MenuLocation
+{
+    /// <summary>Places the menu above the main application content.</summary>
+    Top,
+    /// <summary>Places the menu to the left of the main application content.</summary>
+    Left,
+    /// <summary>Places the menu to the right of the main application content.</summary>
+    Right,
+    /// <summary>Places the menu below the main application content.</summary>
+    Bottom,
+    /// <summary>Places the menu in the application footer.</summary>
+    Footer
+}

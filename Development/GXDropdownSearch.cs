@@ -63,11 +63,17 @@ namespace Gurux.UI.Components
         [Parameter]
         public string? NullText { get; set; }
 
+        /// <summary>Records whether typing has replaced the configured empty-value text.</summary>
         private bool _nullTextCleared;
+        /// <summary>Requests that the browser clear the empty-value text on the next render.</summary>
         private bool _clearNullTextInput;
+        /// <summary>Stores the result index currently highlighted by keyboard navigation.</summary>
         private int _highlightedIndex = -1;
+        /// <summary>Records whether keyboard interaction has opened the result list.</summary>
         private bool _keyboardOpen;
+        /// <summary>Records whether the user explicitly dismissed the current result list.</summary>
         private bool _dismissed;
+        /// <summary>Records whether the search input currently owns browser focus.</summary>
         private bool _hasFocus;
         /// <summary>
         /// Opens the suggestion editing state when the search input receives focus.
@@ -93,7 +99,9 @@ namespace Gurux.UI.Components
             _editing = false;
             Filter = null;
         }
+        /// <summary>Records whether a value edit is currently in progress.</summary>
         private bool _editing;
+        /// <summary>Stores the value to restore when the current edit is canceled.</summary>
         private TValue? _editOriginal;
         /// <summary>
         /// Captures the original selection before keyboard editing starts.
@@ -106,6 +114,7 @@ namespace Gurux.UI.Components
                 _editing = true;
             }
         }
+        /// <summary>Stores the unique result-list identifier used by accessibility attributes.</summary>
         private readonly string _listId = "dropdown-" + Guid.NewGuid().ToString("N");
 
         /// <summary>
@@ -378,10 +387,10 @@ namespace Gurux.UI.Components
             await base.OnInitializedAsync();
         }
 
+        /// <inheritdoc />
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             await base.OnAfterRenderAsync(firstRender);
         }
     }
 }
-

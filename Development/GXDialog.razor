@@ -33,6 +33,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
 </summary>
 *@
 
+@using Gurux.UI.Components.Enums
 @using Microsoft.AspNetCore.Components.Web
 @inject IServiceProvider Services
 @using Microsoft.JSInterop
@@ -52,7 +53,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
                     </div>
                 }
                 <button type="button" class="btn-close"
-                        data-dismiss="modal" aria-label="Close"
+                        data-dismiss="modal" aria-label="@Gurux.UI.Components.Properties.Resources.Close"
                         onclick="@(() => Cancel())">
                 </button>
             </div>
@@ -61,7 +62,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
             </div>
             <div class="modal-footer">
                 @FooterContent
-                @if (EffectiveButtonOrder == GXDialogButtonOrder.PrimaryLast)
+                @if (EffectiveButtonOrder == DialogButtonOrder.PrimaryLast)
                 {
                     @CancelAction
                     @PrimaryAction
@@ -78,15 +79,16 @@ Displays a movable, optionally resizable dialog and can persist its position and
 
 @code
 {
-    [Parameter] public GXDialogButtonOrder ButtonOrder { get; set; } = GXDialogButtonOrder.Auto;
-    [Parameter] public GXDialogPresentation Presentation { get; set; } = GXDialogPresentation.Auto;
+    [Parameter] public DialogButtonOrder ButtonOrder { get; set; } = DialogButtonOrder.Auto;
+    [Parameter] public DialogPresentation Presentation { get; set; } = DialogPresentation.Auto;
     [Parameter] public bool CloseOnEscape { get; set; } = true;
     [Parameter] public bool CloseOnBackdrop { get; set; }
     /// <summary>Default is off: native button Enter handling is retained; forms may opt into a default action.</summary>
     [Parameter] public bool ActivatePrimaryOnEnter { get; set; }
-    private GXDialogButtonOrder EffectiveButtonOrder => ButtonOrder == GXDialogButtonOrder.Auto ? AdaptiveBehavior.DialogButtonOrder : ButtonOrder;
-    private string DialogClass => AdaptiveClass("modal fade show d-block") + (IsAdaptive ? " gx-dialog-adaptive" : "") + (Presentation == GXDialogPresentation.BottomSheet ? " gx-dialog-sheet" : "");
+    private DialogButtonOrder EffectiveButtonOrder => ButtonOrder == DialogButtonOrder.Auto ? AdaptiveBehavior.DialogButtonOrder : ButtonOrder;
+    private string DialogClass => AdaptiveClass("modal fade show d-block") + (IsAdaptive ? " gx-dialog-adaptive" : "") + (Presentation == DialogPresentation.BottomSheet ? " gx-dialog-sheet" : "");
     private bool EffectiveManageFocus => ManageFocus || IsAdaptive || ActivatePrimaryOnEnter;
+    /// <summary>Records whether the dialog has a measured or restored screen position.</summary>
     private bool _positioned;
     private string? AdaptivePosition => IsAdaptive && _positioned ? FormattableString.Invariant($"transform:translate({_offsetX}px,{_offsetY}px)") : null;
     private RenderFragment PrimaryAction => @<text>
@@ -141,6 +143,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
 
     private IGXLocalStorage? LocalStorage => Services.GetService(typeof(IGXLocalStorage)) as IGXLocalStorage;
     private IJSRuntime? JS => Services.GetService(typeof(IJSRuntime)) as IJSRuntime;
+    /// <summary>Identifies the browser focus scope owned by this component.</summary>
     private string? _focusKey;
 
     /// <summary>
@@ -183,17 +186,20 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// Gets or sets the accept button label; an empty label hides the button.
     /// </summary>
     [Parameter]
-    public string OkButtonTitle { get; set; } = "Save";
+    public string OkButtonTitle { get; set; } = Gurux.UI.Components.Properties.Resources.Save;
 
     /// <summary>
     /// Gets or sets the cancel button label; an empty label hides the button.
     /// </summary>
     [Parameter]
-    public string CancelButtonTitle { get; set; } = "Cancel";
+    public string CancelButtonTitle { get; set; } = Gurux.UI.Components.Properties.Resources.Cancel;
 
     // Dragging state
+    /// <summary>Records whether a dialog drag is currently active.</summary>
     private bool _dragging;
+    /// <summary>Stores the pointer coordinates at the beginning of a dialog drag.</summary>
     private double _startX, _startY;
+    /// <summary>Stores the current dialog displacement in CSS pixels.</summary>
     private double _offsetX = 80, _offsetY = 80; // current top-left (px)
     /// <summary>
     /// Gets the dialog's horizontal position formatted as a CSS pixel value.
@@ -204,17 +210,24 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// </summary>
     private string TopPx => IsAdaptive ? "0px" : _offsetY.ToString("0") + "px";
 
+    /// <summary>Stores a stable generated element identifier when the caller supplies none.</summary>
     private string? _generatedId;
     /// <summary>
     /// Gets the effective dialog id, preferring the explicit parameter over captured attributes and a generated Guid.
     /// </summary>
     private string ElementId => !string.IsNullOrWhiteSpace(Id)
         ? Id : GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
+    /// <summary>References the rendered dialog element used for browser focus and measurement.</summary>
     private ElementReference _dialog;
+    /// <summary>Holds the imported browser module until component disposal.</summary>
     private IJSObjectReference? _module;
+    /// <summary>Allows browser callbacks to invoke this component until disposal.</summary>
     private DotNetObjectReference<GXDialog>? _reference;
+    /// <summary>Identifies the persisted dialog layout already restored by this instance.</summary>
     private string? _loadedKey;
+    /// <summary>Records whether browser initialization completed and whether the component has subsequently been disposed.</summary>
     private bool _ready, _disposed;
+    /// <summary>Stores the measured dialog dimensions in CSS pixels.</summary>
     private double _width, _height;
     /// <summary>
     /// Gets the local storage key for the dialog layout, or null when layout persistence is disabled.
@@ -226,6 +239,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// Restores the layout for a changed storage key and connects browser size observation when persistence is enabled.
     /// </summary>
     private bool _synchronizing;
+    /// <summary>Requests a subsequent render after asynchronous dialog measurement changes its layout.</summary>
     private bool _renderAgain;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -286,11 +300,11 @@ Displays a movable, optionally resizable dialog and can persist its position and
         {
             if (EffectiveManageFocus)
             {
-                await _module.InvokeVoidAsync("updateDialog", _focusKey, new { activatePrimaryOnEnter = ActivatePrimaryOnEnter });
+                await GXJavaScriptInterop.InvokeVoidAsync(_module, "updateDialog", _focusKey, new { activatePrimaryOnEnter = ActivatePrimaryOnEnter });
             }
             else
             {
-                await _module.InvokeVoidAsync("closeDialog", _focusKey);
+                await GXJavaScriptInterop.InvokeVoidAsync(_module, "closeDialog", _focusKey);
                 _focusKey = null;
             }
         }
@@ -317,7 +331,8 @@ Displays a movable, optionally resizable dialog and can persist its position and
             string? json = await storage.GetValueAsync(key);
             if (!string.IsNullOrWhiteSpace(json))
             {
-                try { layout = System.Text.Json.JsonSerializer.Deserialize<double[]>(json); }
+                try
+                { layout = System.Text.Json.JsonSerializer.Deserialize<double[]>(json); }
                 catch (System.Text.Json.JsonException) { }
             }
             if (_disposed || StorageKey != key)
@@ -439,7 +454,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
     /// </summary>
     private void OnPointerDown(PointerEventArgs e)
     {
-        if (IsAdaptive && (e.Button != 0 || Presentation == GXDialogPresentation.BottomSheet || AdaptiveBehavior.ResponsiveMode == GXResponsiveLayoutMode.Compact || e.PointerType == "touch"))
+        if (IsAdaptive && (e.Button != 0 || Presentation == DialogPresentation.BottomSheet || AdaptiveBehavior.ResponsiveMode == ResponsiveLayoutMode.Compact || e.PointerType == "touch"))
         {
             return;
         }
@@ -465,7 +480,7 @@ Displays a movable, optionally resizable dialog and can persist its position and
         }
         _offsetX = e.ClientX - _startX;
         _offsetY = e.ClientY - _startY;
-        StateHasChanged();
+
     }
 
     /// <summary>

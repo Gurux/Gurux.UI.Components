@@ -25,49 +25,36 @@
 // SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
 // --------------------------------------------------------------------------
 
-namespace Gurux.UI.Components;
+using Gurux.UI.Components.Enums;
 
-/// <summary>Application layout, independent of Bootstrap theme and color mode.</summary>
-[System.Text.Json.Serialization.JsonConverter(typeof(GXLayoutStyleJsonConverter))]
-public enum GXLayoutStyle
-{
-    /// <summary>Preserves the existing layout without platform styling.</summary>
-    Default = 0,
-    /// <summary>Uses the client platform, falling back to Default.</summary>
-    Auto = 1,
-    /// <summary>Windows 11-inspired styling.</summary>
-    Fluent = 2,
-    /// <summary>iOS/macOS-inspired styling.</summary>
-    Cupertino = 3,
-    /// <summary>Android-inspired styling.</summary>
-    Material = 4
-}
-
+namespace Gurux.UI.Components.Appearance;
 /// <summary>Reads legacy Gurux names while writing the current layout names.</summary>
-public sealed class GXLayoutStyleJsonConverter : System.Text.Json.Serialization.JsonConverter<GXLayoutStyle>
+public sealed class LayoutStyleJsonConverter : System.Text.Json.Serialization.JsonConverter<LayoutStyle>
 {
-    public override GXLayoutStyle Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    /// <inheritdoc />
+    public override LayoutStyle Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     {
         if (reader.TokenType == System.Text.Json.JsonTokenType.String)
         {
             var text = reader.GetString();
             if (string.Equals(text, "Gurux", StringComparison.OrdinalIgnoreCase))
             {
-                return GXLayoutStyle.Default;
+                return LayoutStyle.Default;
             }
-            if (Enum.TryParse<GXLayoutStyle>(text, true, out var style) && Enum.IsDefined(style))
+            if (Enum.TryParse<LayoutStyle>(text, true, out var style) && Enum.IsDefined(style))
             {
                 return style;
             }
         }
-        else if (reader.TokenType == System.Text.Json.JsonTokenType.Number && reader.TryGetInt32(out var number) && Enum.IsDefined((GXLayoutStyle)number))
+        else if (reader.TokenType == System.Text.Json.JsonTokenType.Number && reader.TryGetInt32(out var number) && Enum.IsDefined((LayoutStyle)number))
         {
-            return (GXLayoutStyle)number;
+            return (LayoutStyle)number;
         }
         throw new System.Text.Json.JsonException("Invalid layout style.");
     }
 
-    public override void Write(System.Text.Json.Utf8JsonWriter writer, GXLayoutStyle value, System.Text.Json.JsonSerializerOptions options)
+    /// <inheritdoc />
+    public override void Write(System.Text.Json.Utf8JsonWriter writer, LayoutStyle value, System.Text.Json.JsonSerializerOptions options)
     {
         if (!Enum.IsDefined(value))
         {

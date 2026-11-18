@@ -41,11 +41,11 @@ Displays transient toast messages and refreshes them as messages are added, remo
 @implements IDisposable
 
 @inject IServiceProvider Services
-@if (ToasterService?.Any == true)
+@if (_toasterService?.Any == true)
 {
     <div>
         <div class="@ContainerClass" style="z-index: 1080;">
-            @foreach (var it in this.ToasterService.GetToasts())
+            @foreach (var it in this._toasterService.GetToasts())
             {
                 var toast = GetCss(it);
                 <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
@@ -54,7 +54,7 @@ Displays transient toast messages and refreshes them as messages are added, remo
                         <GXAutoRefresh>
                             <small class="@toast markup">@it.PostedTimeText</small>
                         </GXAutoRefresh>
-                        <button type="button" class="btn-close" aria-label="Close"
+                        <button type="button" class="btn-close" aria-label="@Gurux.UI.Components.Properties.Resources.Close"
                                 @onclick="() => Close(it)"></button>
                     </div>
                     <div class="toast-body markup">
@@ -69,7 +69,9 @@ Displays transient toast messages and refreshes them as messages are added, remo
 @code
 {
     private string ContainerClass => !IsAdaptive ? "toast-container position-absolute top-0 end-0 mt-5 pt-5 pe-2" : AdaptiveClass("toast-container gx-adaptive-toasts") + " gx-notification-" + AdaptiveBehavior.Notification.ToString().ToLowerInvariant();
-    private IGXToasterService? ToasterService;
+    /// <summary>Supplies transient notifications and notifies when the rendered toast collection changes.</summary>
+    private IGXToasterService? _toasterService;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
     private bool _disposed;
 
     /// <summary>
@@ -78,11 +80,11 @@ Displays transient toast messages and refreshes them as messages are added, remo
     protected override void OnInitialized()
     {
         base.OnInitialized();
-        ToasterService = Services.GetService<IGXToasterService>();
-        if (ToasterService != null)
+        _toasterService = Services.GetService<IGXToasterService>();
+        if (_toasterService != null)
         {
-            ToasterService.ToasterChanged += ToastChanged;
-            ToasterService.ToasterTimerElapsed += ToastChanged;
+            _toasterService.ToasterChanged += ToastChanged;
+            _toasterService.ToasterTimerElapsed += ToastChanged;
         }
     }
 
@@ -91,7 +93,7 @@ Displays transient toast messages and refreshes them as messages are added, remo
     /// </summary>
     private void Close(GXToast toast)
     {
-        ToasterService?.Remove(toast);
+        _toasterService?.Remove(toast);
     }
 
     /// <summary>
@@ -115,11 +117,11 @@ Displays transient toast messages and refreshes them as messages are added, remo
     {
         _disposed = true;
         DisposeAdaptiveBehavior();
-        if (ToasterService != null)
+        if (_toasterService != null)
         {
-            ToasterService.ToasterChanged -= ToastChanged;
-            ToasterService.ToasterTimerElapsed -= ToastChanged;
-            ToasterService = null;
+            _toasterService.ToasterChanged -= ToastChanged;
+            _toasterService.ToasterTimerElapsed -= ToastChanged;
+            _toasterService = null;
         }
     }
 

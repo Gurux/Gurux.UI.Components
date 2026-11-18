@@ -61,7 +61,8 @@ else if (!string.IsNullOrEmpty(_html))
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private static readonly Regex ReTask = new(@"^\[( |x|X)\]\s+(.*)$", RegexOptions.Compiled);
+    /// <summary>Recognizes Markdown task-list markers.</summary>
+    private static readonly Regex _reTask = new(@"^\[( |x|X)\]\s+(.*)$", RegexOptions.Compiled);
     /// <summary>
     /// Gets or sets inline Markdown content, which takes precedence over the source URL.
     /// </summary>
@@ -77,7 +78,7 @@ else if (!string.IsNullOrEmpty(_html))
     /// <summary>
     /// Gets or sets the message displayed when Markdown content cannot be loaded.
     /// </summary>
-    [Parameter] public string ErrorText { get; set; } = "Unable to load the documentation.";
+    [Parameter] public string ErrorText { get; set; } = Gurux.UI.Components.Properties.Resources.DocumentationLoadFailed;
     /// <summary>
     /// Gets or sets whether raw HTML blocks are included without encoding; disabled by default.
     /// </summary>
@@ -92,10 +93,15 @@ else if (!string.IsNullOrEmpty(_html))
     /// </summary>
     [Parameter] public bool OpenExternalLinksInNewTab { get; set; }
 
+    /// <summary>Stores the HTML produced from the current Markdown content.</summary>
     private string _html = string.Empty;
+    /// <summary>References the rendered component root used by browser enhancements.</summary>
     private ElementReference _root;
+    /// <summary>Holds the browser syntax-highlighting module.</summary>
     private Task<IJSObjectReference>? _highlighter;
+    /// <summary>Holds the browser module managing heading and section links.</summary>
     private Task<IJSObjectReference>? _sectionLinks;
+    /// <summary>Records whether the component has stopped accepting updates and released its subscriptions.</summary>
     private bool _disposed;
 
     /// <summary>
@@ -156,7 +162,7 @@ else if (!string.IsNullOrEmpty(_html))
     /// </summary>
     private static bool TryParseTask(string text, out bool isChecked, out string body)
     {
-        var m = ReTask.Match(text);
+        var m = _reTask.Match(text);
         if (m.Success)
         {
             isChecked = m.Groups[1].Value.Equals("x", StringComparison.OrdinalIgnoreCase);
@@ -168,16 +174,25 @@ else if (!string.IsNullOrEmpty(_html))
         return false;
     }
 
+    /// <summary>Stores the Markdown input used to produce the current rendered HTML.</summary>
     private string? _lastContent;
+    /// <summary>Stores the raw HTML option used for the most recent Markdown conversion.</summary>
     private bool _lastAllowRawHtml;
+    /// <summary>Stores the external-link option used for the most recent Markdown conversion.</summary>
     private bool _lastOpenExternalLinksInNewTab;
+    /// <summary>Stores the heading identifier option used for the most recent Markdown conversion.</summary>
     private bool _lastGenerateHeadingIds;
 
 
+    /// <summary>Identifies the remote Markdown source already loaded for this instance.</summary>
     private string? _loadedSource;
+    /// <summary>Stores the Markdown downloaded from the current remote source.</summary>
     private string? _sourceContent;
+    /// <summary>Cancels the pending Markdown download when its source changes or the component is disposed.</summary>
     private CancellationTokenSource? _request;
+    /// <summary>Records whether the current asynchronous loading operation is still in progress.</summary>
     private bool _loading;
+    /// <summary>Stores the error associated with the current content loading operation.</summary>
     private bool _error;
 
     /// <summary>
@@ -282,19 +297,31 @@ else if (!string.IsNullOrEmpty(_html))
             public bool GenerateHeadingIds { get; set; } = true;
         }
 
-        private static readonly Regex ReHeading = new(@"^(#{1,6})\s+(.*)$", RegexOptions.Compiled);
-        private static readonly Regex ReUl = new(@"^\s*([-+*])\s+(.*)$", RegexOptions.Compiled);
-        private static readonly Regex ReOl = new(@"^\s*(\d+)\.\s+(.*)$", RegexOptions.Compiled);
-        private static readonly Regex ReBlockquote = new(@"^\s*>\s?(.*)$", RegexOptions.Compiled);
-        private static readonly Regex ReHr = new(@"^\s*([-*_])(?:\s*\1){2,}\s*$", RegexOptions.Compiled);
-        private static readonly Regex ReFencedStart = new(@"^\s*```([^`]*)$", RegexOptions.Compiled);
-        private static readonly Regex ReFencedEnd = new(@"^\s*```\s*$", RegexOptions.Compiled);
+        /// <summary>Recognizes Markdown heading prefixes and their heading levels.</summary>
+        private static readonly Regex _reHeading = new(@"^(#{1,6})\s+(.*)$", RegexOptions.Compiled);
+        /// <summary>Recognizes unordered Markdown list items.</summary>
+        private static readonly Regex _reUl = new(@"^\s*([-+*])\s+(.*)$", RegexOptions.Compiled);
+        /// <summary>Recognizes ordered Markdown list items.</summary>
+        private static readonly Regex _reOl = new(@"^\s*(\d+)\.\s+(.*)$", RegexOptions.Compiled);
+        /// <summary>Recognizes Markdown blockquote prefixes.</summary>
+        private static readonly Regex _reBlockquote = new(@"^\s*>\s?(.*)$", RegexOptions.Compiled);
+        /// <summary>Recognizes Markdown horizontal-rule lines.</summary>
+        private static readonly Regex _reHr = new(@"^\s*([-*_])(?:\s*\1){2,}\s*$", RegexOptions.Compiled);
+        /// <summary>Recognizes the opening fence of a Markdown code block.</summary>
+        private static readonly Regex _reFencedStart = new(@"^\s*```([^`]*)$", RegexOptions.Compiled);
+        /// <summary>Recognizes the closing fence of a Markdown code block.</summary>
+        private static readonly Regex _reFencedEnd = new(@"^\s*```\s*$", RegexOptions.Compiled);
 
-        private static readonly Regex ReCodeInline = new(@"`([^`]+)`", RegexOptions.Compiled);
-        private static readonly Regex ReBold = new(@"\*\*(.+?)\*\*|__(.+?)__", RegexOptions.Compiled);
-        private static readonly Regex ReItalic = new(@"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)|_(.+?)_", RegexOptions.Compiled);
-        private static readonly Regex ReImage = new(@"!\[([^\]]*)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
-        private static readonly Regex ReLink = new(@"\[([^\]]+)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
+        /// <summary>Recognizes inline Markdown code spans.</summary>
+        private static readonly Regex _reCodeInline = new(@"`([^`]+)`", RegexOptions.Compiled);
+        /// <summary>Recognizes inline Markdown emphasis using bold markers.</summary>
+        private static readonly Regex _reBold = new(@"\*\*(.+?)\*\*|__(.+?)__", RegexOptions.Compiled);
+        /// <summary>Recognizes inline Markdown emphasis using italic markers.</summary>
+        private static readonly Regex _reItalic = new(@"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)|_(.+?)_", RegexOptions.Compiled);
+        /// <summary>Recognizes inline Markdown image references and their captions.</summary>
+        private static readonly Regex _reImage = new(@"!\[([^\]]*)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
+        /// <summary>Recognizes inline Markdown link text and destinations.</summary>
+        private static readonly Regex _reLink = new(@"\[([^\]]+)\]\(([^)\s]+)(?:\s+""([^""]+)"")?\)", RegexOptions.Compiled);
         /// <summary>
         /// Returns the title and SVG icon markup for a supported Markdown alert marker.
         /// </summary>
@@ -395,7 +422,7 @@ else if (!string.IsNullOrEmpty(_html))
                 // Fenced code start ```lang
                 if (!inFence)
                 {
-                    var fs = ReFencedStart.Match(line);
+                    var fs = _reFencedStart.Match(line);
                     if (fs.Success)
                     {
                         FlushPara(); CloseLists(); CloseQuote();
@@ -417,7 +444,7 @@ else if (!string.IsNullOrEmpty(_html))
                 }
                 else
                 {
-                    if (ReFencedEnd.IsMatch(line))
+                    if (_reFencedEnd.IsMatch(line))
                     {
                         sb.Append("</code></pre>\n");
                         inFence = false; fenceLang = "";
@@ -476,8 +503,8 @@ else if (!string.IsNullOrEmpty(_html))
 
                 // Underlined README headings.
                 if (lineIndex + 1 < lines.Length &&
-                    !ReHeading.IsMatch(line) && !ReUl.IsMatch(line) && !ReOl.IsMatch(line) &&
-                    !ReBlockquote.IsMatch(line) && !ReHr.IsMatch(line) &&
+                    !_reHeading.IsMatch(line) && !_reUl.IsMatch(line) && !_reOl.IsMatch(line) &&
+                    !_reBlockquote.IsMatch(line) && !_reHr.IsMatch(line) &&
                     Regex.IsMatch(lines[lineIndex + 1], @"^\s*(=+|-+)\s*$"))
                 {
                     FlushPara(); CloseLists(); CloseQuote();
@@ -487,7 +514,7 @@ else if (!string.IsNullOrEmpty(_html))
                 }
 
                 // Vaakaviiva
-                if (ReHr.IsMatch(line))
+                if (_reHr.IsMatch(line))
                 {
                     FlushPara(); CloseLists(); CloseQuote();
                     sb.Append("<hr />\n");
@@ -495,7 +522,7 @@ else if (!string.IsNullOrEmpty(_html))
                 }
 
                 // Lainaus
-                var bq = ReBlockquote.Match(line);
+                var bq = _reBlockquote.Match(line);
                 if (bq.Success)
                 {
                     FlushPara(); CloseLists();
@@ -505,7 +532,7 @@ else if (!string.IsNullOrEmpty(_html))
                         var body = new StringBuilder();
                         while (lineIndex + 1 < lines.Length)
                         {
-                            var nextQuote = ReBlockquote.Match(lines[lineIndex + 1]);
+                            var nextQuote = _reBlockquote.Match(lines[lineIndex + 1]);
                             if (!nextQuote.Success || GetAlert(nextQuote.Groups[1].Value).Title.Length != 0)
                             {
                                 break;
@@ -543,7 +570,7 @@ else if (!string.IsNullOrEmpty(_html))
                 }
 
                 // Otsikot
-                var h = ReHeading.Match(line);
+                var h = _reHeading.Match(line);
                 if (h.Success)
                 {
                     FlushPara(); CloseLists();
@@ -554,7 +581,7 @@ else if (!string.IsNullOrEmpty(_html))
                 }
 
                 // Luettelot (UL) + tehtävälistat
-                var ulm = ReUl.Match(line);
+                var ulm = _reUl.Match(line);
                 if (ulm.Success)
                 {
                     FlushPara();
@@ -588,7 +615,7 @@ else if (!string.IsNullOrEmpty(_html))
                 }
 
                 // Numeroidut luettelot (OL) + tehtävälistat
-                var olm = ReOl.Match(line);
+                var olm = _reOl.Match(line);
                 if (olm.Success)
                 {
                     FlushPara();
@@ -668,9 +695,12 @@ else if (!string.IsNullOrEmpty(_html))
         }
 
         // Allow only the attribute-free line-break tag, not arbitrary raw HTML.
-        private static readonly Regex ReLineBreak = new(@"(?<!\\)<br\s*/?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex ReAnchor = new(@"(?<!\\)<a\s+id\s*=\s*[""']([\p{L}\p{N}_.:-]+)[""']\s*>\s*</a\s*>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex[] InlinePatterns = [ReCodeInline, ReImage, ReLink, ReBold, ReItalic, ReLineBreak, ReAnchor];
+        /// <summary>Recognizes explicit Markdown line breaks.</summary>
+        private static readonly Regex _reLineBreak = new(@"(?<!\\)<br\s*/?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        /// <summary>Recognizes generated HTML anchors when processing Markdown links.</summary>
+        private static readonly Regex _reAnchor = new(@"(?<!\\)<a\s+id\s*=\s*[""']([\p{L}\p{N}_.:-]+)[""']\s*>\s*</a\s*>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        /// <summary>Stores inline Markdown transformations in their application order.</summary>
+        private static readonly Regex[] _inlinePatterns = [_reCodeInline, _reImage, _reLink, _reBold, _reItalic, _reLineBreak, _reAnchor];
 
         /// <summary>
         /// Formats inline Markdown tokens while encoding literal text and limiting recursive parsing depth.
@@ -687,9 +717,9 @@ else if (!string.IsNullOrEmpty(_html))
             {
                 Match? next = null;
                 int kind = -1;
-                for (int i = 0; i < InlinePatterns.Length; ++i)
+                for (int i = 0; i < _inlinePatterns.Length; ++i)
                 {
-                    var match = InlinePatterns[i].Match(s, position);
+                    var match = _inlinePatterns[i].Match(s, position);
                     if (match.Success && (next is null || match.Index < next.Index))
                     {
                         next = match;

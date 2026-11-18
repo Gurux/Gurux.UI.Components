@@ -44,6 +44,86 @@ Add the component namespace to `_Imports.razor`:
 
 ## Examples
 
+### Show arbitrary content in a side panel
+
+```razor
+@using Gurux.UI.Components.Panel
+
+<button type="button" @onclick="() => detailsOpen = true">Details</button>
+<GXSidePanel @bind-Open="detailsOpen" Title="Details" Width="36rem">
+    <p>Place a form, table, component or other Blazor content here.</p>
+</GXSidePanel>
+
+@code {
+    private bool detailsOpen;
+}
+```
+
+`HeaderContent` and `FooterContent` add application-owned actions. Supply
+`CloseButtonTitle` to localize the close button. Content is mounted only while
+open and disposed when closed. Escape closes the panel. Normal panels leave the
+underlying editor usable; panels opened above a modal dialog join the existing
+dialog focus stack and restore focus on close. The panel uses theme colors and
+fits narrow viewports.
+
+### Display provider help content
+
+```razor
+@using Gurux.UI.Components.Help
+
+<GXHelpContentView Content="helpContent">
+    <EmptyContent>No instructions are available for this item.</EmptyContent>
+</GXHelpContentView>
+```
+
+`helpContent` is a `GXHelpContent` returned by an `IGXHelpProvider`.
+`GXHelpContentView` delegates Markdown to the existing `GXMarkdownView`, encodes
+plain text and displays HTTP/HTTPS or relative documentation links. Unsupported
+link schemes are displayed as text. Applications own topic selection, loading,
+authentication and fallback content. Use this component inside `GXSidePanel` or
+any other container. No second Markdown implementation is introduced.
+
+The development source version for these additions is `4.0.2611.605-local`.
+Publish a new package before using these components from NuGet. Applications
+using a project reference can consume the updated source directly.
+
+### Open contextual help in the existing application
+
+Place one `GXHelpPanel` in the application layout alongside the page content:
+
+```razor
+@using Gurux.UI.Components.Help
+
+<GXHelpPanel HelpPath="/help">
+    <EmptyContent Context="request">No instructions are available for @request.Topic.</EmptyContent>
+</GXHelpPanel>
+```
+
+Register `GXHelpService` and the application's `IGXHelpProvider` implementations as
+described below, and set the service's `BaseAddress` to `/help`. Existing `GXHelp`
+links then open the panel in the same application session. The panel follows the
+active topic, preserves its version and culture, cancels unfinished loading on
+close, and uses `GXHelpContentView` with the existing `GXMarkdownView` renderer.
+Its JavaScript is supplied automatically by the component library.
+
+The panel uses the shared progress and notification services. Register
+`IGXProgress` with `GXProgressService` and `IGXNotificationService` with
+`GXNotificationService` in the same application scope. Provider loading creates a
+cancellable progress operation; failures are reported through notifications.
+Closing or replacing a request ends its progress operation, including when a
+provider takes longer to observe cancellation. Cancellation does not create an
+error notification.
+
+Use `ContentTemplate` instead of the default provider loader when the application
+already owns help rendering or a manual fallback. It receives a `GXHelpRequest`;
+the panel still handles opening, closing and contextual links. `EmptyContent`
+customizes missing-provider content when using the default loader. Title, width,
+progress messages, error notification titles, unavailable text and button/link labels are configurable.
+Panels have independent generated IDs; provide distinct IDs and help paths when
+hosting more than one. Modifier clicks and external links retain normal browser
+behavior. Documentation anchors scroll within their panel without changing the
+open editor's URL.
+
 ### Provide contextual help
 
 Implement `IGXHelpProvider` to supply help from embedded resources, files or a remote
@@ -545,3 +625,9 @@ NotificationsTile supports these tags in both titles and descriptions.
 HTTP, HTTPS and application-relative links are supported. Labels and ordinary HTML
 are displayed as escaped text; unsafe URLs and incomplete tags remain text.
 URL tags are presentation markup and do not require a server token provider.
+
+## Adaptive appearance
+
+Opt-in layout, Bootstrap/Bootswatch theme and color-mode management is documented
+in [Adaptive appearance](Development/Appearance/README.md). `Default` preserves
+the existing layout; select `Auto` explicitly to enable client-platform styling.

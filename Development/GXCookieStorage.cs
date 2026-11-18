@@ -33,7 +33,9 @@ namespace Gurux.UI.Components;
 /// </summary>
 public class GXCookieStorage : IGXCookieStorage
 {
+    /// <summary>Holds the optional cookie accessor module for disposal when created.</summary>
     private Lazy<IJSObjectReference> _accessorJsRef = new();
+    /// <summary>Provides access to JavaScript in the connected browser.</summary>
     private readonly IJSRuntime _jsRuntime;
 
     /// <summary>
@@ -49,7 +51,7 @@ public class GXCookieStorage : IGXCookieStorage
     /// </summary>
     private async Task SetCookie(string value)
     {
-        await _jsRuntime.InvokeVoidAsync("eval", $"document.cookie = \"{value}\"");
+        await GXJavaScriptInterop.InvokeVoidAsync(_jsRuntime, "eval", $"document.cookie = \"{value}\"");
     }
 
     /// <summary>
@@ -57,7 +59,7 @@ public class GXCookieStorage : IGXCookieStorage
     /// </summary>
     private async Task<string> GetCookie()
     {
-        return await _jsRuntime.InvokeAsync<string>("eval", $"document.cookie");
+        return await GXJavaScriptInterop.InvokeAsync<string>(_jsRuntime, "eval", $"document.cookie");
     }
 
     /// <summary>

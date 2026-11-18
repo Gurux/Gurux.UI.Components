@@ -64,6 +64,7 @@ Edits a byte array as ASCII or hexadecimal text with a display mode switch.
     /// </summary>
     private string Id => GXComponentAttributes.GetId(AdditionalAttributes, ref _generatedId);
 
+    /// <summary>Stores a stable generated element identifier when the caller supplies none.</summary>
     private string? _generatedId;
 
     /// <summary>
@@ -109,7 +110,8 @@ Edits a byte array as ASCII or hexadecimal text with a display mode switch.
     [Parameter]
     public bool HexDisabled { get; set; }
 
-    private bool IsASCIIString;
+    /// <summary>Records whether the current byte array can be displayed as ASCII text.</summary>
+    private bool _isASCIIString;
 
     /// <summary>
     /// Returns whether the display mode switch is disabled.
@@ -195,15 +197,15 @@ Edits a byte array as ASCII or hexadecimal text with a display mode switch.
     {
         if (Value == null || !Value.Any())
         {
-            IsASCIIString = true;
+            _isASCIIString = true;
             Hex = false;
         }
         else
         {
-            IsASCIIString = IsAsciiString(Value);
-            Hex = !IsASCIIString;
+            _isASCIIString = IsAsciiString(Value);
+            Hex = !_isASCIIString;
         }
-        HexDisabled = !IsASCIIString;
+        HexDisabled = !_isASCIIString;
     }
 
     /// <summary>
@@ -278,9 +280,9 @@ Edits a byte array as ASCII or hexadecimal text with a display mode switch.
     {
         if (!Hex && Value != null)
         {
-            IsASCIIString = IsAsciiString();
-            Hex = !IsASCIIString;
-            if (!IsASCIIString)
+            _isASCIIString = IsAsciiString();
+            Hex = !_isASCIIString;
+            if (!_isASCIIString)
             {
                 HexDisabled = true;
             }

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Hex" xml:space="preserve"><value>Heksa</value></data>
+  <data name="RowsPerPage" xml:space="preserve"><value>Rivejä sivulla</value></data>
+  <data name="Search" xml:space="preserve"><value>Hae</value></data>
+  <data name="ShowDataForAllUsers" xml:space="preserve"><value>Näytä kaikkien käyttäjien tiedot.</value></data>
+  <data name="ShowRemoved" xml:space="preserve"><value>Näytä poistetut kohteet</value></data>
+  <data name="Total" xml:space="preserve"><value>Yhteensä</value></data>
+  <data name="Unknown" xml:space="preserve"><value>Tuntematon</value></data>
+  <data name="BuiltInThemeReadOnly" xml:space="preserve"><value>Sisäisiä teemoja ei voi korvata.</value></data>
+  <data name="RegisteredThemeRequired" xml:space="preserve"><value>Valitse rekisteröidyn teeman tunniste.</value></data>
+  <data name="InvalidAppearanceSettings" xml:space="preserve"><value>Virheelliset ulkoasuasetukset.</value></data>
+  <data name="InvalidThemeIdentity" xml:space="preserve"><value>Teemalla on oltava pienaakkosin kirjoitettu tunniste ja näyttönimi.</value></data>
+  <data name="ThemeVariablesRequired" xml:space="preserve"><value>Teeman muuttujat eivät saa olla null.</value></data>
+  <data name="InvalidThemeVariables" xml:space="preserve"><value>Teeman muuttujilla on oltava mukautettujen CSS-ominaisuuksien nimet, eivätkä niiden arvot saa olla null.</value></data>
+  <data name="InvalidThemeStylesheet" xml:space="preserve"><value>Teeman CSS-tiedoston on oltava paikallinen .css-tiedosto tai erikseen sallittu HTTP(S)-tyylitiedosto.</value></data>
+  <data name="Close" xml:space="preserve"><value>Sulje</value></data>
+  <data name="Save" xml:space="preserve"><value>Tallenna</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Peruuta</value></data>
+  <data name="InvalidFileContent" xml:space="preserve"><value>Tiedoston sisältö on virheellinen.</value></data>
+  <data name="ItemsProviderRequired" xml:space="preserve"><value>ItemsProvider ei ole asetettu.</value></data>
+  <data name="DocumentationLoadFailed" xml:space="preserve"><value>Ohjeiden lataaminen epäonnistui.</value></data>
+  <data name="CloseMenu" xml:space="preserve"><value>Sulje valikko</value></data>
+  <data name="FilterPolicies" xml:space="preserve"><value>Suodata käytäntöjä nimen perusteella</value></data>
+  <data name="PolicyFilterPlaceholder" xml:space="preserve"><value>Suodata nimen perusteella</value></data>
+  <data name="Retry" xml:space="preserve"><value>Yritä uudelleen</value></data>
+  <data name="Name" xml:space="preserve"><value>Nimi</value></data>
+  <data name="SelectVisible" xml:space="preserve"><value>Valitse näkyvät</value></data>
+  <data name="Policies" xml:space="preserve"><value>Käytännöt</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>Ei saatavilla</value></data>
+  <data name="NoPoliciesFound" xml:space="preserve"><value>Käytäntöjä ei löytynyt.</value></data>
+  <data name="InvalidPolicyName" xml:space="preserve"><value>Jokaisessa valitussa käytännön nimessä on oltava 1–128 merkkiä.</value></data>
+  <data name="LoadingPolicies" xml:space="preserve"><value>Ladataan käytäntöjä…</value></data>
+  <data name="HelpAddressNotAllowed" xml:space="preserve"><value>Ohjeartikkelin osoite ei ole sallittu.</value></data>
+  <data name="HelpArticleTooLarge" xml:space="preserve"><value>Ohjeartikkeli on liian suuri.</value></data>
+  <data name="Help" xml:space="preserve"><value>Ohje</value></data>
+  <data name="HelpUnavailable" xml:space="preserve"><value>Tästä aiheesta ei ole saatavilla ohjetta.</value></data>
+  <data name="ResizePanels" xml:space="preserve"><value>Muuta paneelien kokoa vetämällä</value></data>
+  <data name="Columns" xml:space="preserve"><value>Sarakkeet</value></data>
+</root>

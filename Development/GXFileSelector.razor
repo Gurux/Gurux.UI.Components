@@ -137,9 +137,13 @@ Reads selected or dropped files and publishes their bytes with progress and erro
     [Parameter]
     public EventCallback<(TType? Value, string FileName)> OnLoaded { get; set; }
 
+    /// <summary>References the browser element accepting dropped files.</summary>
     private ElementReference _dropZoneElement;
+    /// <summary>References the Blazor file input used by drag-and-drop initialization.</summary>
     private GXInputFile? _inputFile;
+    /// <summary>Holds the browser drag-and-drop controller owned by this file selector.</summary>
     private IJSObjectReference? _dropZoneInstance;
+    /// <summary>Holds the imported browser module until component disposal.</summary>
     private IJSObjectReference? _module;
 
     /// <summary>
@@ -172,7 +176,7 @@ Reads selected or dropped files and publishes their bytes with progress and erro
                 }
                 else
                 {
-                    throw new Exception("Invalid file content.");
+                    throw new Exception(Gurux.UI.Components.Properties.Resources.InvalidFileContent);
                 }
             }
             else if (typeof(TType) == typeof(byte[]))
@@ -196,7 +200,7 @@ Reads selected or dropped files and publishes their bytes with progress and erro
     {
         if (firstRender && JSRuntime != null)
         {
-            _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import",
+            _module = await GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(JSRuntime, "import",
                 "./_content/Gurux.UI.Components/FileSelector/drop.js");
             if (_inputFile == null)
             {
@@ -221,7 +225,7 @@ Reads selected or dropped files and publishes their bytes with progress and erro
     {
         if (_dropZoneInstance != null)
         {
-            await _dropZoneInstance.InvokeVoidAsync("dispose");
+            await GXJavaScriptInterop.InvokeVoidAsync(_dropZoneInstance, "dispose");
             await _dropZoneInstance.DisposeAsync();
         }
     }

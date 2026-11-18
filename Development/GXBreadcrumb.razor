@@ -45,7 +45,7 @@ Renders supplied breadcrumbs or generates a localized trail from the current URL
                 <li class="breadcrumb-item active" aria-current="page">
                     @if (item.Localized)
                     {
-                        <GXLocalizedText Update="@Update" Value="@item.Text" />
+                        <GXLocalizedText Update="@_update" Value="@item.Text" />
                     }
                     else
                     {
@@ -59,7 +59,7 @@ Renders supplied breadcrumbs or generates a localized trail from the current URL
                     <a href="@item.Href">
                         @if (item.Localized)
                         {
-                            <GXLocalizedText @bind-Update="@Update" Value="@item.Text" />
+                            <GXLocalizedText @bind-Update="@_update" Value="@item.Text" />
                         }
                         else
                         {
@@ -76,7 +76,8 @@ Renders supplied breadcrumbs or generates a localized trail from the current URL
 
 
 
-    private bool Update = false;
+    /// <summary>Requests that localized breadcrumb captions refresh after rebuilding the trail.</summary>
+    private bool _update = false;
     /// <summary>
     /// Gets or sets captured HTML attributes forwarded to the underlying element.
     /// </summary>
@@ -163,7 +164,7 @@ Renders supplied breadcrumbs or generates a localized trail from the current URL
             list[^1] = list[^1] with { Href = null, Active = true };
         }
 
-        Update = true;
+        _update = true;
         return list;
     }
 

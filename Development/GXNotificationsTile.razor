@@ -86,7 +86,7 @@ Displays stored notifications using severity filters, field settings, and option
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
-    private string NotificationClass => AdaptiveClass("notification-list list-unstyled mt-3 mb-0 text-start") + (IsAdaptive ? " gx-adaptive-notifications gx-notification-" + (AdaptiveBehavior.Layout == GXLayoutStyle.Fluent ? "infobar" : "banner") : "");
+    private string NotificationClass => AdaptiveClass("notification-list list-unstyled mt-3 mb-0 text-start") + (IsAdaptive ? " gx-adaptive-notifications gx-notification-" + (AdaptiveBehavior.Layout == LayoutStyle.Fluent ? "infobar" : "banner") : "");
     private readonly List<GXNotificationItem> _visibleNotifications = new();
     private bool _disposed;
 
