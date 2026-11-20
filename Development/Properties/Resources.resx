@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -228,4 +228,22 @@
   <data name="Columns" xml:space="preserve">
     <value>Columns</value>
   </data>
+  <data name="BitEditorBinary" xml:space="preserve"><value>Binary</value></data>
+  <data name="BitEditorBitLabel" xml:space="preserve"><value>Bit {0}: {1}. {2} {3}</value></data>
+  <data name="BitEditorByteLabel" xml:space="preserve"><value>Byte {0}</value></data>
+  <data name="BitEditorClearAll" xml:space="preserve"><value>Clear all bits</value></data>
+  <data name="BitEditorDecimal" xml:space="preserve"><value>Decimal</value></data>
+  <data name="BitEditorHex" xml:space="preserve"><value>Hexadecimal</value></data>
+  <data name="BitEditorInvalidEncoding" xml:space="preserve"><value>The edit would produce invalid encoded text.</value></data>
+  <data name="BitEditorInvalidValue" xml:space="preserve"><value>Invalid value or bit width.</value></data>
+  <data name="BitEditorInvert" xml:space="preserve"><value>Invert bits</value></data>
+  <data name="BitEditorRestore" xml:space="preserve"><value>Restore original value</value></data>
+  <data name="BitEditorSetAll" xml:space="preserve"><value>Set all bits</value></data>
+  <data name="BitEditorText" xml:space="preserve"><value>Text</value></data>
+  <data name="BitEditorFormat" xml:space="preserve"><value>Value format</value></data>
+  <data name="BitEditorEditor" xml:space="preserve"><value>Editor</value></data>
+  <data name="BitEditorUnsupportedValueType" xml:space="preserve"><value>Unsupported bit value type: {0}.</value></data>
+  <data name="BitEditorInvalidNumericWidth" xml:space="preserve"><value>Invalid numeric width.</value></data>
+  <data name="BitEditorNamedValueFormat" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="BitEditorInvalidBitString" xml:space="preserve"><value>Invalid bit-string.</value></data>
 </root>

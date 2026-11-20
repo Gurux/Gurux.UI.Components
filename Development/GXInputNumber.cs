@@ -37,6 +37,29 @@ namespace Gurux.UI.Components
     /// <summary>
     /// Renders a numeric form input with type-aware parsing, bounds, and optional value persistence.
     /// </summary>
+    /// <typeparam name="TValue">The numeric value type bound to the input.</typeparam>
+    /// <example>
+    /// <para>Limit an integer value using the minimum, maximum and step parameters inside a Blazor form.</para>
+    /// <code language="razor"><![CDATA[
+    /// @page "/settings"
+    /// @using Gurux.UI.Components
+    /// @using Microsoft.AspNetCore.Components.Forms
+    ///
+    /// <EditForm Model="this">
+    ///     <GXInputNumber TValue="int"
+    ///                    @bind-Value="_refreshInterval"
+    ///                    Min="1"
+    ///                    Max="60"
+    ///                    Step="1" />
+    /// </EditForm>
+    ///
+    /// <p>Refresh interval: @_refreshInterval seconds</p>
+    ///
+    /// @code {
+    ///     private int _refreshInterval = 10;
+    /// }
+    /// ]]></code>
+    /// </example>
     public class GXInputNumber<TValue> : InputBase<TValue>
     {
         private TValue? _min;

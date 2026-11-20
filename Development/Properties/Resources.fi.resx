@@ -39,4 +39,22 @@
   <data name="HelpUnavailable" xml:space="preserve"><value>Tästä aiheesta ei ole saatavilla ohjetta.</value></data>
   <data name="ResizePanels" xml:space="preserve"><value>Muuta paneelien kokoa vetämällä</value></data>
   <data name="Columns" xml:space="preserve"><value>Sarakkeet</value></data>
+  <data name="BitEditorBinary" xml:space="preserve"><value>Binääri</value></data>
+  <data name="BitEditorBitLabel" xml:space="preserve"><value>Bitti {0}: {1}. {2} {3}</value></data>
+  <data name="BitEditorByteLabel" xml:space="preserve"><value>Tavu {0}</value></data>
+  <data name="BitEditorClearAll" xml:space="preserve"><value>Nollaa kaikki bitit</value></data>
+  <data name="BitEditorDecimal" xml:space="preserve"><value>Desimaali</value></data>
+  <data name="BitEditorHex" xml:space="preserve"><value>Heksadesimaali</value></data>
+  <data name="BitEditorInvalidEncoding" xml:space="preserve"><value>Muutos tuottaisi virheellisesti koodattua tekstiä.</value></data>
+  <data name="BitEditorInvalidValue" xml:space="preserve"><value>Virheellinen arvo tai bittimäärä.</value></data>
+  <data name="BitEditorInvert" xml:space="preserve"><value>Käännä bitit</value></data>
+  <data name="BitEditorRestore" xml:space="preserve"><value>Palauta alkuperäinen arvo</value></data>
+  <data name="BitEditorSetAll" xml:space="preserve"><value>Aseta kaikki bitit</value></data>
+  <data name="BitEditorText" xml:space="preserve"><value>Teksti</value></data>
+  <data name="BitEditorFormat" xml:space="preserve"><value>Arvon esitysmuoto</value></data>
+  <data name="BitEditorEditor" xml:space="preserve"><value>Editori</value></data>
+  <data name="BitEditorUnsupportedValueType" xml:space="preserve"><value>Bittiarvon tyyppiä {0} ei tueta.</value></data>
+  <data name="BitEditorInvalidNumericWidth" xml:space="preserve"><value>Virheellinen numeron bittimäärä.</value></data>
+  <data name="BitEditorNamedValueFormat" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="BitEditorInvalidBitString" xml:space="preserve"><value>Virheellinen bittijono.</value></data>
 </root>

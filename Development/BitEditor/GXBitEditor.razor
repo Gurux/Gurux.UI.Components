@@ -1,0 +1,107 @@
+@*
+--------------------------------------------------------------------------
+Gurux Ltd
+
+Copyright (c) Gurux Ltd.
+
+This file is part of Gurux Device Framework.
+
+Commit: $Format:%H$
+Date:   $Format:%cI$
+
+This software is available under either of the following licenses:
+
+1. GNU General Public License, version 2 only (GPL-2.0-only).
+   See the LICENSE file included with this distribution.
+
+2. A commercial license granted by Gurux Ltd under a separate written
+   agreement. Use under this option requires a valid commercial license
+   and is governed by the terms of that agreement.
+
+If you have not obtained a commercial license from Gurux Ltd,
+use of this software is governed by GPL-2.0-only.
+
+Commercial licensing: https://www.gurux.fi/
+
+SPDX-License-Identifier: GPL-2.0-only OR LicenseRef-Gurux-Commercial
+--------------------------------------------------------------------------
+*@
+
+@using Gurux.UI.Components.Enums
+@namespace Gurux.UI.Components.BitEditor
+@typeparam TValue
+@inherits InputBase<TValue>
+@using System.Text
+@using System.Globalization
+
+<div class="gx-bit-editor @CssClass" @attributes="AdditionalAttributes">
+    @if (NamedValues is { Count: > 0 })
+    {
+        <div class="gx-bit-named-values">
+            @foreach (var item in NamedValues)
+            {
+                <label style="display: block">
+                    <input type="checkbox" checked="@IsNamedValueSet(item.Key)" disabled="@CannotEdit"
+                           @onchange="e => ChangeNamedValue(item.Key, e.Value is true)" />
+                    @string.Format(CultureInfo.CurrentCulture, Properties.Resources.ResourceManager.GetString("BitEditorNamedValueFormat")!, item.Value, item.Key)
+                </label>
+            }
+        </div>
+    }
+    @if (HasDisplayFormats)
+    {
+        <div class="gx-bit-representations">
+            @if (SelectedFormat != GXBitEditorFormats.None)
+            {
+                <div class="gx-bit-value-row">
+                    @if (ShowFormatSelector)
+                    {
+                        <select class="gx-bit-format" aria-label="@Properties.Resources.ResourceManager.GetString("BitEditorFormat")" value="@SelectedFormat" @onchange="ChangeDisplayFormatAsync">
+                            @foreach (var format in AvailableFormats)
+                            {
+                                <option value="@format">@(format == GXBitEditorFormats.Editor ? Properties.Resources.ResourceManager.GetString("BitEditorEditor") : format == GXBitEditorFormats.Binary ? Properties.Resources.BitEditorBinary : format == GXBitEditorFormats.Hexadecimal ? Properties.Resources.BitEditorHex : Properties.Resources.BitEditorDecimal)</option>
+                            }
+                        </select>
+                    }
+                    @if (SelectedFormat == GXBitEditorFormats.Editor)
+                    {
+                        @if (ShowToolbar)
+                        {
+                            <div class="gx-bit-toolbar">
+                                <button type="button" disabled="@CannotEdit" @onclick="SetAllAsync">@Properties.Resources.BitEditorSetAll</button>
+                                <button type="button" disabled="@CannotEdit" @onclick="ClearAllAsync">@Properties.Resources.BitEditorClearAll</button>
+                                <button type="button" disabled="@CannotEdit" @onclick="InvertAllAsync">@Properties.Resources.BitEditorInvert</button>
+                                <button type="button" disabled="@CannotEdit" @onclick="RestoreAsync">@Properties.Resources.BitEditorRestore</button>
+                            </div>
+                        }
+                        <GXBitGrid Bytes="_bytes" Original="_original" BitCount="_bitCount" Numeric="IsNumeric" BitString="IsBitString"
+                                   ByteOrder="ByteOrder" BitOrder="BitOrder" AutoWrap="AutoWrap" BitsPerRow="BitsPerRow" GroupSize="GroupSize"
+                                   ShowBitIndex="ShowBitIndex" ShowByteIndex="ShowByteIndex" Virtualize="Virtualize" ReadOnly="ReadOnly"
+                                   Disabled="@(Disabled || _invalidValue)" Definitions="_definitions" Toggle="ToggleBitAsync" />
+                    }
+                    @if (SelectedFormat == GXBitEditorFormats.Binary)
+                    {
+                        <textarea aria-label="@Properties.Resources.BitEditorBinary" rows="2" value="@Binary" readonly="@CannotEdit" disabled="@Disabled" @onchange="BinaryChanged" />
+                    }
+                    else if (SelectedFormat == GXBitEditorFormats.Hexadecimal)
+                    {
+                        <textarea aria-label="@Properties.Resources.BitEditorHex" rows="2" value="@Convert.ToHexString(_bytes)" readonly="@CannotEdit" disabled="@Disabled" @onchange="HexChanged" />
+                    }
+                    else if (SelectedFormat == GXBitEditorFormats.Decimal)
+                    {
+                        <input aria-label="@Properties.Resources.BitEditorDecimal" value="@(_invalidValue ? string.Empty : GXBitConverter.FormatNumber(Value!))" readonly="@CannotEdit" disabled="@Disabled" @onchange="NumberChanged" />
+                    }
+
+                </div>
+            }
+            @if (typeof(TValue) == typeof(string) && !IsBitString && DisplayFormats.HasFlag(GXBitEditorFormats.Text))
+            {
+                <label><span>@Properties.Resources.BitEditorText</span><textarea rows="2" value="@Value" readonly="@CannotEdit" disabled="@Disabled" @onchange="TextChanged" /></label>
+            }
+        </div>
+    }
+    @if (_error is not null)
+    {
+        <div role="alert" class="validation-message">@_error</div>
+    }
+</div>
