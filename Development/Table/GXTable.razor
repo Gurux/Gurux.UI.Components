@@ -52,6 +52,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         bool showColumnConfiguration = AllowColumnCustomization && AvailableColumns.Count != 0;
         bool showRowMenu = Menu && MenuContent != null;
         bool showActionsColumn = showRowMenu || showColumnConfiguration;
+        var selectionState = GetPageSelectionState();
     }
     @if (Filter && FilterContent != null)
     {
@@ -177,7 +178,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                     }
                 </tr>
             }
-            @if (HeaderContent != null || showActionsColumn)
+            @if (HeaderContent != null || showActionsColumn || SelectionMode == SelectionMode.Multiple)
             {
                 <tr>
                     @if (RearrangeRows)
@@ -188,8 +189,12 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                     {
                         <th width="1%">
                             <input class="form-check-input" type="checkbox"
-                                   checked="@IsAllSelected()"
-                                   onchange="@((ChangeEventArgs __e) => ToggleAllRow(Convert.ToBoolean(__e.Value)))" />
+                                   @ref="_selectionHeader"
+                                   checked="@(selectionState.Count != 0 && selectionState.Checked == selectionState.Count)"
+                                   disabled="@(selectionState.Count == 0)"
+                                   aria-label="@Properties.Resources.SelectVisible"
+                                   aria-checked="@(selectionState.Checked == 0 ? "false" : selectionState.Checked == selectionState.Count ? "true" : "mixed")"
+                                   @onchange="@((ChangeEventArgs __e) => ToggleAllRowsAsync(Convert.ToBoolean(__e.Value)))" />
                         </th>
                     }
                     @header
@@ -250,7 +255,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                                 <input class="form-check-input" type="checkbox"
                                        disabled="@IsCheckboxDisabled(it)"
                                        checked="@IsSelected(it)"
-                                       onchange="@((ChangeEventArgs __e) => ToggleRow(it, Convert.ToBoolean(__e.Value)))" />
+                                       @onchange="@((ChangeEventArgs __e) => ToggleRow(it, Convert.ToBoolean(__e.Value)))" />
                             </td>
                         }
                         <CascadingValue Value="@(new GXTableRowContext(it, EditLink?.Invoke(it)))">
@@ -365,6 +370,10 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     private readonly Dictionary<string, double> _columnWidths = new(StringComparer.Ordinal);
     /// <summary>Holds the browser module implementing table column width persistence.</summary>
     private IJSObjectReference? _widthModule;
+    /// <summary>References the current page's selection checkbox in the browser.</summary>
+    private ElementReference _selectionHeader;
+    /// <summary>Loads the browser helper that sets the checkbox's native mixed state.</summary>
+    private Task<IJSObjectReference>? _selectionModule;
     /// <summary>Holds the browser controller observing and resizing table columns.</summary>
     private IJSObjectReference? _widthHandler;
     /// <summary>Allows the browser width controller to publish measured widths to this table.</summary>
@@ -560,7 +569,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     public EventCallback OnSearch { get; set; }
 
     /// <summary>
-    /// Gets or sets the callback invoked with the checked items after row selection changes.
+    /// Gets or sets the callback invoked with checked items across all loaded pages after row or header selection changes.
     /// </summary>
     [Parameter]
     public EventCallback<IEnumerable<TItem>> OnChecked { get; set; }
@@ -695,7 +704,7 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     }
 
     /// <summary>
-    /// Gets the selected table items.
+    /// Gets checked items across pages and filters; refreshed visible items replace previously loaded instances.
     /// </summary>
     public IEnumerable<TItem> SelectedItems
     {
@@ -1591,14 +1600,17 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 List<TItem> tmp = new List<TItem>(Items);
                 foreach (var removed in items)
                 {
+                    object? value = GetItemKey(removed);
+                    if (value != null && _selectedItems.Remove(value))
+                    {
+                        updated = true;
+                        AnyChecked = _selectedItems.Count != 0;
+                    }
                     foreach (var it in tmp)
                     {
-                        object? value = GetItemKey(removed);
                         if (value != null && value.Equals(GetItemKey(it)))
                         {
                             --TotalCount;
-                            _selectedItems.Remove(value);
-                            AnyChecked = _selectedItems.Any();
                             if (Compare(Active, it))
                             {
                                 Active = default;
@@ -1650,36 +1662,24 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
                 throw new Exception(Gurux.UI.Components.Properties.Resources.ItemsProviderRequired);
             }
             var result = await ItemsProvider(req);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
             Items = result.Items;
-            //Update selected items.
-            List<TItem> list = new List<TItem>();
+            // Keep off-page selections and replace visible selections with refreshed instances.
             if (Items != null)
             {
-                foreach (var it in _selectedItems)
+                foreach (var row in Items)
                 {
-                    foreach (var it2 in Items)
+                    object? key = GetItemKey(row);
+                    if (key != null && _selectedItems.ContainsKey(key))
                     {
-                        if (Compare(it.Value, it2))
-                        {
-                            list.Add(it2);
-                            break;
-                        }
+                        _selectedItems[key] = row;
                     }
                 }
             }
-            _selectedItems.Clear();
-            foreach (var it in list)
-            {
-                if (it is null)
-                {
-                    continue;
-                }
-                object? value = GetItemKey(it);
-                if (value != null)
-                {
-                    _selectedItems.Add(value, it);
-                }
-            }
+            AnyChecked = _selectedItems.Count != 0;
             //Select active item again.
             if (Active != null)
             {
@@ -1827,12 +1827,13 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     }
 
     /// <summary>
-    /// Determines whether every displayed table item is checked.
+    /// Determines whether every selectable displayed table item is checked.
     /// </summary>
-    /// <returns>True, if all the rows are selected.</returns>
+    /// <returns>The checked attribute when every selectable displayed row is checked; otherwise null.</returns>
     protected string? IsAllSelected()
     {
-        if (Items != null && _selectedItems.Count == Items.Count() && Items.Any())
+        var state = GetPageSelectionState();
+        if (state.Count != 0 && state.Checked == state.Count)
         {
             return "checked";
         }
@@ -1900,29 +1901,62 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     }
 
     /// <summary>
-    /// Checks or unchecks all displayed rows and notifies selection callbacks.
+    /// Checks or unchecks selectable displayed rows and updates the aggregate checked state.
     /// </summary>
     /// <param name="select">Selected item</param>
     protected void ToggleAllRow(bool select)
     {
+        foreach (var item in GetSelectableItems())
+        {
+            SetRowSelection(item, select);
+        }
+        AnyChecked = _selectedItems.Count != 0;
+    }
+
+    /// <summary>Checks or unchecks selectable rows on the current page and awaits both selection callbacks.</summary>
+    /// <param name="select">Whether to check the displayed selectable rows.</param>
+    /// <returns>The completion of the selection notifications.</returns>
+    private async Task ToggleAllRowsAsync(bool select)
+    {
+        ToggleAllRow(select);
+        await AnyCheckedChanged.InvokeAsync(AnyChecked);
+        await OnChecked.InvokeAsync(_selectedItems.Values.ToArray());
+    }
+
+    /// <summary>Enumerates identifiable rows on the current page whose checkboxes can be changed.</summary>
+    /// <returns>The rows eligible for header selection.</returns>
+    private IEnumerable<TItem> GetSelectableItems()
+    {
         if (Items != null)
         {
-            foreach (var it in Items)
+            foreach (var item in Items)
             {
-                object? value = GetItemKey(it);
-                if (value != null)
+                if (GetItemKey(item) != null && IsCheckboxDisabled(item) == null)
                 {
-                    if (!select && _selectedItems.ContainsKey(value))
-                    {
-                        _selectedItems.Remove(value);
-                    }
-                    else if (select && !_selectedItems.ContainsKey(value))
-                    {
-                        _selectedItems.Add(value, it);
-                    }
+                    yield return item;
                 }
             }
         }
+    }
+
+    /// <summary>Counts selectable and checked rows on the current page independently of other pages.</summary>
+    /// <returns>The number of selectable rows and the number of checked selectable rows.</returns>
+    private (int Count, int Checked) GetPageSelectionState()
+    {
+        int count = 0;
+        int selected = 0;
+        if (SelectionMode == SelectionMode.Multiple)
+        {
+            foreach (var item in GetSelectableItems())
+            {
+                ++count;
+                if (IsSelected(item) != null)
+                {
+                    ++selected;
+                }
+            }
+        }
+        return (count, selected);
     }
 
     /// <summary>
@@ -1977,13 +2011,32 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
     }
 
     /// <summary>
-    /// Loads the initial table data from the items provider.
+    /// Synchronizes the native header checkbox state and initializes browser helpers and table data.
     /// </summary>
+    /// <param name="firstRender">Whether this is the first render of the table.</param>
+    /// <returns>The completion of browser synchronization and initial data loading.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_disposed)
         {
             return;
+        }
+        if (SelectionMode == SelectionMode.Multiple && Services.GetService<IJSRuntime>() is IJSRuntime selectionJs)
+        {
+            try
+            {
+                _selectionModule ??= GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(selectionJs, "import", "./_content/Gurux.UI.Components/Table/selection.js").AsTask();
+                var module = await _selectionModule;
+                if (!_disposed && SelectionMode == SelectionMode.Multiple)
+                {
+                    var state = GetPageSelectionState();
+                    await GXJavaScriptInterop.InvokeVoidAsync(module, "setIndeterminate", _selectionHeader, state.Checked != 0 && state.Checked != state.Count);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // A lost browser connection cancels interop during navigation.
+            }
         }
         if (ColumnWidthsKey != null && Services.GetService<IJSRuntime>() is IJSRuntime js)
         {
@@ -2020,12 +2073,29 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         _widthHandler = await GXJavaScriptInterop.InvokeAsync<IJSObjectReference>(_widthModule, "initialize", Id, _widthReference);
     }
 
-    /// <summary>Removes browser resize listeners and releases interop references.</summary>
+    /// <summary>Removes browser resize listeners and releases width and selection interop references.</summary>
+    /// <returns>The completion of browser resource cleanup.</returns>
     public async ValueTask DisposeAsync()
     {
         Dispose();
         try
         {
+            if (_selectionModule != null)
+            {
+                try
+                {
+                    var selectionModule = await _selectionModule;
+                    await selectionModule.DisposeAsync();
+                }
+                catch (OperationCanceledException)
+                {
+                    // Continue releasing other table resources after a canceled import.
+                }
+                catch (JSDisconnectedException)
+                {
+                    // The browser has already released its module reference.
+                }
+            }
             if (_widthInitialization != null)
             {
                 await _widthInitialization;
