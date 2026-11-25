@@ -703,6 +703,11 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
         return rows.ToArray();
     }
 
+    /// <summary>Gets or sets the authoritative checked items supplied by a containing editor, or null for internally managed selection.</summary>
+    /// <remarks>Parameter updates synchronize checkbox state without invoking selection callbacks, including after an owner rolls back a failed change.</remarks>
+    [Parameter]
+    public IEnumerable<TItem>? CheckedItems { get; set; }
+
     /// <summary>
     /// Gets checked items across pages and filters; refreshed visible items replace previously loaded instances.
     /// </summary>
@@ -1419,6 +1424,20 @@ Displays typed rows with paging, sorting, selection, filtering, and optional row
 
     protected override void OnParametersSet()
     {
+        if (CheckedItems != null)
+        {
+            var checkedItems = CheckedItems.ToArray();
+            _selectedItems.Clear();
+            foreach (var item in checkedItems)
+            {
+                var key = GetItemKey(item);
+                if (key != null)
+                {
+                    _selectedItems[key] = item;
+                }
+            }
+            AnyChecked = _selectedItems.Count != 0;
+        }
         if (!AllowColumnCustomization)
         {
             _showColumnEditor = false;
